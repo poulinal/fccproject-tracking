@@ -11,7 +11,7 @@ This measurement faces several challenges:
 
 ## Project Objective
 
-The primary goal is to measure the $H \to WW^*$ decay in various sensitive final states and combine the results into a single, precise cross-section measurement. All the different measurements are to be combined into a single uncertainty on the $H \to WW^*$ cross-section.
+The primary goal is to measure the $H \to WW^* $ decay in various sensitive final states and combine the results into a single, precise cross-section measurement. All the different measurements are to be combined into a single uncertainty on the $H \to WW^*$ cross-section.
 
 ---
 

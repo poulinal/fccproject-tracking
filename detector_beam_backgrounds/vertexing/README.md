@@ -35,7 +35,7 @@ It generates the energy deposits for each layer. There are 3 types of energy dep
 
 - Raw energy deposit for each hit on each layer (keV)
 - Energy deposit per unit of crossed material (keV/mm)
-- 
+- Same as above, but for a subset of hits that do not have secondary particles
 
 
 ## Hit maps

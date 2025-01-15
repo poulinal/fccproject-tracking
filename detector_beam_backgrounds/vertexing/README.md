@@ -7,6 +7,12 @@ We simulated in detail the interaction of charged particles with the detector ma
 
 Presentation of Nate: https://github.com/mit-fcc/projects/blob/master/detector_beam_backgrounds/vertexing/NateMartinez_16102024.pdf
 
+The scripts are located in the ```scripts``` directory (either fork or copy them over to subMIT). As always, before you execute them, run the following command:
+
+```
+source /work/submit/jaeyserm/software/FCCAnalyses/setup.sh
+```
+
 
 ## Energy deposits
 

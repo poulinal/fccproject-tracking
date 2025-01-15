@@ -16,4 +16,4 @@ The vertex and tracking detectors are positioned closest to the beam interaction
 4. **Detector Optimization**  
    Refine the design and readout systems to ensure optimal performance under high background conditions.
 
-The vertex and tracking detectors are treated as distinct components with unique considerations. For detailed information on each, please take a look at their respective project pages [here](https://github.com/mit-fcc/projects/blob/master/detector_beam_backgrounds/vertexing.md) and [here](https://github.com/mit-fcc/projects/blob/master/detector_beam_backgrounds/tracking.md).
+The vertex and tracking detectors are treated as distinct components with unique considerations. For detailed information on each, please take a look at their respective project pages [here](https://github.com/mit-fcc/projects/blob/master/detector_beam_backgrounds/vertexing/README.md) and [here](https://github.com/mit-fcc/projects/blob/master/detector_beam_backgrounds/tracking/README.md).

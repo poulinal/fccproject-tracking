@@ -15,7 +15,7 @@ This project aims to assess the impact of beam backgrounds on the tracking detec
   - `output_IDEA_DIGI.root`: Contains the output of the digitizer.
 
 - **Background-only simulation files:**  
-  `/ceph/submit/data/group/fcc/ee/detector/trackinga/IDEA_background_only/out_sim_edm4hep_background_*.root`
+  `/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/out_sim_edm4hep_background_*.root`
 
 ### Visualization
 To visualize the detector with hits resulting from physics events and beam backgrounds:
@@ -35,7 +35,7 @@ To visualize the detector with hits resulting from physics events and beam backg
 ### Visualization
 To visualize the detector with hits from physics events and beam backgrounds:
 1. Download the file:  
-   `/eos/experiment/fcc/ee/datasets/CLD_tracking/condor/Pythia/CLD_background_overlay/10/output_overlay_new1.edm4hep.json`
+   `/ceph/submit/data/group/fcc/ee/detector/tracking/CLD_background_overlay/10/output_overlay_new1.edm4hep.json`
 2. Load it into [Phoenix](https://fccsw.web.cern.ch/fccsw/phoenix-dev/).
 3. To create a new JSON file from an EDM4hep simulation file:
    - Source the **key4hep nightlies**.

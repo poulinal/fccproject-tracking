@@ -6,10 +6,11 @@ from ROOT import TFile, TTree
 import numpy as np 
 from array import array
 import math
+import os
 
 list_overlay = []
 for i in range(1,20):
-    list_overlay.append("/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only/out_sim_edm4hep_background_"+str(i)+".root")
+    list_overlay.append("/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/out_sim_edm4hep_background_"+str(i)+".root")
 
 dic = {}
 total_time = 0 
@@ -72,4 +73,7 @@ dic["gens"]=np.array(list_gen_status)
 
 # dic["base"] =  list_times
 
-np.save("background_particles.npy", dic)
+#print current path
+#print("current path: ", os.getcwd())
+
+np.save("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles.npy", dic)

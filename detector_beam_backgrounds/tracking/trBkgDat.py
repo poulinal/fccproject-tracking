@@ -1,12 +1,13 @@
 from podio import root_io
-import edm4hep
-import sys
-import ROOT
-from ROOT import TFile, TTree
+#import edm4hep
+#import sys
+#import ROOT
+#from ROOT import TFile, TTree
 import numpy as np 
-from array import array
+#from array import array
 import math
-import os
+#import os
+import dd4hep as dd4hepModule
 from ROOT import dd4hep
 
 list_overlay = []
@@ -29,6 +30,7 @@ list_superLayer = []
 list_layer = []
 list_phi = []
 list_stereo = []
+list_pos_z = []
 for event in reader.get("events"):
     dc_hits = event.get("CDCHHits")
     for num_hit, dc_hit in enumerate(dc_hits):
@@ -37,6 +39,8 @@ for event in reader.get("events"):
         list_index.append(index_mc)
         list_hit_path_length.append(dc_hit.getPathLength())
         list_pos_hit.append([dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z])
+        list_pos_z.append(dc_hit.getPosition().z)
+        #print(list_index)
         
         cellID = dc_hit.getCellID()
         list_superLayer.append(decoder.get(cellID, "superLayer"))
@@ -97,38 +101,15 @@ dic["superLayer"] = np.array(list_superLayer)
 dic["layer"] = np.array(list_layer)
 dic["phi"] = np.array(list_phi)
 dic["stereo"] = np.array(list_stereo)
+dic["pos_z"] = np.array(list_pos_z)
 
 
-print(f"list_hit_path_length: {list_hit_path_length}")
-print(f"allHits: {len(list_hit_path_length)}")
-print(f"unique_mcs: {len(unique_mcs)}")
-print(f"lenPathLength: {len(list_hit_path_length)}")
+#print(f"list_hit_path_length: {list_hit_path_length}")
+#print(f"allHits: {len(list_hit_path_length)}")
+#print(f"unique_mcs: {len(unique_mcs)}")
+#print(f"lenPathLength: {len(list_hit_path_length)}")
+#print(f"pos_hit: {list_pos_hit}")
 ###path length is for each hit not combined for each particle
 #print(list_path_length)
-
-
-
-
-
-
-
-#print(list_index)
-
-# eos_base_file = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/scratch/Zcard_CLD_background/4/out_sim_edm4hep_base.root"
-
-# reader = root_io.Reader(eos_base_file)
-# metadata = reader.get("metadata")[0]
-# list_times = []
-# for event in reader.get("events"):
-#     dc_hits = event.get("CDCHHits")
-#     for num_hit, dc_hit in enumerate(dc_hits):
-#         time = dc_hit.getTime()
-#         if time<400:
-#             list_times.append(time)
-
-# dic["base"] =  list_times
-
-#print current path
-#print("current path: ", os.getcwd())
 
 np.save("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles.npy", dic)

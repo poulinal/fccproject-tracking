@@ -3,9 +3,11 @@ import numpy as np
 from utilities.functions import hist_plot, plot_hist#, sns_plot
 import argparse
 import sys
+import matplotlib.pyplot as plt
+import math
 
 
-
+available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits"]
 
 #open a .npy
 dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles.npy", allow_pickle=True).item()
@@ -109,7 +111,7 @@ def totPathLenMC(dic):
     #hist = ROOT.TH1F("hist", "Total path length of MC particles", 100, 0, 1500)
     
     #get the length of the vertex to the first hit
-    mcParticlesPosHit = groupHits(dic)
+    mcParticlesPosHit = groupHits(dic, "pos_hit")
     #mcParticlesPL = derPathLenWireEachMC(dic)
     mcParticlesPosVer = dic["pos_ver"]
     totMCPL = []
@@ -131,7 +133,7 @@ def totPathLenMC(dic):
     return hist, totMCPL
 
 
-def groupHits(dic):
+def groupHits(dic, list_dic):
     """
     Function that groups the hits by MC particle.
     Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
@@ -139,18 +141,20 @@ def groupHits(dic):
     """
     list_index = dic["hits"]
     
-    list_pos_hit = dic["pos_hit"]
+    list = list_dic
     mcParticlesID = []
     mcParticlesPosHit = []
+    
+    print(list)
     
     for i in range(0, len(list_index)):
         newEntry = []
         if list_index[i] not in mcParticlesID:
             mcParticlesID.append(list_index[i])
-            newEntry = [list_pos_hit[i]]
+            newEntry = [list[i]]
             mcParticlesPosHit.append(newEntry)
         else:
-            mcParticlesPosHit[mcParticlesID.index(list_index[i])].append(list_pos_hit[i])
+            mcParticlesPosHit[mcParticlesID.index(list_index[i])].append(list[i])
     #print(f"mcParticlesPosHit: {mcParticlesPosHit}")
     return mcParticlesPosHit
 
@@ -172,33 +176,105 @@ def wiresPerMC(dic):
         hist.Fill(mcParticles[i])
     return hist
 
+def trajLen(dic):
+    """
+    Function that returns the trajectory length of MC particles.
+    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    Outputs: hist, histogram with the trajectory length of MC particles.
+    """
+    hist = ROOT.TH1F("hist", "Trajectory length of MC particles", 100, 0, 4000)
+    #get the length of the vertex to the first hit
+    mcParticlesPosHit = groupHits(dic, dic["pos_z"])
+    totMCPL = []
+    #go through each mcParticle, 
+    for i in range(0, len(mcParticlesPosHit)):
+        # given mcParticlesPosHit is an array (each particle) of 3position arrays (each hit)
+        # get just the max z and min z and subtract them
+        print(f"mcPPH[i]: {mcParticlesPosHit[i][0]}")
+        totPL = abs(np.max(mcParticlesPosHit[i]) - np.min(mcParticlesPosHit[i]))
+        
+            
+        totMCPL.append(totPL)
+    print(f"totMCPL: {totMCPL}")
+    print(f"max: {max(totMCPL)}")
+    #hist = ROOT.TH1F("hist", "Trajectory length of MC particles", 40, 0, max(totMCPL))
+    
+    #make numpy array:
+    totMCPL = np.array(totMCPL)
+    #remove zeros
+    totMCPL = totMCPL[totMCPL != 0]
+    print(f"totMCPL after rm 0: {totMCPL}")
+    
+    for i in range(0, len(totMCPL)):
+        hist.Fill(totMCPL[i])
+    return hist, totMCPL
+
+def radiusPerMC(dic):
+    """
+    Function that returns the radius of MC particles.
+    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    Outputs: hist, histogram with the radius of MC particles.
+    """
+    # Create the histogram
+    hist = ROOT.TH1F("hist", "Radius of MC particles", 100, 0, 5)
+    #mcParticleR = groupHits(dic, dic["R"])
+    # Fill the histogram
+    #print(max(dic["R"]))
+    for i in range(0, len(dic["R"])):
+        hist.Fill(dic["R"][i])
+    return hist
+
+def angleHits(dic):
+    """
+    Function that returns the angle of hits.
+    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    Outputs: hist, histogram with the angle of hits.
+    """
+    # Create the histogram
+    hist = ROOT.TH1F("hist", "Angle of hits", 100, 0, 2*math.pi)
+    # Fill the histogram
+    for i in range(0, len(dic["px"])):
+        hist.Fill(phi(dic["px"][i], dic["py"][i]))
+    return hist
+
+def phi(pos_vec):
+    """
+    Function that calculates the angle of a vector.
+    Inputs: pos_vec, 3D vector.
+    Outputs: phi, angle of the vector.
+    """
+    phi = math.atan(pos_vec[1]/pos_vec[0])
+    if pos_vec[0] < 0:
+        phi += math.pi
+    elif pos_vec[1] < 0:
+        phi += 2*math.pi
+    return phi
+
 
 '''
 hist = momPerMC(dic)
 print(dic["p"])
 plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed.png", "Momentum of MC particles", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1e-02, logY=True)
-'''
+#'''
 
+'''
 hist = hitsPerMC(dic)
 #print(hist)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/hitsMC.png", "Number of hits per MC particle", xLabel="MC particles", yLabel="Number of hits", logY=True)
+plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/hitsMC.png", "Number of hits per MC particle", xLabel="Number of hits", yLabel="Number of MC Particles", logY=True)
 #sns_plot(dic["p"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC.png", title="Momentum of MC particles", xMin="Momentum (GeV)", xMax="Number of MC particles", yLabel=True)
+#'''
+
+'''
+hist, totMCPL = trajLen(dic)
 
 
-'''
-hist = pathLenWireMC(dic)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/pathLengthMCNotCMB.png", "Path length of MC particles", yLabel="Path length (?)", xLabel="MC particles", logY=True)
-'''
-'''
-hist = pathLenWireMC(dic, True)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/pathLengthMC.png", "Path length of MC particles", yLabel="Path length (?)", xLabel="MC particles", logY=True)
-'''
-'''
-hist = totPathLenMC(dic)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/totPathLengthMC.png", "Total path length of MC particles", yLabel="Path length (?)", xLabel="MC particles", xMin=1000,xMax=4500, logY=True)
-'''
+plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/trajLengthMC.png", "Trajectory length of MC particles", yLabel="Number of MC particles", xLabel="Trajectory length (mm)", logY=True)
+#'''
 
-
+'''
+hist = radiusPerMC(dic)
+plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/radiusMC.png", "Radius of MC particles", yLabel="Number of MC particles", xLabel="Radius(mm)", logY=True)
+'''
 
 
 
@@ -219,18 +295,22 @@ def genPlot(inputArgs):
     Outputs: None
     """
     if len(inputArgs) < 2:
-        raise argparse.ArgumentTypeError("The --plot argument requires at least hist and outname.")
-    
+        raise argparse.ArgumentTypeError("The --plot argument requires at least hist.")
     # Convert the three inputs to the appropriate types
     #match argument to correct variable based on type
     
     hist = inputArgs[0]  # String
+    #check if hist in available_functions
+    if hist not in available_functions:
+        raise argparse.ArgumentTypeError(f"The {hist} is not a member of available functions.")
+    
     outname = inputArgs[1] # String
+    title = inputArgs[2]
 
-    #check if inputArgs[2] is string or int
+    #check if inputArgs[2] type
     if type(inputArgs[2]) == str:
         title = inputArgs[2]
-    else:
+    elif type(inputArgs[2]) == str:
         title = ""
         xMin = inputArgs[2]
         

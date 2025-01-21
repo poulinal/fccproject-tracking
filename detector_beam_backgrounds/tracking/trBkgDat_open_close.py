@@ -35,6 +35,8 @@ dic["layer"] = []
 dic["phi"] = []
 dic["stereo"] = []
 dic["pos_z"] = []
+dic["count_hits"] = []
+dic["has_par_photon"] = []
 
 np.save(dic_file_path, dic)
 
@@ -58,6 +60,10 @@ for i in range(0, len(list_overlay)):
     list_gen_status = []
     #list_path_length = []
     list_pos_ver = []
+    list_par_photon = []
+    
+    seen = []
+    count_hits = []
 
     rootfile = list_overlay[i]
     print(f"Running over file: {rootfile}")
@@ -73,17 +79,28 @@ for i in range(0, len(list_overlay)):
             mcParticle = dc_hit.getMCParticle()
             index_mc = mcParticle.getObjectID().index
             list_index.append(index_mc)
-            list_hit_path_length.append(dc_hit.getPathLength())
+            #list_hit_path_length.append(dc_hit.getPathLength())
             list_pos_hit.append([dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z])
             list_pos_z.append(dc_hit.getPosition().z)
             #print(list_index)
+            
+            #check if the hit was produced by a particle already seen (in list_index)
+            if index_mc not in seen:
+                #add 1 to the count of hits at this index
+                count_hits.append(1)
+                seen.append(index_mc)
+            else:
+                #find the index of the hit in seen
+                index = seen.index(index_mc)
+                #add 1 to the count of hits at this index
+                count_hits[index] += 1
             
             cellID = dc_hit.getCellID()
             list_superLayer.append(decoder.get(cellID, "superLayer"))
             list_layer.append(decoder.get(cellID, "layer"))
             list_phi.append(decoder.get(cellID, "phi"))
             list_stereo.append(decoder.get(cellID, "stereo"))
-            
+
     unique_mcs = np.unique(np.array(list_index))
         
     MCparticles = event.get("MCParticles")
@@ -104,8 +121,15 @@ for i in range(0, len(list_overlay)):
         gen_status = mcParticle.getGeneratorStatus()
         list_gen_status.append(gen_status)
         
+        has_photon_parent = 0
+        for parent in mcParticle.getParents():
+            if parent.getPDG() == 22:
+                has_photon_parent = 1
+            list_par_photon.append(has_photon_parent)        
         #pathLength = mcParticle.getPathLength()
         #list_pos_ver.append([x_vertex, y_vertex, z_vertex])
+    #print(f"len(unique_mcs): {len(unique_mcs)}")
+    #print(f"len(p): {len(list_p)}")
     
     #update the dictionary (append)
     #print(dic["R"])
@@ -117,8 +141,19 @@ for i in range(0, len(list_overlay)):
     dic["gens"] = np.append(dic["gens"], np.array(list_gen_status))
     dic["pos_ver"] = np.append(dic["pos_ver"], np.array(list_pos_ver))
     
+    #check if any values in list_index appear in dic["hits"]
+    #if they do, print the index:
+    '''
+    for i in range(0, len(list_index)):
+        if list_index[i] in dic["hits"]:
+            print(f"index: {i}")
+    '''
+    
+    
+    
+    
     dic["hits"] = np.append(dic["hits"], np.array(list_index))
-    dic["hits_pL"] = np.append(dic["hits_pL"], np.array(list_hit_path_length))
+    #dic["hits_pL"] = np.append(dic["hits_pL"], np.array(list_hit_path_length))
     dic["pos_hit"] = np.append(dic["pos_hit"], np.array(list_pos_hit))
     dic["unique_mcs"] = np.append(dic["unique_mcs"], np.array(unique_mcs))
     dic["superLayer"] = np.append(dic["superLayer"], np.array(list_superLayer))
@@ -126,6 +161,15 @@ for i in range(0, len(list_overlay)):
     dic["phi"] = np.append(dic["phi"], np.array(list_phi))
     dic["stereo"] = np.append(dic["stereo"], np.array(list_stereo))
     dic["pos_z"] = np.append(dic["pos_z"], np.array(list_pos_z))
+    dic["count_hits"] = np.append(dic["count_hits"], np.array(count_hits))
+    dic["has_par_photon"] = np.append(dic["has_par_photon"], np.array(list_par_photon))
     
         
     np.save(dic_file_path, dic)
+
+'''
+print("len(dic['p']): ", len(dic["p"]))
+print("len(dic['hits']): ", len(dic["hits"]))
+print("len(dic['unique_mcs']): ", len(dic["unique_mcs"]))
+print(len(np.unique(np.array(dic["hits"]))))
+'''

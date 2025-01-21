@@ -56,7 +56,7 @@ if args.calculate:
                 if radius_idx != 0: # consider only hits on the first layer
                     continue
 
-                if not hit.isProducedBySecondary(): # remove mc particle not tracked
+                if hit.isProducedBySecondary(): # remove mc particle not tracked
                     continue
 
                 ph = functions.phi(hit.getPosition().x, hit.getPosition().y) * (180 / math.pi)

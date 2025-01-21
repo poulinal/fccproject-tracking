@@ -3,10 +3,13 @@ Members: Alexander Poulin, Charles Schwarze
 Supervisor: Dolores Garcia
 
 # helpful documents:
-## SimTrackerHit:
+
+## EDM4hep documentation
+### SimTrackerHit:
 https://github.com/key4hep/EDM4hep/blob/main/edm4hep.yaml#L299
-## mcParticle
+### mcParticle
 https://github.com/key4hep/EDM4hep/blob/main/edm4hep.yaml#L233
+
 ## Monte Carlo Numbers
 https://pdg.lbl.gov/2007/reviews/montecarlorpp.pdf#page=2
 ## Gunieau Pig Simulation Article

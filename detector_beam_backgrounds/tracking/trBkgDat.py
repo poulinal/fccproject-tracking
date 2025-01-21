@@ -16,7 +16,8 @@ for i in range(1,20):
 
 dic = {}
 total_time = 0 
-rootfile = list_overlay[0]
+rootfile = list_overlay[2]
+print(rootfile)
 
 reader = root_io.Reader(rootfile)
 metadata = reader.get("metadata")[0]
@@ -49,7 +50,7 @@ for event in reader.get("events"):
         list_stereo.append(decoder.get(cellID, "stereo"))
         
 unique_mcs = np.unique(np.array(list_index))
-print("unique_mcs", unique_mcs)
+#print("unique_mcs", unique_mcs)
 list_R = []
 list_p = []
 list_px = []
@@ -112,4 +113,4 @@ dic["pos_z"] = np.array(list_pos_z)
 ###path length is for each hit not combined for each particle
 #print(list_path_length)
 
-np.save("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles.npy", dic)
+np.save("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles_20.npy", dic)

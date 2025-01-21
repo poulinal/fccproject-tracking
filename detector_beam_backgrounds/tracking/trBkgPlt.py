@@ -10,7 +10,9 @@ import math
 available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits"]
 
 #open a .npy
-dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles.npy", allow_pickle=True).item()
+#dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles_500.npy", allow_pickle=True).item()
+dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles_20.npy", allow_pickle=True).item()
+
 
 def hitsPerMC(dic):
     """
@@ -39,98 +41,103 @@ def hitsPerMC(dic):
         hist.Fill(mcParticles[i])
     return hist
 
-def momPerMC(dic):
+def momPerMC(dic, args = ""):
     """
     Function that returns the momentum of MC particles.
     Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
     Outputs: hist, histogram with the momentum of MC particles.
     """
     # Create the histogram
-    hist = ROOT.TH1F("hist", "Momentum of MC particles", 100, 0, 1e-02)
-    # Fill the histogram
-    for i in range(0, len(dic["p"])):
-        #print(dic["p"][i])
-        hist.Fill(dic["p"][i])
-    return hist
+    hist = ROOT.TH1F("hist", "Momentum of MC particles", 100, 0, 1)
+    p = dic["p"]
+    print(max(p))
+    if args == "":
+        # Fill the histogram
+        for i in range(0, len(p)):
+            hist.Fill(p[i])
+        return hist
 
-def pathLenWireMC(dic, combined=False):
-    """
-    Function that returns the path length of MC particles.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
-    Outputs: hist, histogram with the path length of MC particles.
-    """
-    # Create the histogram
-    #hist = ROOT.TH1F("hist", "Path length of MC particles", 1000, 0, 1500)
-    # Fill the histogram
-    ###this is for each hit, not combined for each particle####
-    
-    if combined:
-        hist = ROOT.TH1F("hist", "Path length of MC particles", 500, 0, 1000)
-        pathLen = derPathLenWireEachMC(dic)
-        for i in range(0, len(pathLen)):
-            hist.Fill(pathLen[i])
-    
-    else:
-        hist = ROOT.TH1F("hist", "Path length of MC particles", 1000, 0, 1500)
-        print(f"len(dic['hits_pL']): {len(dic['hits_pL'])}")
-        for i in range(0, len(dic["hits_pL"])):
-            hist.Fill(dic["hits_pL"][i])
-    return hist
 
-def derPathLenWireEachMC(dic):
-    """
-    Function that iterates through the path length hits
-    and combine the path length for each MC particle.
-    This value is the total length of the MC particle along the wire
-    Keyword arguments:
-    argument -- dictionary which has the keys R, p, px, py, pz, gens, hits_pL, pos_ver, pos_hit...
-    Return: an array where each index has the path length for the corresponding MC particle.
-    """
-    list_hit_path_length = dic["hits_pL"]
-    list_index = dic["hits"]
-    mcParticlesPL = np.zeros(max(list_index))
-    for i in range(0, len(list_index)):
-        #print(i)
-        mcParticlesPL[list_index[i] - 1] += list_hit_path_length[i]
+    if args == "onlyOH" or args == "only+H":
+        hits = dic["hits"] #the index of the mcParticle for each hit
         
-    #remove all zeros
-    mcParticlesPL = mcParticlesPL[mcParticlesPL != 0]
-    print(f"mcParticlesPL: {mcParticlesPL}")
-    print(f"len(mcParticlesPL): {len(mcParticlesPL)}")
-    return mcParticlesPL
-
-def totPathLenMC(dic):
+        oneHit = []
+        multHit = []
+        #seperate hits based on if they occur once or more than once with the same mcParticle
+        for i in range(0, len(hits)):
+            if hits.count(hits[i]) == 1:
+                oneHit.append(i)
+            else:
+                multHit.append(i)
+                
+        if args == "onlyOH":
+            for i in range(0,oneHit):
+                hist.Fill(p[i])
+        
+        if args == "only+H":
+            for i in range(0,multHit):
+                hist.Fill(p[i])
+    
+    if args == "onlylow":
+        p = dic["p"]
+        p = p[p < 1]
+        return p
+    
+    if args == "parPhoton":
+        """
+        If the mcParticle has a parent that is a photon, return the momentum of the mcParticle.
+        Keyword arguments:
+        argument -- description
+        """
+        photon = dic["bPhoton"] #list t or false if mcParticle has a parent thats a photon
+        for i in range(0, len(photon)):
+            if photon[i]:
+                hist.Fill(p[i])
+    
+    if args == "below10R":
+        """
+        If the mcParticle's vertex radius is below 10, fill the histogram with the transverse momentum of the mcParticle.
+        Keyword arguments:
+        argument -- description
+        """
+        R = dic["R"]
+        px = dic["px"]
+        py = dic["py"]
+        for i in range(0, len(R)):
+            if R[i] < 10:
+                hist.Fill(math.sqrt(px[i]**2 + py[i]**2))
+                
+def PDGPerMC(dic, args = ""):
     """
-    Function that returns the total path length of MC particles.,
-    aka the sum of the vertex to the first hit and the sum of the path length
-    along the wire
+    Function that returns the PDG of MC particles.
     Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
-    Outputs: hist, histogram with the total path length of MC particles.
+    Outputs: hist, histogram with the PDG of MC particles.
     """
     # Create the histogram
-    #hist = ROOT.TH1F("hist", "Total path length of MC particles", 100, 0, 1500)
-    
-    #get the length of the vertex to the first hit
-    mcParticlesPosHit = groupHits(dic, "pos_hit")
-    #mcParticlesPL = derPathLenWireEachMC(dic)
-    mcParticlesPosVer = dic["pos_ver"]
-    totMCPL = []
-    #go through each mcParticle, 
-    # make a sum of the distance from the vertex to the first hit
-    #and the sum of the path length along the wire
-    #where mcParticlesPosVer is a 3position array 
-    # and mcParticlesPosHit is an array (each particle) of 3position arrays (each hit)
-    for i in range(0, len(mcParticlesPosHit)):
-        totPL = np.linalg.norm(sum(mcParticlesPosHit[i])) + np.linalg.norm(mcParticlesPosHit[i][0] - mcParticlesPosVer[i])
-        totMCPL.append(totPL)
-    print(f"totMCPL: {len(totMCPL)}")
-    print(f"totMCPL max: {max(totMCPL)}")
-    print(f"totMCPL min: {min(totMCPL)}")
-    print(f"totmcpl dif: {max(totMCPL) - min(totMCPL)}")
-    hist = ROOT.TH1F("hist", "Total path length of MC particles", 594, 0, 594)
-    for i in range(0, len(totMCPL)):
-        hist.Fill(totMCPL[i])
-    return hist, totMCPL
+    pdg = dic["PDG"]
+    #get unique pdg's
+    pdg_unique = np.unique(pdg)
+    hist = ROOT.TH1F("hist", "PDG of MC particles", pdg_unique, 0, max(pdg_unique))
+    if args == "":
+        for i in range(0, len(pdg)):
+            hist.Fill(pdg[i])
+        return hist
+    if args == "photon":
+        for i in range(0, len(pdg)):
+            if pdg[i] == 22:
+                hist.Fill(pdg[i])
+        return hist
+    if args == "electron":
+        for i in range(0, len(pdg)):
+            if pdg[i] == 11:
+                hist.Fill(pdg[i])
+        return hist
+    if args == "gen":
+        gen = dic["gens"]
+        for i in range(0, len(gen)):
+            if gen[i] == 1:
+                hist.Fill(pdg[i])
+        return hist
 
 
 def groupHits(dic, list_dic):
@@ -251,10 +258,14 @@ def phi(pos_vec):
     return phi
 
 
-'''
+#'''
 hist = momPerMC(dic)
-print(dic["p"])
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed.png", "Momentum of MC particles", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1e-02, logY=True)
+#print(dic["p"])
+#plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logY=True)
+#plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=2, logY=True)
+
+plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC20.png", "Momentum of MC particles (20 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logY=True)
+#plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed20.png", "Momentum of MC particles (20 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1, logY=True)
 #'''
 
 '''
@@ -307,32 +318,44 @@ def genPlot(inputArgs):
     outname = inputArgs[1] # String
     title = inputArgs[2]
 
-    #check if inputArgs[2] type
-    if type(inputArgs[2]) == str:
-        title = inputArgs[2]
-    elif type(inputArgs[2]) == str:
-        title = ""
-        xMin = inputArgs[2]
+    #check if xmin, xmax are empty
+    if inputArgs[3] == "":
+        emX = True
+    else:
+        xMin = float(inputArgs[3])
+        xMax = float(inputArgs[4])
+    if inputArgs[5] == "":
+        emY = True
+    else:
+        yMin = float(inputArgs[5])
+        yMax = float(inputArgs[6])
         
-        
-    xMin = float(inputArgs[3])  # Integer
-    xMax = float(inputArgs[4])  # Integer
-    yMin = float(inputArgs[5])  # Integer
-    yMax = float(inputArgs[6])  # Integer
     xLabel = inputArgs[7]  # String
-    yLabel = inputArgs[8]  # String
-    ylog = bool(inputArgs[9])  # Boolean
+    yLabel = inputArgs[8]  # String 
     
-    plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/" + outname + ".png", title, xMin, xMax, yMin, yMax, xLabel, yLabel, ylog)
+    #check if ylog is empty
+    if inputArgs[9] == "":
+        emYlog = True
+    else:
+        ylog = bool(inputArgs[9])  # Boolean
+    
+    if emX:
+        if emY:
+            plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/" + outname + ".png", title, xLabel, yLabel, ylog)
+    if emY:
+        plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/" + outname + ".png", title, xMin, xMax, yLabel, ylog)
+    else:
+        plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/" + outname + ".png", title, xMin, xMax, yMin, yMax, xLabel, yLabel, ylog)
         
         
         
-        
+       
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument('--plot', help="Plot histogram; hist*(str) " +
                     "+ outname*(str) + title(str) + xMin(int) + xMax(int) " +
                     "+ yMin(int) + yMax(int) + xLabel(str) + yLabel(str) " +
-                    "+ ylog(bool)", type=str, default="", nargs='+')
+                    "+ ylog(bool)", type=str, default="", nargs='9')
 args = parser.parse_args()
 
 outputFolder = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
@@ -343,13 +366,13 @@ if args.plot:
         #print(f"Parsed --plot arguments: ...")
     except ValueError as e:
         parser.error(str(e))
-        
+#'''
 '''    
    
 /work/submit/poulin/fccproject-tracking/detector_beam_backgrounds/tracking/trBkgPlt.py --plot
 
 #plot hits per mc
-hist hitsMC Number-of-hits-per-MC-particle Number-of-hits Number-of-MC-particles
+hist hitsMC Number-of-hits-per-MC-particle Number-of-hits Number-of-MC-particles "" "" "" "" Number-of-hits Number-of-MC-particles False
 
 
 '''

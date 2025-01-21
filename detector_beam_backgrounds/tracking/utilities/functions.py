@@ -69,7 +69,7 @@ def plot_hist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
 
 
     fig.savefig(outname, bbox_inches="tight")
-    fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+    #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
 
 
 

@@ -10,8 +10,10 @@ import mplhep as hep
 #import seaborn as sns
 #import pickle
 #import hist
+import numpy as np
 
-hep.style.use(hep.style.ROOT)
+#hep.style.use(hep.style.ROOT)
+hep.style.use(hep.style.CMS)
 
 '''
 def phi(x,y):
@@ -49,11 +51,12 @@ def radius_idx(hit, layer_radii):
     raise ValueError(f"Not close enough to any of the layers {true_radius}")
 '''
 
-def plot_hist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
+def plot_hist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False):
     fig = plt.figure()
     ax = fig.subplots()
 
-    hep.histplot(h, label="", ax=ax, yerr=False)
+    binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
+    hep.histplot(h, label="", ax=ax, histtype="fill", yerr=False)
 
     ax.set_title(title)
     ax.set_xlabel(xLabel)
@@ -61,11 +64,16 @@ def plot_hist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
     #ax.legend(fontsize='x-small')
     if logY:
         ax.set_yscale("log")
+    if logX:
+        ax.set_xscale("log")
 
     if xMin != -1 and xMax != -1:
         ax.set_xlim([xMin, xMax])
     if yMin != -1 and yMax != -1:
         ax.set_ylim([yMin, yMax])
+        
+    
+    
 
 
     fig.savefig(outname, bbox_inches="tight")
@@ -96,13 +104,15 @@ def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel=""
     fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
 
     
-def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
+def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False):
     #recreate plot_hist but using hist instead of hep
     fig = plt.figure()
     
     ax = fig.subplots()
     
-    ax.hist(h, bins=100, histtype='step', label='MC particles')
+    
+    binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
+    ax.hist(h, bins=binn, histtype='bar', label="")
     
     ax.set_title(title)
     ax.set_xlabel(xLabel)
@@ -110,6 +120,8 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
     ax.legend(fontsize='x-small')
     if logY:
         ax.set_yscale("log")
+    if logX:
+        ax.set_xscale("log")
     
     if xMin != -1 and xMax != -1:
         ax.set_xlim([xMin, xMax])
@@ -117,17 +129,17 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
         ax.set_ylim([yMin, yMax])
     
     fig.savefig(outname, bbox_inches="tight")
-    fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+    #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
 '''
 #make same as plot_hist
-def sns_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
+def sns_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False):
     fig = plt.figure()
     
     ax = fig.subplots()
 
-
-    sns.histplot(h, bins=100, histtype='step', label='MC particles')
+    binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
+    sns.histplot(h, bins=binn, histtype='step', label='MC particles')
     
     ax.set_title(title)
     ax.set_xlabel(xLabel)
@@ -135,6 +147,8 @@ def sns_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", y
     ax.legend(fontsize='x-small')
     if logY:
         ax.set_yscale("log")
+    if logX:
+        ax.set_xscale("log")
     
     if xMin != -1 and xMax != -1:
         ax.set_xlim([xMin, xMax])

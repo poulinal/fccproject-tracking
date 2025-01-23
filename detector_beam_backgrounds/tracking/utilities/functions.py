@@ -158,10 +158,17 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabe
     figure.savefig(outname, bbox_inches="tight")
     #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
-def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, width=0.8, logY=False, save=True, rotation=0, label="*MC Particle"):
+def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, 
+             width=0.8, logY=False, save=True, rotation=0, 
+             label="*MC Particle", statusUpdate=False, additionalText=""):
     
+    if statusUpdate:
+        print("Beginning to bar plot...")
     axe.bar(hkeys, hvalues, width=width, label=label)
     
+    if statusUpdate:
+        print("Finished plotting, updating plot parameters...")
+        
     if save:
         #fix when h.keys() is long and overlaps with neighboring labels:
         plt.xticks(rotation=rotation)
@@ -172,35 +179,28 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, width=0.8, logY=Fal
         axe.set_yscale("log")
         plt.legend(fontsize='x-small')
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        if additionalText != "":
+            axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
 
         
+        if statusUpdate:
+            print("Saving plot...")
         figure.savefig(outname, bbox_inches="tight")
         #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+        
+def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel, 
+             width=0.8, logY=False, rotation=0, 
+             label=[], statusUpdate=False, additionalText=""):
     
-'''
-#make same as plot_hist
-def sns_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False):
-    fig = plt.figure()
+    #go through all keys in h and plot them
+    for key in h.keys():
+        #if hStakced is a string
+        if type(hStacked) == str:
+            if key == list(h.keys())[-1]:
+                bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, logY, save=True, 
+                     rotation=rotation, label=key, statusUpdate=statusUpdate, additionalText=additionalText)
+            else:
+                bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, logY, save=False, 
+                        rotation=rotation, label=key, statusUpdate=statusUpdate, additionalText=additionalText)
     
-    ax = fig.subplots()
 
-    binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
-    sns.histplot(h, bins=binn, histtype='step', label='MC particles')
-    
-    ax.set_title(title)
-    ax.set_xlabel(xLabel)
-    ax.set_ylabel(yLabel)
-    ax.legend(fontsize='x-small')
-    if logY:
-        ax.set_yscale("log")
-    if logX:
-        ax.set_xscale("log")
-    
-    if xMin != -1 and xMax != -1:
-        ax.set_xlim([xMin, xMax])
-    if yMin != -1 and yMax != -1:
-        ax.set_ylim([yMin, yMax])
-    
-    fig.savefig(outname, bbox_inches="tight")
-    fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
-'''

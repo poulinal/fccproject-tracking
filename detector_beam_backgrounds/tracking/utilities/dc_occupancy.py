@@ -152,6 +152,12 @@ particle_hittingDC_origin_xy = ROOT.TH2F("particle_hittingDC_origin_xy", "partic
 particle_hittingDC_origin_xy.SetTitle(f"Origin of bkg particles hitting the DCH ({number_of_iteration_on_bx_batches * number_of_bx} BXs)")
 particle_hittingDC_origin_xy.GetXaxis().SetTitle("x [mm]")
 particle_hittingDC_origin_xy.GetYaxis().SetTitle("y [mm]")
+
+
+
+
+
+
 # how many cells are fired by a bkg particle?
 n_cell_fired_of_particles_hitting_dch =  ROOT.TH1F(f"n_cell_fired_of_particles_hitting_dch", f"n_cell_fired_of_particles_hitting_dch", 50, 0, 50)
 n_cell_fired_of_particles_hitting_dch.SetTitle(f"Number of cell fired by particles hitting the DCH")
@@ -163,6 +169,14 @@ n_cell_fired_of_particles_hitting_dch_log.SetTitle(f"Number of cell fired by par
 n_cell_fired_of_particles_hitting_dch_log.GetXaxis().SetTitle("Number of cell fired by the particle")
 n_cell_fired_of_particles_hitting_dch_log.GetYaxis().SetTitle("Number of entries")
 ###
+
+
+
+
+
+
+
+
 ###
 # MC Particle loop related definition
 pt_all_electrons =  ROOT.TH1F(f"pt_all_electrons", f"pt_all_electrons", 50, 0, 1)

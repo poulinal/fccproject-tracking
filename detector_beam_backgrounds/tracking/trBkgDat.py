@@ -38,6 +38,13 @@ dic["pos_z"] = []
 dic["count_hits"] = []
 dic["has_par_photon"] = []
 dic["pdg"] = []
+dic["hits_produced_secondary"] = [] 
+#every hit, was it produced by a secondary particle?
+#should be size of all hits
+
+dic["hits_mc_produced_secondary"] = [] 
+#for every mc which produced a hit, were any of the hits produced by it a secondary particle?
+#should be size of all unique mcs
 
 np.save(dic_file_path, dic)
 
@@ -63,6 +70,8 @@ for i in range(0, len(list_overlay)):
     list_pos_ver = []
     list_par_photon = []
     list_pdg = []
+    list_hits_secondary = []
+    list_hits_mc_secondary = []
     
     seen = []
     count_hits = []
@@ -77,6 +86,7 @@ for i in range(0, len(list_overlay)):
 
     for event in reader.get("events"):
         dc_hits = event.get("CDCHHits")
+        
         for num_hit, dc_hit in enumerate(dc_hits):
             mcParticle = dc_hit.getMCParticle()
             index_mc = mcParticle.getObjectID().index
@@ -90,12 +100,16 @@ for i in range(0, len(list_overlay)):
             if index_mc not in seen:
                 #add 1 to the count of hits at this index
                 count_hits.append(1)
+                list_hits_mc_secondary.append(dc_hit.isProducedBySecondary())
                 seen.append(index_mc)
             else:
                 #find the index of the hit in seen
                 index = seen.index(index_mc)
                 #add 1 to the count of hits at this index
                 count_hits[index] += 1
+                list_hits_mc_secondary[index] = max(list_hits_mc_secondary[index], dc_hit.isProducedBySecondary())
+                
+            list_hits_secondary.append(dc_hit.isProducedBySecondary())
             
             cellID = dc_hit.getCellID()
             list_superLayer.append(decoder.get(cellID, "superLayer"))
@@ -130,13 +144,8 @@ for i in range(0, len(list_overlay)):
             if parent.getPDG() == 22:
                 has_photon_parent = 1
         list_par_photon.append(has_photon_parent)        
-        #pathLength = mcParticle.getPathLength()
-        #list_pos_ver.append([x_vertex, y_vertex, z_vertex])
-    #print(f"len(unique_mcs): {len(unique_mcs)}")
-    #print(f"len(p): {len(list_p)}")
-    
-    #update the dictionary (append)
-    #print(dic["R"])
+
+    #update dictionary
     dic["R"] = np.append(dic["R"], np.array(list_R))
     dic["p"] = np.append(dic["p"], np.array(list_p))
     dic["px"] = np.append(dic["px"], np.array(list_px))
@@ -157,6 +166,30 @@ for i in range(0, len(list_overlay)):
     dic["count_hits"] = np.append(dic["count_hits"], np.array(count_hits))
     dic["has_par_photon"] = np.append(dic["has_par_photon"], np.array(list_par_photon))
     dic["pdg"] = np.append(dic["pdg"], np.array(list_pdg))
+    dic["hits_produced_secondary"] = np.append(dic["hits_produced_secondary"], np.array(list_hits_secondary))
+    dic["hits_mc_produced_secondary"] = np.append(dic["hits_mc_produced_secondary"], np.array(list_hits_mc_secondary))
     
         
     np.save(dic_file_path, dic)
+    
+    
+    
+'''
+# Drift chamber geometry parameters
+n_layers_per_superlayer = 8
+n_superlayers = 14
+total_number_of_layers = 0
+n_cell_superlayer0 = 192
+n_cell_increment = 48
+n_cell_per_layer = {}
+total_number_of_cells = 0
+for sl in range(0, n_superlayers):
+    for l in range(0, n_layers_per_superlayer):
+        total_number_of_layers += 1
+        total_number_of_cells += n_cell_superlayer0 + sl * n_cell_increment
+        n_cell_per_layer[str(n_layers_per_superlayer * sl + l)] = n_cell_superlayer0 + sl * n_cell_increment
+print("total_number_of_cells: ", total_number_of_cells)
+print("total_number_of_layers: ", total_number_of_layers)
+print("n_cell_per_layer: ", n_cell_per_layer)
+max_n_cell_per_layer = n_cell_per_layer[str(total_number_of_layers - 1)]
+'''

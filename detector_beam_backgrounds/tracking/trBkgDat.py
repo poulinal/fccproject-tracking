@@ -129,7 +129,7 @@ for i in range(0, len(list_overlay)):
         for parent in mcParticle.getParents():
             if parent.getPDG() == 22:
                 has_photon_parent = 1
-            list_par_photon.append(has_photon_parent)        
+        list_par_photon.append(has_photon_parent)        
         #pathLength = mcParticle.getPathLength()
         #list_pos_ver.append([x_vertex, y_vertex, z_vertex])
     #print(f"len(unique_mcs): {len(unique_mcs)}")

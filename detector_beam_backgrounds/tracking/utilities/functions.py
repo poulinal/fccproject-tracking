@@ -112,7 +112,7 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
     
     
     binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
-    ax.hist(h, bins=binn, histtype='bar', label="")
+    ax.hist(h, bins=binn, histtype='bar', label='MC particles')
     
     ax.set_title(title)
     ax.set_xlabel(xLabel)
@@ -130,6 +130,52 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
     
     fig.savefig(outname, bbox_inches="tight")
     #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+    
+figure = plt.figure()
+axe = figure.subplots()
+def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False, save=True, label="*MC Particle"):
+
+    #h is a dictionary, iterate through all keys and plot them
+    for key in h.keys():
+        binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
+        axe.hist(h[key], bins=binn, histtype='step', label=key)
+        
+    
+    axe.set_title(title)
+    axe.set_xlabel(xLabel)
+    axe.set_ylabel(yLabel)
+    axe.legend(fontsize='x-small')
+    if logY:
+        axe.set_yscale("log")
+    if logX:
+        axe.set_xscale("log")
+    
+    if xMin != -1 and xMax != -1:
+        axe.set_xlim([xMin, xMax])
+    if yMin != -1 and yMax != -1:
+        axe.set_ylim([yMin, yMax])
+        
+    figure.savefig(outname, bbox_inches="tight")
+    #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+    
+def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, width=0.8, logY=False, save=True, rotation=0, label="*MC Particle"):
+    
+    axe.bar(hkeys, hvalues, width=width, label=label)
+    
+    if save:
+        #fix when h.keys() is long and overlaps with neighboring labels:
+        plt.xticks(rotation=rotation)
+        
+        axe.set_title(title)
+        axe.set_xlabel(xLabel)
+        axe.set_ylabel(yLabel)
+        axe.set_yscale("log")
+        plt.legend(fontsize='x-small')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+
+        
+        figure.savefig(outname, bbox_inches="tight")
+        #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
 '''
 #make same as plot_hist

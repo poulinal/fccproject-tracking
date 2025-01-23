@@ -1,6 +1,6 @@
 import ROOT
 import numpy as np 
-from utilities.functions import hist_plot, plot_hist#, sns_plot
+from utilities.functions import hist_plot, plot_hist, multi_hist_plot, bar_plot
 import argparse
 import sys
 import matplotlib.pyplot as plt
@@ -33,17 +33,17 @@ def hitsPerMC(dic):
     #remove all zeros
     mcParticles = mcParticles[mcParticles != 0]
     #iterate over all mcParticles and fill the histogram with the number of hits
-    np.set_printoptions(threshold=sys.maxsize) 
+    # np.set_printoptions(threshold=sys.maxsize) 
     
     #remove zeros
     mcParticles = mcParticles[mcParticles != 0]
-    print(mcParticles)
+    # print(mcParticles)
     for i in range(0, len(mcParticles)):
         #hist.Fill(mcParticles[i])
         hist.append(mcParticles[i])
     return hist
 
-def momPerMC(dic, args = ""):
+def momPerMC(dic, args = "", byPDG = False):
     """
     Function that returns the momentum of MC particles.
     Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
@@ -52,39 +52,49 @@ def momPerMC(dic, args = ""):
     # Create the histogram
     hist = []
     p = dic["p"]
-    print(max(p))
-    if args == "":
-        # Fill the histogram
+    
+    if byPDG:
+        hist = {}
+        hist["all"] = []
+        pdg = dic["pdg"]
+    
+    if args == "": #regular get all momenta
         for i in range(0, len(p)):
             hist.append(p[i])
+        # print(f"max hist: {max(hist)}")
         return hist
 
 
     if args == "onlyOH" or args == "only+H":
         count_hits = dic["count_hits"] #the index of the mcParticle for each hit
-        
         oneHit = []
         multHit = []
-        
-        #print(f"len(p): {len(p)}")
-        #print(f"len(count_hits): {len(count_hits)}")
-        
         #seperate hits based on if they occur once or more than once with the same mcParticle
         for i in range(0, len(count_hits)):
             if count_hits[i] == 1:
                 oneHit.append(i)
                 if args == "onlyOH":
-                    hist.append(p[i])
+                    if byPDG:
+                        if pdg[i] in hist:
+                            hist[pdg[i]].append(p[i])
+                        else:
+                            hist[pdg[i]] = [p[i]]
+                    else:
+                        hist.append(p[i])
+                    hist["all"].append(p[i])
             else:
                 multHit.append(i)
                 if args == "only+H":
-                    hist.append(p[i])
+                    if byPDG:
+                        if pdg[i] in hist:
+                            hist[pdg[i]].append(p[i])
+                        else:
+                            hist[pdg[i]] = [p[i]]
+                    else:
+                        hist.append(p[i])
+                    hist["all"].append(p[i])
+        # print(f"max hist: {max(hist)}")
         return hist
-    
-    if args == "onlylow":
-        p = dic["p"]
-        p = p[p < 1]
-        return p
     
     if args == "onlyParPhoton":
         """
@@ -96,6 +106,7 @@ def momPerMC(dic, args = ""):
         for i in range(0, len(photon)):
             if photon[i]:
                 hist.append(p[i])
+        # print(f"max hist: {max(hist)}")
         return hist
     
     if args == "ptBelow10R":
@@ -108,12 +119,13 @@ def momPerMC(dic, args = ""):
         px = dic["px"]
         py = dic["py"]
         
-        print(f"max R: {max(R) * 0.01}")
+        # print(f"max R: {max(R) * 0.01}")
         #print how many R's (meters) above 10 (cm)
-        print(f"R's above 10: {len(R[R > 0.01])}")
+        # print(f"R's above 10: {len(R[R > 0.01])}")
         for i in range(0, len(R)):
             if R[i] < 0.01:
                 hist.append(math.sqrt(px[i]**2 + py[i]**2))
+        # print(f"max hist: {max(hist)}")
         return hist
                 
 def PDGPerMC(dic, args = ""):
@@ -123,30 +135,66 @@ def PDGPerMC(dic, args = ""):
     Outputs: hist, histogram with the PDG of MC particles.
     """
     # Create the histogram
-    pdg = dic["PDG"]
+    pdg = dic["pdg"]
     #get unique pdg's
     pdg_unique = np.unique(pdg)
-    hist = []
-    if args == "":
+    hist_dic = {}
+    if args == "": ##want to return all pdg's as a dictionary of pdg, key = pdg, value = count
+        #hist_dic = {}
         for i in range(0, len(pdg)):
-            hist.append(pdg[i])
-        return hist
-    if args == "photon":
-        for i in range(0, len(pdg)):
-            if pdg[i] == 22:
-                hist.append(pdg[i])
-        return hist
+            if str(pdg[i]) in hist_dic:
+                hist_dic[str(pdg[i])] += 1
+            else:
+                hist_dic[str(pdg[i])] = 1
+        return hist_dic
     if args == "electron":
+        """
+        Given there was a hit, add a count if the pdg is an electron. 
+        If the pdg of the particle is an electron AND has a parent photon, add a count to hist
+        Keyword arguments:
+        argument -- description
+        Return: return_description
+        """
+        hist_dic["electron"] = 0
+        hist_dic["e_photon_parent"] = []
+        has_par_photon = dic["has_par_photon"]
+        print(len(has_par_photon))
+        print(len(pdg))
         for i in range(0, len(pdg)):
             if pdg[i] == 11:
-                hist.append(pdg[i])
-        return hist
+                hist_dic["electron"] += 1
+                if has_par_photon[i]:
+                    hist_dic["e_photon_parent"].append(pdg[i])
+        return hist_dic
     if args == "gen":
+        """
+        given generator status, return a dictionary with the following:
+        key: all, value: all particles
+        key: primary, value: particles with generator status 1
+        key: secondary, value: particles with generator status 2
+        Keyword arguments:
+        argument -- description
+        Return: return_description
+        """
         gen = dic["gens"]
+        #print full numpy
+        np.set_printoptions(threshold=sys.maxsize)
+        print(f"gen: {gen}")
+        input("Press Enter to continue...")
+        #print only non zero entries
+        print(f"gen: {gen[gen != 0]}")
+        input("Press Enter to continue...")
+        hist_dic["all"] = 0
+        hist_dic["primary"] = 0
+        hist_dic["secondary"] = 0
+        
         for i in range(0, len(gen)):
+            hist_dic["all"] += 1
+            if gen[i] == 0:
+                hist_dic["primary"] += 1
             if gen[i] == 1:
-                hist.append(pdg[i])
-        return hist
+                hist_dic["secondary"] += 1
+        return hist_dic
 
 
 def groupHits(dic, list_dic):
@@ -268,52 +316,64 @@ def phi(pos_vec):
     return phi
 
 
-#'''
-hist = momPerMC(dic, "")
-#print(dic["p"])
-hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0.0001, xMax=0.175)
-hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCloggedx500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True)
-hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMClogged500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True, logY=True)
-
-#plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC20.png", "Momentum of MC particles (20 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logY=True)
-#plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed20.png", "Momentum of MC particles (20 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1, logY=True)
-#'''
-
+# hist = momPerMC(dic, "")
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0.0001, xMax=0.175)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500Loggedx.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500Logged.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
 
 # hist = momPerMC(dic, "onlyOH")
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHit.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True, logY=True)
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed500onlyOneHit.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1.5, logY=True, logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHit.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0.0001, xMax=0.175)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHitLoggedx.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHitLogged.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "only+H")
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+Hit.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True, logY=True)
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed500only+Hit.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1.5, logY=True, logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+Hit.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+HitLoggedx.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+HitLogged.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "onlyParPhoton")
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyParentPhoton.png", "Momentum of MC particles with a Parent Photon (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True, logY=True)
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed500onlyParentPhoton.png", "Momentum of MC particles with a Parent Photon (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1.5, logY=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyParentPhoton.png", "Momentum of MC particles with a Parent Photon (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0, xMax=0.12)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyParentPhotonLoggedx.png", "Momentum of MC particles with a Parent Photon (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyParentPhotonLogged.png", "Momentum of MC particles with a Parent Photon (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "ptBelow10R")
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500pt10R.png", "Transverse Momentum of MC particles within a radius of 10mm (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", logX=True, logY=True)
-# plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMCZoomed500pt10R.png", "Transverse Momentum of MC particles within a radius of 10mm (500 Files)", xLabel="Momentum (GeV)", yLabel="Number of MC particles", xMin=0, xMax=1.2, logY=True, logX=True)
-
-'''
-hist = hitsPerMC(dic)
-#print(hist)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/hitsMC.png", "Number of hits per MC particle", xLabel="Number of hits", yLabel="Number of MC Particles", logY=True)
-#sns_plot(dic["p"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC.png", title="Momentum of MC particles", xMin="Momentum (GeV)", xMax="Number of MC particles", yLabel=True)
-#'''
-
-'''
-hist, totMCPL = trajLen(dic)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500pt10R.png", "Transverse Momentum of MC particles within a radius of 10mm (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0, xMax=1)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500pt10RLoggedx.png", "Transverse Momentum of MC particles within a radius of 10mm (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500pt10RLogged.png", "Transverse Momentum of MC particles within a radius of 10mm (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/trajLengthMC.png", "Trajectory length of MC particles", yLabel="Number of MC particles", xLabel="Trajectory length (mm)", logY=True)
-#'''
 
-'''
-hist = radiusPerMC(dic)
-plot_hist(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/radiusMC.png", "Radius of MC particles", yLabel="Number of MC particles", xLabel="Radius(mm)", logY=True)
-'''
+
+####multi:
+# hist = PDGPerMC(dic, "")
+# bar_plot(hist.keys(), hist.values(), "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgMC500.png", "PDG of MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80)
+
+# hist = PDGPerMC(dic, "electron")
+# bar_plot("electron", hist["electron"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgElectronPhotonMC500.png", "PDG of MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Electrons")
+# bar_plot("electron", hist["e_photon_parent"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgElectronPhotonMC500.png", "PDG of MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, label="Only Electrons with a Parent Photon")
+
+# hist = PDGPerMC(dic, "gen")
+# bar_plot("MC Particles", hist["all"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgGeneratorStatusMC500.png", "Primary or Secondary MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Particles")
+# bar_plot("MC Particles", hist["primary"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgGeneratorStatusMC500.png", "Primary or Secondary MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="Only Primary Particles")
+# bar_plot("MC Particles", hist["secondary"], "fccproject-tracking/detector_beam_backgrounds/tracking/images/pdgGeneratorStatusMC500.png", "Primary or Secondary MC particles (500 Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, label="Only Secondary Particles")
+
+
+
+
+# hist = momPerMC(dic, "")
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0.0001, xMax=0.175)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500Loggedx.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500Logged.png", "Momentum of MC particles (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
+
+# hist = momPerMC(dic, "onlyOH", byPDG=True)
+#multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHitSepPDG.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0.0001, xMax=0.175)
+# multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHitSepPDGLoggedx.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+#multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500onlyOneHitSepPDGLogged.png", "Momentum of MC particles with only one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+
+hist = momPerMC(dic, "only+H", byPDG=True)
+# multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+Hit.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
+multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+HitSetpPDGLoggedx.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# multi_hist_plot(hist, "fccproject-tracking/detector_beam_backgrounds/tracking/images/momentumMC500only+HitLogged.png", "Momentum of MC particles with more than one hit (500 Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 
 

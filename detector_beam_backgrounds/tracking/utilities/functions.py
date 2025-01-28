@@ -104,7 +104,10 @@ def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel=""
     fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
 
     
-def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False, label="*MC Particle", autoBin=True, binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp"):
+def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
+              xLabel="", yLabel="Events", logY=False, logX=False, 
+              label="*MC Particle", autoBin=True, bins="", weight="",
+              binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp"):
     #recreate plot_hist but using hist instead of hep
     fig = plt.figure()
     
@@ -117,6 +120,8 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", 
         elif binType == "lin":
             binn = np.arange(binLow, binHigh, binSteps)
         ax.hist(h, bins=binn, histtype='bar', label=label)
+    elif bins != "" and weight != "":
+        ax.hist(h, bins=bins, weights=weight, histtype='bar', label=label)
     else:
         ax.hist(h, histtype='bar', label=label)
     
@@ -274,3 +279,4 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
     
     figure.savefig(outname, bbox_inches="tight")
+    

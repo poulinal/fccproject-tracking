@@ -11,17 +11,19 @@ import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
 
+
 list_overlay = []
 numfiles = 20
 
 # oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
 bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
+# bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/"
 # combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
 combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
 bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
-type = "bkg"
+type = "signal"
 
 for i in range(1,numfiles + 1):
     #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
@@ -106,7 +108,7 @@ for i in range(0, len(list_overlay)):
     print(f"Running over file: {rootfile}")
     reader = root_io.Reader(rootfile)
     metadata = reader.get("metadata")[0]
-    if type == "combined":
+    if type == "":
         cellid_encoding = metadata.get_parameter("CDCHHits__CellIDEncoding")
     else:
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
@@ -115,15 +117,16 @@ for i in range(0, len(list_overlay)):
     
     
     
-    
+    print("starting events")
     for event in reader.get("events"):
-        if type == "combined":
+        if type == "":
             dc_hits = event.get("CDCHHits")
         else:
             dc_hits = event.get("DCHCollection")
         dict_particle_n_fired_cell = {}
         dict_particle_fired_cell_id = {}
         
+        print("starting hits")
         for num_hit, dc_hit in enumerate(dc_hits):
             mcParticle = dc_hit.getMCParticle()
             index_mc = mcParticle.getObjectID().index
@@ -207,18 +210,26 @@ for i in range(0, len(list_overlay)):
                 
                 
                 
-
+    print("getting particles")
     unique_mcs = np.unique(np.array(list_index))
-        
+    #set np threshold to print all the unique mcs
+    np.set_printoptions(threshold=sys.maxsize)
+    print(f"unique_mcs: {unique_mcs}")
+
     MCparticles = event.get("MCParticles")
     for j in range(0, len(unique_mcs)):
         mc_index = unique_mcs[j]
+        print(mc_index)
         mcParticle = MCparticles[int(mc_index)]
+        
+        print("getting vertex")
         x_vertex = mcParticle.getVertex().x
         y_vertex = mcParticle.getVertex().y
         z_vertex = mcParticle.getVertex().z
         vertex_R = math.sqrt(mcParticle.getVertex().x ** 2 + mcParticle.getVertex().y ** 2)* 1e-03
         list_R.append(vertex_R)
+        
+        print("getting momentum")
         momentum = mcParticle.getMomentum()
         p = math.sqrt(momentum.x**2 + momentum.y**2 + momentum.z**2)
         list_p.append(p)
@@ -228,6 +239,7 @@ for i in range(0, len(list_overlay)):
         gen_status = mcParticle.getGeneratorStatus()
         list_gen_status.append(gen_status)
         
+        print("getting pdgs")
         list_pdg.append(mcParticle.getPDG())
         
         has_photon_parent = 0
@@ -235,37 +247,12 @@ for i in range(0, len(list_overlay)):
             if parent.getPDG() == 22:
                 has_photon_parent = 1
         list_par_photon.append(has_photon_parent) 
+        
+    print("finished mcParticles")
     percentage_of_fired_cells = 100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)       
     
-    # Normalize the occupancy per layer th1 (divide the number of cell fired by the total number of cell) and fill the TProfile of occupancies
-    for unique_layer_index in range(0, total_number_of_layers):
-        print(f"unique_layer_index: {unique_layer_index}")
-        # raw_bin_content = occupancies_per_layer.GetBinContent(unique_layer_index + 1) # NB: we use the trick that the bin index here is the same as the layer index it corresponds to, just binIdx 0 is underflow
-        # occupancies_per_layer.SetBinContent(unique_layer_index + 1, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)])) # unique_layer_index and n_cell_per_layer key definitions coincide
-        
-        #basicaly, we are calculating the occupancy of each layer
-        #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
-            # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
-        # Step 1: Filter occupancies_per_layer for the current layer index
-        print(f"occupancies_per_layer: {occupancies_per_layer}")
-        filtered_occupancies = [x for x in occupancies_per_layer if x == unique_layer_index]
-        print(f"filtered_occupancies: {filtered_occupancies}")
-        # Step 2: Count the occurrences of unique_layer_index
-        layer_count = len(filtered_occupancies)
-        print(f"layer_count: {layer_count}")
-        # Step 3: Get the total number of cells for the layer
-        total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
-        print(f"total_cells_in_layer: {total_cells_in_layer}")
-        # Step 4: Calculate the percentage occupancy
-        percentage_occupancy = 100 * layer_count / total_cells_in_layer
-        # Step 5: Append the result to avg_occupancies_per_layer
-        avg_occupancies_per_layer.append(percentage_occupancy)
-        #profile adds a point where x is the layer index and y is the normalized occupancy
-        occupancies_per_layer_profile.append( (unique_layer_index, percentage_occupancy) )
-        #input("Press Enter to continue...")
-    # overall_occupancies.append(percentage_of_fired_cells)
     
-    
+    print("updating dictionary")
     #update dictionary
     dic["R"] = np.append(dic["R"], np.array(list_R))
     dic["p"] = np.append(dic["p"], np.array(list_p))
@@ -289,18 +276,49 @@ for i in range(0, len(list_overlay)):
     dic["hits_produced_secondary"] = np.append(dic["hits_produced_secondary"], np.array(list_hits_secondary))
     dic["hits_mc_produced_secondary"] = np.append(dic["hits_mc_produced_secondary"], np.array(list_hits_mc_secondary))
     
-    dic["percentage_of_fired_cells"] =  np.append(dic["percentage_of_fired_cells"], percentage_of_fired_cells)
-    dic["list_n_cells_fired_mc"] = np.append(dic["list_n_cells_fired_mc"], np.array(list_n_cells_fired_mc))
-    dic["occupancies_per_layer"] = np.append(dic["occupancies_per_layer"], np.array(occupancies_per_layer))
-    dic["avg_occupancy"] = np.append(dic["avg_occupancy"], np.array(avg_occupancies_per_layer))
-    dic["occupancies_per_layer_profile"] = np.append(dic["occupancies_per_layer_profile"], np.array(occupancies_per_layer_profile))
-    dic["dict_layer_phiSet"] = dict_layer_phiSet
-    
-    dic["n_cell_per_layer"] = n_cell_per_layer
-    dic["total_number_of_cells"] = total_number_of_cells
-    dic["total_number_of_layers"] = total_number_of_layers
-    dic["max_n_cell_per_layer"] = max_n_cell_per_layer
-    
 
         
     np.save(dic_file_path, dic)
+    
+
+dic = np.load(dic_file_path, allow_pickle=True).item() 
+# Normalize the occupancy per layer th1 (divide the number of cell fired by the total number of cell) and fill the TProfile of occupancies
+for unique_layer_index in range(0, total_number_of_layers):
+    # print(f"unique_layer_index: {unique_layer_index}")
+    # raw_bin_content = occupancies_per_layer.GetBinContent(unique_layer_index + 1) # NB: we use the trick that the bin index here is the same as the layer index it corresponds to, just binIdx 0 is underflow
+    # occupancies_per_layer.SetBinContent(unique_layer_index + 1, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)])) # unique_layer_index and n_cell_per_layer key definitions coincide
+    
+    #basicaly, we are calculating the occupancy of each layer
+    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
+        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
+    # Step 1: Filter occupancies_per_layer for the current layer index
+    # print(f"occupancies_per_layer: {occupancies_per_layer}")
+    filtered_occupancies = [x for x in occupancies_per_layer if x == unique_layer_index]
+    # print(f"filtered_occupancies: {filtered_occupancies}")
+    # Step 2: Count the occurrences of unique_layer_index
+    layer_count = len(filtered_occupancies)
+    # print(f"layer_count: {layer_count}")
+    # Step 3: Get the total number of cells for the layer
+    total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
+    # print(f"total_cells_in_layer: {total_cells_in_layer}")
+    # Step 4: Calculate the percentage occupancy
+    percentage_occupancy = 100 * layer_count / total_cells_in_layer
+    # Step 5: Append the result to avg_occupancies_per_layer
+    avg_occupancies_per_layer.append(percentage_occupancy)
+    #profile adds a point where x is the layer index and y is the normalized occupancy
+    occupancies_per_layer_profile.append((unique_layer_index, percentage_occupancy))
+    #input("Press Enter to continue...")
+# overall_occupancies.append(percentage_of_fired_cells)
+
+dic["percentage_of_fired_cells"] =  np.append(dic["percentage_of_fired_cells"], percentage_of_fired_cells)
+dic["list_n_cells_fired_mc"] = np.append(dic["list_n_cells_fired_mc"], np.array(list_n_cells_fired_mc))
+dic["occupancies_per_layer"] = np.append(dic["occupancies_per_layer"], np.array(occupancies_per_layer))
+dic["avg_occupancy"] = np.append(dic["avg_occupancy"], np.array(avg_occupancies_per_layer))
+dic["occupancies_per_layer_profile"] = occupancies_per_layer_profile
+dic["dict_layer_phiSet"] = dict_layer_phiSet
+
+dic["n_cell_per_layer"] = n_cell_per_layer
+dic["total_number_of_cells"] = total_number_of_cells
+dic["total_number_of_layers"] = total_number_of_layers
+dic["max_n_cell_per_layer"] = max_n_cell_per_layer
+np.save(dic_file_path, dic)

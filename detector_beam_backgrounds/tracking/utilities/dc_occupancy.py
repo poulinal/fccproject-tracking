@@ -11,6 +11,10 @@ ROOT.gROOT.SetBatch(True)
 ROOT.gStyle.SetTextSize(22)
 
 
+
+#print current directory
+print("Current directory: ", os.getcwd())
+
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_noboost_noBfield/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_noboost_bfield/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_Apr2024/sim_boost_noBfield/"
@@ -25,9 +29,10 @@ ROOT.gStyle.SetTextSize(22)
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix/June2024_v23_afterG4Fix/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe/June2024_v23_afterG4Fix_CADbeampipe/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_keepAllParticles/June2024_v23_afterG4Fix_CADbeampipe_keepAllParticles/"
-bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_keepAllParticles/June2024_v23_afterG4Fix_CADbeampipe_keepAllParticles/"
+#bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_keepAllParticles/June2024_v23_afterG4Fix_CADbeampipe_keepAllParticles/"
+bkg_file_directory = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
 #bkg_file_directory = "/eos/experiment/fcc/users/b/brfranco/background_files/guineaPig_andrea_June2024_v23/ddsimoutput_afterG4Fix_CADbeampipe_noCopperCrotch/June2024_v23_afterG4Fix_CADbeampipe_noCopperCrotch/"
-file_name_template = "IDEA_o1_v03_*.root"
+file_name_template = "out_sim_edm4hep_background_*.root"
 #plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix_logzHitOrigin"
 #plot_folder = "plots_10Gev_mu_100_evt_tryFixObjID"
 #plot_folder = "plots_new_beampipe_default_ddsim_config_addLumiCalAndBeamInstrumentation_integrationTime400ns_G4Fix_CADbeampipe_keepAllParticles"
@@ -35,7 +40,7 @@ file_name_template = "IDEA_o1_v03_*.root"
 #plot_folder = "plots_sr_radiation_sr_photons_from_positron_45GeVcom_halo_v23_mediumfilter_nominal"
 #plot_folder = "plots_sr_radiation_sr_photons_from_positron_182GeVcom_halo_v23_mediumfilter_nominal"
 #plot_folder = "plots_sr_radiation_sr_photons_from_positron_182GeVcom_halo_v23_mediumfilter_noMask_correct"
-plot_folder = "plots_100MeV_electrons_IDEAo1_v03_100evt_"
+plot_folder = "fccproject-tracking/detector_beam_backgrounds/tracking/images/occupancy"
 # Change here for SINGLE FILE (number_of_iteration_on_bx_batches = 1 and number_of_bx = 1)
 number_of_iteration_on_bx_batches = 1 # max 199
 number_of_bx = 1
@@ -271,7 +276,7 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         #input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/sr_photons_kevin/SR_photons_v5/sr_photons_from_positron_182GeVcom_nzco_6urad_v23_mediumfilter_nominal.root"
         #input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/sr_photons_kevin/SR_photons_v5/sr_photons_from_positron_182GeVcom_halo_v23_mediumfilter_noSRMask.root"
 
-        input_file_path = "./100MeVelectron_IDEAo1_v03.root"
+        #input_file_path = "./100MeVelectron_IDEAo1_v03.root"
 
         #input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/sr_photons_kevin/SR_photons_v5/sr_photons_from_positron_182GeVcom_halo_v23_mediumfilter_nominal.root"
         #input_file_path = "/eos/experiment/fcc/users/b/brfranco/background_files/sr_photons_kevin/SR_photons_v5/sr_photons_from_positron_182GeVcom_halo_v23_mediumfilter_halved_nominal.root"
@@ -281,6 +286,8 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         metadata = podio_reader.get("metadata")[0]
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
         decoder = dd4hep.BitFieldCoder(cellid_encoding)
+        
+        print("starting events")
         for event in podio_reader.get("events"):
             bx_seen += 1 # now there is one event per rootfile representing 1 bx, may change in future so place the counter here
             # loop over MCParticles
@@ -308,6 +315,8 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
             dict_particle_n_fired_cell = {}
             dict_particle_fired_cell_id = {}
             total_number_of_particles_per_bx_batch += len(event.get("MCParticles"))
+            
+            print("starting hits")
             for dc_hit in event.get("DCHCollection"):
                 total_number_of_hit += 1
                 total_number_of_hit_integrated_per_batch += 1
@@ -347,6 +356,10 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
                     if not cellID_unique_identifier in dict_particle_fired_cell_id[particle_object_id]: # this cell was not yet fired by this particle
                         dict_particle_n_fired_cell[particle_object_id] += 1
                         dict_particle_fired_cell_id[particle_object_id].append(cellID_unique_identifier)
+                        
+                        
+                        
+                        
                 # Where do the particles hit the DC?
                 DC_simhit_position_rz.Fill(abs(dc_hit.getPosition().z), sqrt(dc_hit.getPosition().x ** 2 + dc_hit.getPosition().y ** 2))
                 DC_simhit_position_xy.Fill(dc_hit.getPosition().x, dc_hit.getPosition().y)
@@ -413,6 +426,18 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
             draw_histo(DC_fired_cell_map_per_evt, "colz")
             # end of loop on events (there is 1 event per BX so it is equivalent to the loop on BXs)
 
+
+
+
+
+
+
+
+
+
+
+
+
         percentage_of_fired_cells = 100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)
         print("\t\tTotal number of bkg hit in the DC accumulating BXs of one batch: ", str(total_number_of_hit_integrated_per_batch))
         print("\t\tNumber of fired cells: ", str(len(dict_cellID_nHits.keys())))
@@ -423,6 +448,14 @@ for bx_batch_index in range(0, number_of_iteration_on_bx_batches): # first loop 
         print("\t\tPercentage of particles reaching the DC so far: ", 100 * total_number_of_particles_reaching_dch_per_bx_batch / float(total_number_of_particles_per_bx_batch), " %")
 
         # end of loop on BX files
+
+
+
+
+
+
+
+
 
     if len(bx_files_seen_so_far) < number_of_bx:
         print(f"\033[91mThere were not enough files left to complete iteration {bx_batch_index}: {number_of_bx} required, {len(bx_files_seen_so_far)} available. Stopping here.\033[0m")

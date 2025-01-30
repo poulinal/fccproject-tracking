@@ -11,36 +11,6 @@ import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
 
-#get occupancy for just one file
-#get occupancy for all bkg files (both dont divide by number of cells / normalize)
-
-
-np.set_printoptions(threshold=5)
-
-def calculateOccupancy(occupancy, unique_layer_index, n_cell_per_layer):
-    #basicaly, we are calculating the occupancy of each layer
-    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
-        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
-    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
-    layer_count = len(filtered_occupancies)
-    total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
-    # print(f"total_cells_in_layer: {total_cells_in_layer}")
-    # print(f"layer_count: {layer_count}")
-    percentage_occupancy = 100 * layer_count / total_cells_in_layer
-    return percentage_occupancy
-
-def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_layer):
-    #basicaly, we are calculating the occupancy of each layer
-    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
-        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
-    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
-    layer_count = len(filtered_occupancies)
-    # total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
-    # print(f"total_cells_in_layer: {total_cells_in_layer}")
-    # print(f"layer_count: {layer_count}")
-    # percentage_occupancy = 100 * layer_count / total_cells_in_layer
-    # return percentage_occupancy
-    return layer_count
 
 list_overlay = []
 numfiles = 500
@@ -53,9 +23,10 @@ combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_b
 bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
-type = "bkg"
+type = "signal"
 print("type: ", type)
 input("Press Enter to continue...")
+
 
 for i in range(1,numfiles + 1):
     #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
@@ -65,7 +36,6 @@ for i in range(1,numfiles + 1):
         list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
     elif type == "signal":
         list_overlay.append(combinedDataPath + str(i) + signalFilePath + ".root")
-
     else:
         #throw error
         print("Error: type not recognized")
@@ -78,21 +48,33 @@ keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits",
         "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
         "pos_z", "count_hits", "has_par_photon", "pdg", 
         "hits_produced_secondary", "hits_mc_produced_secondary", 
-        "list_n_cells_fired_mc",
-        "dict_layer_phiSet",
-        "avg_occupancy_file", "avg_occupancy_event", "overall_occupancy",
+        "list_n_cells_fired_mc", "dict_layer_phiSet", "max_n_cell_per_layer",
         "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
-        "max_n_cell_per_layer", "percentage_of_fired_cells", 
-        "avg_occupancy_event_file", "avg_occupancy_layer_file",
         "occupancy_one_file", "occupancy_one_file_non_normalized",
-        "occupancy_per_20_file", "occupancy_per_20_file_error",
-        "occupancy_per_20_file_non_normalized", "occupancy_per_20_file_non_normalized_error"]
+        "occupancy_per_batch_file", "occupancy_per_batch_file_error",
+        "occupancy_per_batch_file_non_normalized", "occupancy_per_batch_file_non_normalized_error"]
 #assign dic to empty dictionary
 dic = {}
 for key in keys:
     dic[key] = []
-    #note that hits_mc_produced_secondary is for every mc which produced a hit
-    #hits_produced_secondary is for every hit, was it produced by a secondary particle?
+dic = np.load(dic_file_path, allow_pickle=True).item() 
+
+
+
+def calculateOccupancy(occupancy, unique_layer_index, n_cell_per_layer):
+    #basicaly, we are calculating the occupancy of each layer
+    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
+    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
+    layer_count = len(filtered_occupancies)
+    total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
+    percentage_occupancy = 100 * layer_count / total_cells_in_layer
+    return percentage_occupancy
+
+def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_layer):
+    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
+    layer_count = len(filtered_occupancies)
+    return layer_count
+
 # Drift chamber geometry parameters
 n_layers_per_superlayer = 8
 n_superlayers = 14
@@ -112,33 +94,25 @@ print("n_cell_per_layer: ", n_cell_per_layer)
 max_n_cell_per_layer = n_cell_per_layer[str(total_number_of_layers - 1)]
 
 list_n_cells_fired_mc = []
-
-# avg_occupancies_per_layer = []
-# occupancies_per_layer_profile = []
-# overall_occupancies = []
-
-# total_number_of_hit_integrated_per_batch = 0
 number_of_cell_with_multiple_hits = 0
 DC_fired_cell_map = []
 dict_layer_phiSet = {} # cross check the number of cell
 
-np.save(dic_file_path, dic)
-
-dic = np.load(dic_file_path, allow_pickle=True).item() 
 
 
-occupancies_per_20_file = np.zeros((int(numfiles/20), total_number_of_layers)) #we want it to be (500/20, 14) so 14 across 25 down
-occupancies_per_20_file_non_normalized = np.zeros((int(numfiles/20), total_number_of_layers))
+
+
+
+if type=="bkg":
+    batches=20
+elif type=="signal":
+    batches=1
+
+occupancies_per_batch_file = np.zeros((int(numfiles/batches), total_number_of_layers)) #we want it to be (500/20, 14) so 14 across 25 down
+occupancies_per_batch_file_non_normalized = np.zeros((int(numfiles/batches), total_number_of_layers))
 occupancy_one_file = np.zeros(total_number_of_layers)
 occupancies_non_normalized = np.zeros(total_number_of_layers)
 
-
-occupancies_per_file = []
-occupancies_per_event_per_layer_per_file = np.zeros(total_number_of_layers)
-#mean over all events and over all files separated into occupancies per layer
-
-occupancies_per_layer_per_file = np.zeros(total_number_of_layers)
-#mean over all files separated into occupancies per layer
 
 #loop over all the files
 for i in range(0, len(list_overlay)): 
@@ -153,18 +127,19 @@ for i in range(0, len(list_overlay)):
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
     decoder = dd4hep.BitFieldCoder(cellid_encoding)
     
-    #reset the 20 file mean
-    if i % 20 == 0:
-        occupancies_a_20_file = np.zeros(total_number_of_layers)
-        occupancies_a_20_file_non_normalized = np.zeros(total_number_of_layers)
+    #reset the batch file mean after starting a new batch
+    if i % batches == 0:
+        occupancies_a_batch_file = np.zeros(total_number_of_layers)
+        occupancies_a_batch_file_non_normalized = np.zeros(total_number_of_layers)
+        if type == "bkg": #want to reset every 20 bkg files
+            dict_cellID_nHits = {} #reset cells for every 20 bkg event
     
-    # print("starting events")
     occupancies_a_file = []
-    occupancies_per_event_per_layer = np.zeros(total_number_of_layers)
-    occupancies_per_layer = np.zeros(total_number_of_layers)
-    occupancies_per_event = [] #for a signal files there should be 10 events,
-    #we want to get the occupancy of each event
-    #get the mean, normalize and give that to occupancies_per_layer
+    
+    
+    
+    
+    
     numEvents = 0
     for event in reader.get("events"):
         numEvents += 1
@@ -177,6 +152,9 @@ for i in range(0, len(list_overlay)):
         seen, count_hits = [], []
         
         occupancies_an_event = []
+        
+        if type == "signal": #want to reset every 1 signal event
+            dict_cellID_nHits = {} #reset cells for every 1 signal event
     
         if type == "":
             dc_hits = event.get("CDCHHits")
@@ -184,8 +162,6 @@ for i in range(0, len(list_overlay)):
             dc_hits = event.get("DCHCollection")
         dict_particle_n_fired_cell = {}
         dict_particle_fired_cell_id = {}
-        
-        dict_cellID_nHits = {} #used for occupancy
         
         # print("starting hits")
         for num_hit, dc_hit in enumerate(dc_hits):
@@ -285,25 +261,24 @@ for i in range(0, len(list_overlay)):
                     has_photon_parent = 1
             list_par_photon.append(has_photon_parent) 
         
-        #calculate the mean for one event
+        #calculate the occupancy for one event (so hits have accumulated over one event)
         event_occupancy = []
         event_occupancy_non_normalized = []
         for unique_layer_index in range(0, total_number_of_layers): #get the occupancy for a given layer 
             event_occupancy.append(calculateOccupancy(occupancies_an_event, unique_layer_index, n_cell_per_layer))
             event_occupancy_non_normalized.append(calculateOccupancyNonNormalized(occupancies_an_event, unique_layer_index, n_cell_per_layer))
-        # mean_occupancy_one_event = np.mean(event_occupancy) #not really used
-        # occupancies_per_event.append(mean_occupancy_one_event) #not really used
-        # print(f"mean occupancy for event {j}: {mean_occupancy_one_event}")
+
+        occupancies_a_batch_file += np.array(event_occupancy)
+        occupancies_a_batch_file_non_normalized += np.array(event_occupancy_non_normalized)
+
+
         if i == 0:
-            print(f"event_occupancy: {event_occupancy}")
+            # print(f"event_occupancy: {event_occupancy}")
             occupancy_one_file = event_occupancy
             occupancy_one_file_non_normalized = event_occupancy_non_normalized
             dic["occupancy_one_file"] = occupancy_one_file
             dic["occupancy_one_file_non_normalized"] = occupancy_one_file_non_normalized
-        occupancies_per_event_per_layer += np.array(event_occupancy) #this will accumulate over all events
-        occupancies_a_20_file += np.array(event_occupancy)
-        occupancies_a_20_file_non_normalized += np.array(occupancy_one_file_non_normalized)
-        occupancies_per_layer += np.array(event_occupancy) #this will accumulate over all events
+
         
         print("updating dictionary")
         #update dictionary
@@ -333,34 +308,19 @@ for i in range(0, len(list_overlay)):
         # print(f"avg_occupancy_event: {dic['avg_occupancy_event']}")
     #end of event loop
     
-    #the next one resets the 20 file batch
-    if (i + 1) % 20 == 0:
-        # print(f"shape: {occupancies_per_20_file.shape}")
-        occupancies_per_20_file[int((i+1)/20) - 1] = occupancies_a_20_file
-        occupancies_per_20_file_non_normalized[int((i+1)/20) - 1] = occupancies_a_20_file_non_normalized
-        # print(f"occupancies_per_20_file: {occupancies_per_20_file}")
-    
-    #the occupancy given we iterated through all hits,
-    #we got the occupancy for that event
-    #then we went through all events, added to this array
-    #now we divide by the number of events to get the mean occupancy per layer
-    occupancies_per_event_per_layer_per_file = occupancies_per_event_per_layer / numEvents
-    
-    #calculate the mean for one file
+    #calculate the occupancy for one file (so hits have accumulated over all events)
     # file_occupancy = []
-    # for unique_layer_index in range(0, total_number_of_layers):
-    #     file_occupancy.append(calculateOccupancy(occupancies_a_file, unique_layer_index, n_cell_per_layer))
-    # #remove any zeros
-    # # file_occupancy = [x for x in file_occupancy if x != 0]
-    # mean_occupancy_one_file = np.mean(file_occupancy)
-    # occupancies_per_file.append(mean_occupancy_one_file)
-    # print(f"mean occupancy for file {i}: {mean_occupancy_one_file}")
+    # file_occupancy_non_normalized = []
+    # for unique_layer_index in range(0, total_number_of_layers): #get the occupancy for a given layer 
+    #     file_occupancy.append(calculateOccupancy(occupancies_an_event, unique_layer_index, n_cell_per_layer))
+    #     file_occupancy_non_normalized.append(calculateOccupancyNonNormalized(occupancies_an_event, unique_layer_index, n_cell_per_layer))
     
-    #instead we should take the mean of the occupancies_per_event
-    # mean_occupancy_one_file = np.mean(occupancies_per_event)
-    # print(f"mean occupancy for file {i + 1}: {mean_occupancy_one_file}")
-    # occupancies_per_file.append(mean_occupancy_one_file) #not really used
-    # dic["avg_occupancy_file"] += [mean_occupancy_one_file] #not really used
+    #the next one resets the 20 file batch
+    if (i + 1) % batches == 0:
+        # print(f"shape: {occupancies_per_batch_file.shape}")
+        occupancies_per_batch_file[int((i+1)/batches) - 1] = occupancies_a_batch_file
+        occupancies_per_batch_file_non_normalized[int((i+1)/batches) - 1] = occupancies_a_batch_file_non_normalized
+        # print(f"occupancies_per_batch_file: {occupancies_per_batch_file}")
     
     
     for particleKey in dict_particle_n_fired_cell.keys():
@@ -371,26 +331,16 @@ for i in range(0, len(list_overlay)):
 #end of file loop
 
 print("end of file loop")
-#this will have a length of total_number_of_layers
-#meaned across all files
-occupancies_per_event_per_layer_per_file /= numfiles
-dic["avg_occupancy_event_file"] = occupancies_per_event_per_layer_per_file
-
-occupancies_per_layer /= numfiles
-dic["avg_occupancy_layer_file"] = occupancies_per_layer
 
 #at this point we have filled the occupancy so there are 500 rows and 112 columns
-print(f"occupancies_per_event_per_layer_per_file: {occupancies_per_event_per_layer_per_file}")
-dic["occupancy_per_20_file_non_normalized"] = np.mean(occupancies_per_20_file_non_normalized, axis=0)
-dic["occupancy_per_20_file_non_normalized_error"] = np.std(occupancies_per_20_file_non_normalized, axis=0)
-dic["occupancy_per_20_file"] = np.mean(occupancies_per_20_file, axis=0)
-dic["occupancy_per_20_file_error"] = np.std(occupancies_per_20_file, axis=0)
+dic["occupancy_per_batch_file_non_normalized"] = np.mean(occupancies_per_batch_file_non_normalized, axis=0)
+dic["occupancy_per_batch_file_non_normalized_error"] = np.std(occupancies_per_batch_file_non_normalized, axis=0)
+dic["occupancy_per_batch_file"] = np.mean(occupancies_per_batch_file, axis=0)
+dic["occupancy_per_batch_file_error"] = np.std(occupancies_per_batch_file, axis=0)
 
 # dic["percentage_of_fired_cells"] += percentage_of_fired_cells
 dic["list_n_cells_fired_mc"] += list_n_cells_fired_mc
-# dic["occupancies_per_layer_profile"] += occupancies_per_layer_profile
 dic["dict_layer_phiSet"] += dict_layer_phiSet
-
 dic["n_cell_per_layer"] = n_cell_per_layer
 dic["total_number_of_cells"] = total_number_of_cells
 dic["total_number_of_layers"] = total_number_of_layers

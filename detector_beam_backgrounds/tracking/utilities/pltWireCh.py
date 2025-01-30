@@ -25,7 +25,7 @@ def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutp
         raise ValueError("layer_radii must have the same length as num_layers")
     
     # Create Polar Plot
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(8, 8), dpi=200) 
 
     # Generate Cells in Each Layer
     for radius, num_cells in zip(layer_radii, n_cells_per_layer):

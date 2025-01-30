@@ -13,11 +13,11 @@ available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC",
 
 numFiles = 500
 # backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
-backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
+backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy"
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
 signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/signal_background_particles_"+str(numFiles)+".npy"
-type="signal"
+type="bkg"
 
 #set numpy display to default
 np.set_printoptions(threshold=10)
@@ -454,18 +454,14 @@ def occupancy(dic, args = ""):
     hist = {}
     hist["n_cells"]= []
     hist["percentage_fired"] = []
-    hist["avg_occupancy_file"] = []
-    hist["avg_occupancy_event"] = []
-    hist["avg_occupancy_event_file"] = []
-    hist["avg_occupancy_layer_file"] = []
     hist["n_cells_per_layer"] = []
     
     hist["occupancy_one_file"] = []
     hist["occupancy_one_file_non_normalized"] = []
-    hist["occupancy_per_20_file"] = []
-    hist["occupancy_per_20_file_error"] = []
-    hist["occupancy_per_20_file_non_normalized"] = []
-    hist["occupancy_per_20_file_non_normalized_error"] = []
+    hist["occupancy_per_batch_file"] = []
+    hist["occupancy_per_batch_file_error"] = []
+    hist["occupancy_per_batch_file_non_normalized"] = []
+    hist["occupancy_per_batch_file_non_normalized_error"] = []
     
     
     if args == "n_cells" or args == "":
@@ -474,27 +470,10 @@ def occupancy(dic, args = ""):
     if args == "percentage_fired" or args == "":
         hist["percentage_fired"] = dic["percentage_of_fired_cells"]
         
-    if args == "avg_occupancy_file" or args == "":
-        hist["avg_occupancy_file"] = dic["avg_occupancy_file"]
-        
-    if args == "avg_occupancy_event" or args == "":
-        hist["avg_occupancy_event"] = dic["avg_occupancy_event"]
-        
-    if args == "avg_occupancy_event_file" or args == "":
-        hist["avg_occupancy_event_file"] = dic["avg_occupancy_event_file"]
-        hist["total_number_of_layers"] = dic["total_number_of_layers"]
-    
-    if args == "avg_occupancy_layer_file" or args == "":
-        hist["avg_occupancy_layer_file"] = dic["avg_occupancy_layer_file"]
-        hist["total_number_of_layers"] = dic["total_number_of_layers"]
-        
     if args == "cells_per_layer":
         hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
         hist["total_number_of_cells"] = dic["total_number_of_cells"]
     hist["total_number_of_layers"] = dic["total_number_of_layers"]
-        # print(f"total_number_of_cells: {hist['total_number_of_cells']}")
-        # print(f"total_number_of_layers: {hist['total_number_of_layers']}")
-        # print(f"n_cells_per_layer: {hist['n_cells_per_layer']}")
         
     if args == "occupancy_one_file":
         hist["occupancy_one_file"] = dic["occupancy_one_file"]
@@ -502,13 +481,13 @@ def occupancy(dic, args = ""):
     if args == "occupancy_one_file_non_normalized":
         hist["occupancy_one_file_non_normalized"] = dic["occupancy_one_file_non_normalized"]
     
-    if args == "occupancy_per_20_file":
-        hist["occupancy_per_20_file"] = dic["occupancy_per_20_file"]
-        hist["occupancy_per_20_file_error"] = dic["occupancy_per_20_file_error"]
+    if args == "occupancy_per_batch_file":
+        hist["occupancy_per_batch_file"] = dic["occupancy_per_batch_file"]
+        hist["occupancy_per_batch_file_error"] = dic["occupancy_per_batch_file_error"]
         
-    if args == "occupancy_per_20_file_non_normalized":
-        hist["occupancy_per_20_file_non_normalized"] = dic["occupancy_per_20_file_non_normalized"]
-        hist["occupancy_per_20_file_non_normalized_error"] = dic["occupancy_per_20_file_non_normalized_error"]
+    if args == "occupancy_per_batch_file_non_normalized":
+        hist["occupancy_per_batch_file_non_normalized"] = dic["occupancy_per_batch_file_non_normalized"]
+        hist["occupancy_per_batch_file_non_normalized_error"] = dic["occupancy_per_batch_file_non_normalized_error"]
     
     return hist
     
@@ -610,35 +589,35 @@ def occupancy(dic, args = ""):
 
 #####occupancy
 # hist = occupancy(dic, "avg_occupancy_layer_file")
-# hist = occupancy(dic, "occupancy_per_20_file_non_normalized")
-hist = occupancy(dic, "n_cells")
+hist = occupancy(dic, "occupancy_per_batch_file")
+# hist = occupancy(dic, "n_cells")
 #total number of layers: 112
 #total number of cells 56448
 
 # print(f"hist['percentage_fired']: {hist['percentage_fired']}")
-print(f"max(n_cells): {hist['n_cells']}")
-hist_plot(hist["n_cells"], imageOutputPath + "nCellsFiredMC" + str(numFiles) + ".png", "Number of Cells Fired by Particles (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count", xMin=0, xMax=4000, binLow=0.01, binHigh=4000, binSteps=0.3, binType="lin")
+# print(f"max(n_cells): {hist['n_cells']}")
+# hist_plot(hist["n_cells"], imageOutputPath + "nCellsFiredMC" + str(numFiles) + ".png", "Number of Cells Fired by Particles (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count", xMin=0, xMax=4000, binLow=0.01, binHigh=4000, binSteps=0.3, binType="lin")
 # hist_plot(hist["percentage_fired"], imageOutputPath + "occupancyPercMC" + str(numFiles) + ".png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Percentage of cells fired", yLabel="Count MC particles", xMin=0, xMax=80, binHigh=80, binSteps=1, binType="lin")
 # hist_plot(hist["avg_occupancy_file"], imageOutputPath + "occupancyPerFileMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=112, binHigh=112, binSteps=1, binType="lin")
 # hist_plot(hist["avg_occupancy_event"], imageOutputPath + "occupancyPerEventMC" + str(numFiles) + ".png", "Average Occupancy Per Event (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=1.3, binHigh=112, binSteps=1, binType="lin")
 
 # print(hist)
-# layers = [i for i in range(0, hist["total_number_of_layers"])]
+layers = [i for i in range(0, hist["total_number_of_layers"])]
 # xy_plot(layers, hist["avg_occupancy_event_file"], imageOutputPath + "occupancyPerEventPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per Event Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=False)
 # xy_plot(layers, hist["avg_occupancy_layer_file"], imageOutputPath + "occupancyPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
 
 # xy_plot(layers, hist["occupancy_one_file_non_normalized"], imageOutputPath + "occupancyOneFileMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy", includeLegend=False, label="", scatter=True)
 # xy_plot(layers, hist["occupancy_one_file"], imageOutputPath + "occupancyOneFilePercMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
 
-# print(hist["occupancy_per_20_file_non_normalized"])
-# xy_plot(layers, hist["occupancy_per_20_file_non_normalized"], imageOutputPath + "occupancy20FileBatchNNMC" + str(numFiles) + ".png", 
+# print(hist["occupancy_per_batch_file_non_normalized"])
+# xy_plot(layers, hist["occupancy_per_batch_file_non_normalized"], imageOutputPath + "occupancy20FileBatchNNMC" + str(numFiles) + ".png", 
 #         "Average Occupancy Across 20 File Non Normalized (" + str(numFiles) + " Files)",
 #         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy", 
-#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_20_file_non_normalized_error"])
-# xy_plot(layers, hist["occupancy_per_20_file"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
-#         "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
-#         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
-#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_20_file_error"])
+#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_file_non_normalized_error"])
+xy_plot(layers, hist["occupancy_per_batch_file"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
+        "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
+        xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+        includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_file_error"])
 
 
 # x = [int(i) for i in list(hist["n_cells_per_layer"].keys())]

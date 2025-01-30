@@ -11,9 +11,39 @@ import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
 
+#get occupancy for just one file
+#get occupancy for all bkg files (both dont divide by number of cells / normalize)
+
+
+np.set_printoptions(threshold=5)
+
+def calculateOccupancy(occupancy, unique_layer_index, n_cell_per_layer):
+    #basicaly, we are calculating the occupancy of each layer
+    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
+        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
+    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
+    layer_count = len(filtered_occupancies)
+    total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
+    # print(f"total_cells_in_layer: {total_cells_in_layer}")
+    # print(f"layer_count: {layer_count}")
+    percentage_occupancy = 100 * layer_count / total_cells_in_layer
+    return percentage_occupancy
+
+def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_layer):
+    #basicaly, we are calculating the occupancy of each layer
+    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
+        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
+    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
+    layer_count = len(filtered_occupancies)
+    # total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
+    # print(f"total_cells_in_layer: {total_cells_in_layer}")
+    # print(f"layer_count: {layer_count}")
+    # percentage_occupancy = 100 * layer_count / total_cells_in_layer
+    # return percentage_occupancy
+    return layer_count
 
 list_overlay = []
-numfiles = 20
+numfiles = 500
 
 # oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
 bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
@@ -24,6 +54,8 @@ bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
 type = "signal"
+print("type: ", type)
+input("Press Enter to continue...")
 
 for i in range(1,numfiles + 1):
     #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
@@ -40,22 +72,27 @@ for i in range(1,numfiles + 1):
         sys.exit(1)
 
 dic = {}
-dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
+dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
 
 keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits", 
         "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
         "pos_z", "count_hits", "has_par_photon", "pdg", 
         "hits_produced_secondary", "hits_mc_produced_secondary", 
-        "percentage_of_fired_cells", "list_n_cells_fired_mc", "occupancies_per_layer",
-        "avg_occupancy", "occupancies_per_layer_profile", "dict_layer_phiSet",
-        "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", "max_n_cell_per_layer",]
+        "list_n_cells_fired_mc",
+        "dict_layer_phiSet",
+        "avg_occupancy_file", "avg_occupancy_event", "overall_occupancy",
+        "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
+        "max_n_cell_per_layer", "percentage_of_fired_cells", 
+        "avg_occupancy_event_file", "avg_occupancy_layer_file",
+        "occupancy_one_file", "occupancy_one_file_non_normalized",
+        "occupancy_per_20_file", "occupancy_per_20_file_error",
+        "occupancy_per_20_file_non_normalized", "occupancy_per_20_file_non_normalized_error"]
 #assign dic to empty dictionary
 dic = {}
 for key in keys:
     dic[key] = []
     #note that hits_mc_produced_secondary is for every mc which produced a hit
     #hits_produced_secondary is for every hit, was it produced by a secondary particle?
-    
 # Drift chamber geometry parameters
 n_layers_per_superlayer = 8
 n_superlayers = 14
@@ -75,13 +112,11 @@ print("n_cell_per_layer: ", n_cell_per_layer)
 max_n_cell_per_layer = n_cell_per_layer[str(total_number_of_layers - 1)]
 
 list_n_cells_fired_mc = []
-occupancies_per_layer = []
 
-avg_occupancies_per_layer = []
-occupancies_per_layer_profile = []
-overall_occupancies = [] #basically percentage of fired cells
+# avg_occupancies_per_layer = []
+# occupancies_per_layer_profile = []
+# overall_occupancies = []
 
-dict_cellID_nHits = {}
 # total_number_of_hit_integrated_per_batch = 0
 number_of_cell_with_multiple_hits = 0
 DC_fired_cell_map = []
@@ -89,20 +124,24 @@ dict_layer_phiSet = {} # cross check the number of cell
 
 np.save(dic_file_path, dic)
 
+dic = np.load(dic_file_path, allow_pickle=True).item() 
 
-    
-    
-    
+
+occupancies_per_20_file = np.zeros((int(numfiles/20), total_number_of_layers)) #we want it to be (500/20, 14) so 14 across 25 down
+occupancies_per_20_file_non_normalized = np.zeros((int(numfiles/20), total_number_of_layers))
+occupancy_one_file = np.zeros(total_number_of_layers)
+occupancies_non_normalized = np.zeros(total_number_of_layers)
+
+
+occupancies_per_file = []
+occupancies_per_event_per_layer_per_file = np.zeros(total_number_of_layers)
+#mean over all events and over all files separated into occupancies per layer
+
+occupancies_per_layer_per_file = np.zeros(total_number_of_layers)
+#mean over all files separated into occupancies per layer
+
 #loop over all the files
-for i in range(0, len(list_overlay)):
-    dic = np.load(dic_file_path, allow_pickle=True).item()  
-    list_index, list_hit_path_length, list_pos_hit, list_superLayer, \
-        list_layer, list_stereo, list_nphi, list_pos_z = [], [], [], [], [], [], [], []
-    list_R, list_p, list_px, list_py, list_pz, list_gen_status, \
-        list_pos_ver, list_par_photon, list_pdg, \
-            list_hits_secondary, list_hits_mc_secondary = [], [], [], [], [], [], [], [], [], [], []
-    seen, count_hits = [], []
-    # list_list2key = []
+for i in range(0, len(list_overlay)): 
 
     rootfile = list_overlay[i]
     print(f"Running over file: {rootfile}")
@@ -114,11 +153,31 @@ for i in range(0, len(list_overlay)):
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
     decoder = dd4hep.BitFieldCoder(cellid_encoding)
     
+    #reset the 20 file mean
+    if i % 20 == 0:
+        occupancies_a_20_file = np.zeros(total_number_of_layers)
+        occupancies_a_20_file_non_normalized = np.zeros(total_number_of_layers)
     
-    
-    
-    print("starting events")
+    # print("starting events")
+    occupancies_a_file = []
+    occupancies_per_event_per_layer = np.zeros(total_number_of_layers)
+    occupancies_per_layer = np.zeros(total_number_of_layers)
+    occupancies_per_event = [] #for a signal files there should be 10 events,
+    #we want to get the occupancy of each event
+    #get the mean, normalize and give that to occupancies_per_layer
+    numEvents = 0
     for event in reader.get("events"):
+        numEvents += 1
+        list_index, list_hit_path_length, list_pos_hit, list_superLayer, \
+        list_layer, list_stereo, list_nphi, list_pos_z = [], [], [], [], [], [], [], []
+        list_R, list_p, list_px, list_py, list_pz, list_gen_status, \
+            list_pos_ver, list_par_photon, list_pdg, \
+                list_hits_secondary, list_hits_mc_secondary,\
+                    percentage_of_fired_cells= [], [], [], [], [], [], [], [], [], [], [], []
+        seen, count_hits = [], []
+        
+        occupancies_an_event = []
+    
         if type == "":
             dc_hits = event.get("CDCHHits")
         else:
@@ -126,7 +185,9 @@ for i in range(0, len(list_overlay)):
         dict_particle_n_fired_cell = {}
         dict_particle_fired_cell_id = {}
         
-        print("starting hits")
+        dict_cellID_nHits = {} #used for occupancy
+        
+        # print("starting hits")
         for num_hit, dc_hit in enumerate(dc_hits):
             mcParticle = dc_hit.getMCParticle()
             index_mc = mcParticle.getObjectID().index
@@ -175,7 +236,8 @@ for i in range(0, len(list_overlay)):
             # what is the occupancy?
             if not cellID_unique_identifier in dict_cellID_nHits.keys(): # the cell was not fired yet
                 #list_occupancy_per_layer.Fill(unique_layer_index)
-                occupancies_per_layer.append(unique_layer_index)
+                # occupancies_per_layer.append(unique_layer_index)
+                occupancies_an_event.append(unique_layer_index)
                 dict_cellID_nHits[cellID_unique_identifier] = 1
             else:
                 if(dict_cellID_nHits[cellID_unique_identifier] == 1):
@@ -183,8 +245,6 @@ for i in range(0, len(list_overlay)):
                 dict_cellID_nHits[cellID_unique_identifier] += 1
             
             # deal with the number of cell fired per particle
-            # print(f"cellID_unique_identifier: {cellID_unique_identifier}")
-            # print(dict_particle_fired_cell_id)
             if index_mc not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
                 dict_particle_n_fired_cell[index_mc] = 1
                 dict_particle_fired_cell_id[index_mc] = [cellID_unique_identifier]
@@ -192,133 +252,154 @@ for i in range(0, len(list_overlay)):
                 if not cellID_unique_identifier in dict_particle_fired_cell_id[index_mc]: # this cell was not yet fired by this particle
                     dict_particle_n_fired_cell[index_mc] += 1
                     dict_particle_fired_cell_id[index_mc].append(cellID_unique_identifier)
-                      
-        # Where do the particles hit the DC?
-        # DC_simhit_position_rz.Fill(abs(dc_hit.getPosition().z), sqrt(dc_hit.getPosition().x ** 2 + dc_hit.getPosition().y ** 2))
-        # DC_simhit_position_xy.Fill(dc_hit.getPosition().x, dc_hit.getPosition().y)
-        # # Map of the fired cells energies
-        # DC_fired_cell_map.Fill(nphi, unique_layer_index, 1e+3*dc_hit.getEDep())
-        # DC_fired_cell_map_per_evt.Fill(nphi, unique_layer_index, 1e+3*dc_hit.getEDep())
+            # overall_occupancies += (occupancies_an_event)
+            occupancies_a_file += occupancies_an_event
+        #end of hit loop
     
-    #print(f"dict_particle_n_fired_cell: {dict_particle_n_fired_cell}")
+
+        unique_mcs = np.unique(np.array(list_index))
+        #get mcParticle data
+        MCparticles = event.get("MCParticles")
+        for j in range(0, len(unique_mcs)):
+            mc_index = unique_mcs[j]
+            mcParticle = MCparticles[int(mc_index)]
+            
+            x_vertex = mcParticle.getVertex().x
+            y_vertex = mcParticle.getVertex().y
+            z_vertex = mcParticle.getVertex().z
+            vertex_R = math.sqrt(mcParticle.getVertex().x ** 2 + mcParticle.getVertex().y ** 2)* 1e-03
+            list_R.append(vertex_R)
+            momentum = mcParticle.getMomentum()
+            p = math.sqrt(momentum.x**2 + momentum.y**2 + momentum.z**2)
+            list_p.append(p)
+            list_px.append(momentum.x)
+            list_py.append(momentum.y)
+            list_pz.append(momentum.z)
+            gen_status = mcParticle.getGeneratorStatus()
+            list_gen_status.append(gen_status)
+            
+            list_pdg.append(mcParticle.getPDG())
+            has_photon_parent = 0
+            for parent in mcParticle.getParents():
+                if parent.getPDG() == 22:
+                    has_photon_parent = 1
+            list_par_photon.append(has_photon_parent) 
+        
+        #calculate the mean for one event
+        event_occupancy = []
+        event_occupancy_non_normalized = []
+        for unique_layer_index in range(0, total_number_of_layers): #get the occupancy for a given layer 
+            event_occupancy.append(calculateOccupancy(occupancies_an_event, unique_layer_index, n_cell_per_layer))
+            event_occupancy_non_normalized.append(calculateOccupancyNonNormalized(occupancies_an_event, unique_layer_index, n_cell_per_layer))
+        # mean_occupancy_one_event = np.mean(event_occupancy) #not really used
+        # occupancies_per_event.append(mean_occupancy_one_event) #not really used
+        # print(f"mean occupancy for event {j}: {mean_occupancy_one_event}")
+        if i == 0:
+            print(f"event_occupancy: {event_occupancy}")
+            occupancy_one_file = event_occupancy
+            occupancy_one_file_non_normalized = event_occupancy_non_normalized
+            dic["occupancy_one_file"] = occupancy_one_file
+            dic["occupancy_one_file_non_normalized"] = occupancy_one_file_non_normalized
+        occupancies_per_event_per_layer += np.array(event_occupancy) #this will accumulate over all events
+        occupancies_a_20_file += np.array(event_occupancy)
+        occupancies_a_20_file_non_normalized += np.array(occupancy_one_file_non_normalized)
+        occupancies_per_layer += np.array(event_occupancy) #this will accumulate over all events
+        
+        #the next one resets the 20 file batch
+        if i + 1 % 20 == 0:
+            occupancies_per_20_file[(i+1)/20] = occupancies_a_20_file
+            occupancies_per_20_file_non_normalized[(i+1)/20] = occupancies_a_20_file_non_normalized
+        
+        print("updating dictionary")
+        #update dictionary
+        dic["R"] += (list_R)
+        dic["p"] += (list_p)
+        dic["px"] += (list_px)
+        dic["py"] += (list_py)
+        dic["pz"] += (list_pz)
+        dic["gens"] += (list_gen_status)
+        dic["pos_ver"] += (list_pos_ver)
+
+        dic["hits"] += (list_index)
+        dic["pos_hit"] += (list_pos_hit)
+        dic["unique_mcs"] += (unique_mcs.tolist())
+        dic["superLayer"] += (list_superLayer)
+        dic["layer"] += (list_layer)
+        dic["nphi"] += (list_nphi)
+        dic["stereo"] += (list_stereo)
+        dic["pos_z"] += (list_pos_z)
+        dic["count_hits"] += (count_hits)
+        dic["has_par_photon"] += (list_par_photon)
+        dic["pdg"] += (list_pdg)
+        dic["hits_produced_secondary"] += (list_hits_secondary)
+        dic["hits_mc_produced_secondary"] += (list_hits_mc_secondary)
+        
+        # dic["avg_occupancy_event"] += [mean_occupancy_one_event]
+        # print(f"avg_occupancy_event: {dic['avg_occupancy_event']}")
+    #end of event loop
+    
+    #the occupancy given we iterated through all hits,
+    #we got the occupancy for that event
+    #then we went through all events, added to this array
+    #now we divide by the number of events to get the mean occupancy per layer
+    occupancies_per_event_per_layer_per_file = occupancies_per_event_per_layer / numEvents
+    
+    dic["occupancy_per_20_file_non_normalized_error"] = np.std(occupancies_per_20_file_non_normalized, axis=0)
+    dic["occupancy_per_20_file_non_normalized"] = np.mean(occupancies_per_20_file_non_normalized, axis=0)
+    dic["occupancy_per_20_file"] = np.mean(occupancies_per_20_file, axis=0)
+    dic["occupancy_per_20_file_error"] = np.std(occupancies_per_20_file, axis=0)
+    #calculate the mean for one file
+    # file_occupancy = []
+    # for unique_layer_index in range(0, total_number_of_layers):
+    #     file_occupancy.append(calculateOccupancy(occupancies_a_file, unique_layer_index, n_cell_per_layer))
+    # #remove any zeros
+    # # file_occupancy = [x for x in file_occupancy if x != 0]
+    # mean_occupancy_one_file = np.mean(file_occupancy)
+    # occupancies_per_file.append(mean_occupancy_one_file)
+    # print(f"mean occupancy for file {i}: {mean_occupancy_one_file}")
+    
+    #instead we should take the mean of the occupancies_per_event
+    # mean_occupancy_one_file = np.mean(occupancies_per_event)
+    # print(f"mean occupancy for file {i + 1}: {mean_occupancy_one_file}")
+    # occupancies_per_file.append(mean_occupancy_one_file) #not really used
+    # dic["avg_occupancy_file"] += [mean_occupancy_one_file] #not really used
+    
+    
     for particleKey in dict_particle_n_fired_cell.keys():
-        # n_cell_fired_of_particles_hitting_dch.Fill(dict_particle_n_fired_cell[particleKey])
-        # n_cell_fired_of_particles_hitting_dch_log.Fill(dict_particle_n_fired_cell[particleKey])
         list_n_cells_fired_mc.append(dict_particle_n_fired_cell[particleKey])
                 
                 
-                
-                
-                
-    print("getting particles")
-    unique_mcs = np.unique(np.array(list_index))
-    #set np threshold to print all the unique mcs
-    np.set_printoptions(threshold=sys.maxsize)
-    print(f"unique_mcs: {unique_mcs}")
+    # percentage_of_fired_cells.append(100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)  )
+#end of file loop
 
-    MCparticles = event.get("MCParticles")
-    for j in range(0, len(unique_mcs)):
-        mc_index = unique_mcs[j]
-        print(mc_index)
-        mcParticle = MCparticles[int(mc_index)]
-        
-        print("getting vertex")
-        x_vertex = mcParticle.getVertex().x
-        y_vertex = mcParticle.getVertex().y
-        z_vertex = mcParticle.getVertex().z
-        vertex_R = math.sqrt(mcParticle.getVertex().x ** 2 + mcParticle.getVertex().y ** 2)* 1e-03
-        list_R.append(vertex_R)
-        
-        print("getting momentum")
-        momentum = mcParticle.getMomentum()
-        p = math.sqrt(momentum.x**2 + momentum.y**2 + momentum.z**2)
-        list_p.append(p)
-        list_px.append(momentum.x)
-        list_py.append(momentum.y)
-        list_pz.append(momentum.z)
-        gen_status = mcParticle.getGeneratorStatus()
-        list_gen_status.append(gen_status)
-        
-        print("getting pdgs")
-        list_pdg.append(mcParticle.getPDG())
-        
-        has_photon_parent = 0
-        for parent in mcParticle.getParents():
-            if parent.getPDG() == 22:
-                has_photon_parent = 1
-        list_par_photon.append(has_photon_parent) 
-        
-    print("finished mcParticles")
-    percentage_of_fired_cells = 100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)       
-    
-    
-    print("updating dictionary")
-    #update dictionary
-    dic["R"] = np.append(dic["R"], np.array(list_R))
-    dic["p"] = np.append(dic["p"], np.array(list_p))
-    dic["px"] = np.append(dic["px"], np.array(list_px))
-    dic["py"] = np.append(dic["py"], np.array(list_py))
-    dic["pz"] = np.append(dic["pz"], np.array(list_pz))
-    dic["gens"] = np.append(dic["gens"], np.array(list_gen_status))
-    dic["pos_ver"] = np.append(dic["pos_ver"], np.array(list_pos_ver))
-    
-    dic["hits"] = np.append(dic["hits"], np.array(list_index))
-    dic["pos_hit"] = np.append(dic["pos_hit"], np.array(list_pos_hit))
-    dic["unique_mcs"] = np.append(dic["unique_mcs"], np.array(unique_mcs))
-    dic["superLayer"] = np.append(dic["superLayer"], np.array(list_superLayer))
-    dic["layer"] = np.append(dic["layer"], np.array(list_layer))
-    dic["nphi"] = np.append(dic["nphi"], np.array(list_nphi))
-    dic["stereo"] = np.append(dic["stereo"], np.array(list_stereo))
-    dic["pos_z"] = np.append(dic["pos_z"], np.array(list_pos_z))
-    dic["count_hits"] = np.append(dic["count_hits"], np.array(count_hits))
-    dic["has_par_photon"] = np.append(dic["has_par_photon"], np.array(list_par_photon))
-    dic["pdg"] = np.append(dic["pdg"], np.array(list_pdg))
-    dic["hits_produced_secondary"] = np.append(dic["hits_produced_secondary"], np.array(list_hits_secondary))
-    dic["hits_mc_produced_secondary"] = np.append(dic["hits_mc_produced_secondary"], np.array(list_hits_mc_secondary))
-    
+print("end of file loop")
+#this will have a length of total_number_of_layers
+#meaned across all files
+occupancies_per_event_per_layer_per_file /= numfiles
+dic["avg_occupancy_event_file"] = occupancies_per_event_per_layer_per_file
 
-        
-    np.save(dic_file_path, dic)
-    
+occupancies_per_layer /= numfiles
+dic["avg_occupancy_layer_file"] = occupancies_per_layer
 
-dic = np.load(dic_file_path, allow_pickle=True).item() 
+# dic = np.load(dic_file_path, allow_pickle=True).item() 
 # Normalize the occupancy per layer th1 (divide the number of cell fired by the total number of cell) and fill the TProfile of occupancies
-for unique_layer_index in range(0, total_number_of_layers):
-    # print(f"unique_layer_index: {unique_layer_index}")
-    # raw_bin_content = occupancies_per_layer.GetBinContent(unique_layer_index + 1) # NB: we use the trick that the bin index here is the same as the layer index it corresponds to, just binIdx 0 is underflow
-    # occupancies_per_layer.SetBinContent(unique_layer_index + 1, 100 * raw_bin_content/float(n_cell_per_layer[str(unique_layer_index)])) # unique_layer_index and n_cell_per_layer key definitions coincide
-    
-    #basicaly, we are calculating the occupancy of each layer
-    #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
-        # avg_occupancies_per_layer.append(100 * len([x for x in occupancies_per_layer if x == unique_layer_index])/float(n_cell_per_layer[str(unique_layer_index)]))
-    # Step 1: Filter occupancies_per_layer for the current layer index
-    # print(f"occupancies_per_layer: {occupancies_per_layer}")
-    filtered_occupancies = [x for x in occupancies_per_layer if x == unique_layer_index]
-    # print(f"filtered_occupancies: {filtered_occupancies}")
-    # Step 2: Count the occurrences of unique_layer_index
-    layer_count = len(filtered_occupancies)
-    # print(f"layer_count: {layer_count}")
-    # Step 3: Get the total number of cells for the layer
-    total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
-    # print(f"total_cells_in_layer: {total_cells_in_layer}")
-    # Step 4: Calculate the percentage occupancy
-    percentage_occupancy = 100 * layer_count / total_cells_in_layer
-    # Step 5: Append the result to avg_occupancies_per_layer
-    avg_occupancies_per_layer.append(percentage_occupancy)
-    #profile adds a point where x is the layer index and y is the normalized occupancy
-    occupancies_per_layer_profile.append((unique_layer_index, percentage_occupancy))
-    #input("Press Enter to continue...")
-# overall_occupancies.append(percentage_of_fired_cells)
+# overall_occupancy = []
+# for unique_layer_index in range(0, total_number_of_layers):
+#     overall_occupancy.append(calculateOccupancy(overall_occupancies, unique_layer_index, n_cell_per_layer))
+#similarly we should take the mean of the occupancies_per_file
+# overall_occupancy = np.mean(occupancies_per_file)
+# dic["overall_occupancy"] = overall_occupancy
 
-dic["percentage_of_fired_cells"] =  np.append(dic["percentage_of_fired_cells"], percentage_of_fired_cells)
-dic["list_n_cells_fired_mc"] = np.append(dic["list_n_cells_fired_mc"], np.array(list_n_cells_fired_mc))
-dic["occupancies_per_layer"] = np.append(dic["occupancies_per_layer"], np.array(occupancies_per_layer))
-dic["avg_occupancy"] = np.append(dic["avg_occupancy"], np.array(avg_occupancies_per_layer))
-dic["occupancies_per_layer_profile"] = occupancies_per_layer_profile
-dic["dict_layer_phiSet"] = dict_layer_phiSet
+# dic["percentage_of_fired_cells"] += percentage_of_fired_cells
+dic["list_n_cells_fired_mc"] += list_n_cells_fired_mc
+# dic["occupancies_per_layer_profile"] += occupancies_per_layer_profile
+dic["dict_layer_phiSet"] += dict_layer_phiSet
 
 dic["n_cell_per_layer"] = n_cell_per_layer
 dic["total_number_of_cells"] = total_number_of_cells
 dic["total_number_of_layers"] = total_number_of_layers
 dic["max_n_cell_per_layer"] = max_n_cell_per_layer
+
+
+print(f"Saving dictionary to {dic_file_path}")
 np.save(dic_file_path, dic)

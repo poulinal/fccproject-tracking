@@ -1,6 +1,8 @@
 import ROOT
 import numpy as np 
-from utilities.functions import hist_plot, plot_hist, multi_hist_plot, bar_plot, multi_bar_plot, xy_plot
+from utilities.functions import hist_plot, plot_hist, multi_hist_plot, \
+    bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot
+from utilities.pltWireCh import plot_wire_chamber
 import argparse
 import sys
 import matplotlib.pyplot as plt
@@ -9,14 +11,28 @@ import math
 
 available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits"]
 
-numFiles = 20
-backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
+numFiles = 500
+# backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
+backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy"
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
+signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/signal_background_particles_"+str(numFiles)+".npy"
+type="bkg"
 
-dic = np.load(backgroundDataPath, allow_pickle=True).item()
+#set numpy display to default
+np.set_printoptions(threshold=10)
+
+if type == "bkg":
+    dic = np.load(backgroundDataPath, allow_pickle=True).item()
+elif type == "combined":
+    dic = np.load(combinedDataPath, allow_pickle=True).item()
+elif type == "signal":
+    dic = np.load(signalDataPath, allow_pickle=True).item()
+else:
+    print("Type must be either background, combined, or signal")
+    sys.exit()
 #dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles_20.npy", allow_pickle=True).item()
-
+# dicbkg = np.load(backgroundDataPath, allow_pickle=True).item()
 
 def hitsPerMC(dic, args = ""):
     """
@@ -36,7 +52,7 @@ def hitsPerMC(dic, args = ""):
     hist["all"] = []
     #set mcParticles to be numpy array size of the last entry of dic["hits"]
     list_hits_per_mc = dic["count_hits"]
-    print(f"max list_hits_per_mc: {max(list_hits_per_mc)}")
+    # print(f"max list_hits_per_mc: {max(list_hits_per_mc)}")
 
     # print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
     
@@ -83,8 +99,8 @@ def hitsPerMC(dic, args = ""):
                     
     if args == "electron":
         hist["Only Electrons"] = []
-        print(f"len pdg: {len(pdg)}")
-        print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
+        # print(f"len pdg: {len(pdg)}")
+        # print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
         
         for i in range(0, len(list_hits_per_mc)):
             if pdg[i] == 11:
@@ -149,23 +165,28 @@ def momPerMC(dic, args = "", byPDG = False):
     # Create the histogram
     hist = {}
     hist["all"] = []
+    hist["onlyOH"] = []
+    hist["only+H"] = []
+    hist["onlyParPhoton"] = []
+    hist["ptBelow10R"] = []
+    hist["multiHits"] = []
+    hist["multiHitsExcludeOne"] = []
     p = dic["p"]
+    # print(f"dic: {dic['p']}")
     
     if byPDG:
         pdg = dic["pdg"]
     
-    if args == "": #regular get all momenta
+    if args == "" or args == "all": #regular get all momenta
         # for i in range(0, len(p)):
         #     hist.append(p[i])
         hist["all"] = p
         # print(f"max hist: {max(hist)}")
-        return hist["all"]
+        return hist
 
 
     if args == "onlyOH" or args == "only+H":
         count_hits = dic["count_hits"] #the index of the mcParticle for each hit
-        hist["onlyOH"] = []
-        hist["only+H"] = []
         #seperate hits based on if they occur once or more than once with the same mcParticle
         for i in range(0, len(count_hits)):
             if count_hits[i] == 1:
@@ -174,8 +195,7 @@ def momPerMC(dic, args = "", byPDG = False):
                         hist[pdg[i]].append(p[i])
                     else:
                         hist[pdg[i]] = [p[i]]
-                else:
-                    hist["onlyOH"].append(p[i])
+                hist["onlyOH"].append(p[i])
             else:
                 if byPDG:
                     if pdg[i] in hist:
@@ -185,6 +205,12 @@ def momPerMC(dic, args = "", byPDG = False):
                 hist["only+H"].append(p[i])
             hist["all"].append(p[i])
         # print(f"max hist: {max(hist)}")
+        if byPDG:
+            hist["all"] = []
+        if args == "onlyOH":
+            hist["only+H"] = []
+        else:
+            hist["onlyOH"] = []
         return hist
     
     if args == "onlyParPhoton":
@@ -196,7 +222,7 @@ def momPerMC(dic, args = "", byPDG = False):
         photon = dic["has_par_photon"] #list t(1) or false(0) if mcParticle has a parent thats a photon
         for i in range(0, len(photon)):
             if photon[i]:
-                hist.append(p[i])
+                hist["onlyParPhoton"].append(p[i])
         # print(f"max hist: {max(hist)}")
         return hist
     
@@ -215,7 +241,7 @@ def momPerMC(dic, args = "", byPDG = False):
         # print(f"R's above 10: {len(R[R > 0.01])}")
         for i in range(0, len(R)):
             if R[i] < 0.01:
-                hist.append(math.sqrt(px[i]**2 + py[i]**2))
+                hist["ptBelow10R"].append(math.sqrt(px[i]**2 + py[i]**2))
         # print(f"max hist: {max(hist)}")
         return hist
     
@@ -226,18 +252,18 @@ def momPerMC(dic, args = "", byPDG = False):
         hist[">10 Hits"] = []
         hist[">20 Hits"] = []
         count_hits = dic["count_hits"]
-        print(f"max count_hits: {max(count_hits)}")
+        # print(f"max count_hits: {max(count_hits)}")
         for i in range(0, len(count_hits)):
-            print(f"count_hits[i]: {count_hits[i]}")
+            # print(f"count_hits[i]: {count_hits[i]}")
             if count_hits[i] == 1 and not args.endswith("ExcludeOne"):
                 hist["1 Hit"].append(p[i])
-            elif count_hits[i] > 1:
+            if count_hits[i] > 1:
                 hist[">1 Hits"].append(p[i])
-            elif count_hits[i] > 5:
+            if count_hits[i] > 5:
                 hist[">5 Hits"].append(p[i])
-            elif count_hits[i] > 10:
+            if count_hits[i] > 10:
                 hist[">10 Hits"].append(p[i])
-            elif count_hits[i] > 20:
+            if count_hits[i] > 20:
                 hist[">20 Hits"].append(p[i])
         # print(f"max hist: {max(hist)}")
         return hist
@@ -251,7 +277,7 @@ def PDGPerMC(dic, args = "", sepSecondary = False):
     """
     # Create the histogram
     pdg = dic["pdg"]
-    prodSec = dic["hits_mc_produced_secondary"]
+    # prodSec = dic["hits_mc_produced_secondary"]
     hist_dic = {}
     if args == "": ##want to return all pdg's as a dictionary of pdg, key = pdg, value = count
         #hist_dic = {}
@@ -272,8 +298,8 @@ def PDGPerMC(dic, args = "", sepSecondary = False):
         hist_dic["electron"] = 0
         hist_dic["e_photon_parent"] = []
         has_par_photon = dic["has_par_photon"]
-        print(len(has_par_photon))
-        print(len(pdg))
+        # print(len(has_par_photon))
+        # print(len(pdg))
         for i in range(0, len(pdg)):
             if pdg[i] == 11:
                 hist_dic["electron"] += 1
@@ -294,12 +320,12 @@ def PDGPerMC(dic, args = "", sepSecondary = False):
         """
         gen = dic["gens"]
         #print full numpy
-        np.set_printoptions(threshold=sys.maxsize)
-        print(f"gen: {gen}")
-        input("Press Enter to continue...")
+        #np.set_printoptions(threshold=sys.maxsize)
+        # print(f"gen: {gen}")
+        # input("Press Enter to continue...")
         #print only non zero entries
-        print(f"gen: {gen[gen != 0]}")
-        input("Press Enter to continue...")
+        # print(f"gen: {gen[gen != 0]}")
+        # input("Press Enter to continue...")
         hist_dic["all"] = 0
         hist_dic["primary"] = 0
         hist_dic["secondary"] = 0
@@ -314,32 +340,6 @@ def PDGPerMC(dic, args = "", sepSecondary = False):
             if gen[i] != 1:
                 hist_dic["secondary"] += 1
         return hist_dic
-
-
-def groupHits(dic, list_dic):
-    """
-    Function that groups the hits by MC particle.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
-    Outputs: arrays which have the hits grouped by MC particle.
-    """
-    list_index = dic["hits"]
-    
-    list = list_dic
-    mcParticlesID = []
-    mcParticlesPosHit = []
-    
-    print(list)
-    
-    for i in range(0, len(list_index)):
-        newEntry = []
-        if list_index[i] not in mcParticlesID:
-            mcParticlesID.append(list_index[i])
-            newEntry = [list[i]]
-            mcParticlesPosHit.append(newEntry)
-        else:
-            mcParticlesPosHit[mcParticlesID.index(list_index[i])].append(list[i])
-    #print(f"mcParticlesPosHit: {mcParticlesPosHit}")
-    return mcParticlesPosHit
 
 def wiresPerMC(dic):
     """
@@ -374,20 +374,20 @@ def trajLen(dic):
     for i in range(0, len(mcParticlesPosHit)):
         # given mcParticlesPosHit is an array (each particle) of 3position arrays (each hit)
         # get just the max z and min z and subtract them
-        print(f"mcPPH[i]: {mcParticlesPosHit[i][0]}")
+        # print(f"mcPPH[i]: {mcParticlesPosHit[i][0]}")
         totPL = abs(np.max(mcParticlesPosHit[i]) - np.min(mcParticlesPosHit[i]))
         
             
         totMCPL.append(totPL)
-    print(f"totMCPL: {totMCPL}")
-    print(f"max: {max(totMCPL)}")
+    # print(f"totMCPL: {totMCPL}")
+    # print(f"max: {max(totMCPL)}")
     #hist = ROOT.TH1F("hist", "Trajectory length of MC particles", 40, 0, max(totMCPL))
     
     #make numpy array:
     totMCPL = np.array(totMCPL)
     #remove zeros
     totMCPL = totMCPL[totMCPL != 0]
-    print(f"totMCPL after rm 0: {totMCPL}")
+    # print(f"totMCPL after rm 0: {totMCPL}")
     
     for i in range(0, len(totMCPL)):
         hist.append(totMCPL[i])
@@ -442,18 +442,31 @@ def occupancy(dic, args = ""):
         "" -- all values \n
         "n_cells" -- number of cells fired by an mcParticle\n
         "percentage_fired" -- percentage of cells fired by an mcParticle\n
-        "occupancy_per_layer" -- occupancy per layer\n
-        "avg_occupancy" -- average occupancy\n
-        "occupancies_profile" -- occupancy profile\n
+        "avg_occupancy_file" -- average occupancy per file\n
+        "avg_occupancy_event" -- average occupancy per event\n
+        "avg_occupancy_event_file" -- average occupancy per event per file, 
+            same length as total layers\n
+        "avg_occupancy_layer_file" -- average occupancy per file, but all events together,
+            same length as total layers\n
         "cells_per_layer" -- cells per layer\n
     """
     # Create the histogram
     hist = {}
     hist["n_cells"]= []
     hist["percentage_fired"] = []
-    hist["occupancy_per_layer"] = []
-    hist["avg_occupancy"] = []
-    hist["occupancies_profile"] = []
+    hist["avg_occupancy_file"] = []
+    hist["avg_occupancy_event"] = []
+    hist["avg_occupancy_event_file"] = []
+    hist["avg_occupancy_layer_file"] = []
+    hist["n_cells_per_layer"] = []
+    
+    hist["occupancy_one_file"] = []
+    hist["occupancy_one_file_non_normalized"] = []
+    hist["occupancy_per_20_file"] = []
+    hist["occupancy_per_20_file_error"] = []
+    hist["occupancy_per_20_file_non_normalized"] = []
+    hist["occupancy_per_20_file_non_normalized_error"] = []
+    
     
     if args == "n_cells" or args == "":
         hist["n_cells"] = dic["list_n_cells_fired_mc"]
@@ -461,22 +474,41 @@ def occupancy(dic, args = ""):
     if args == "percentage_fired" or args == "":
         hist["percentage_fired"] = dic["percentage_of_fired_cells"]
         
-    if args == "occupancy_per_layer" or args == "":
-        hist["occupancy_per_layer"] = dic["occupancies_per_layer"]
+    if args == "avg_occupancy_file" or args == "":
+        hist["avg_occupancy_file"] = dic["avg_occupancy_file"]
         
-    if args == "avg_occupancy" or args == "":
-        hist["avg_occupancy"] = dic["avg_occupancy"]
+    if args == "avg_occupancy_event" or args == "":
+        hist["avg_occupancy_event"] = dic["avg_occupancy_event"]
+        
+    if args == "avg_occupancy_event_file" or args == "":
+        hist["avg_occupancy_event_file"] = dic["avg_occupancy_event_file"]
+        hist["total_number_of_layers"] = dic["total_number_of_layers"]
     
-    if args == "occupancies_profile" or args == "":
-        hist["occupancies_profile"] = dic["occupancies_per_layer_profile"]
+    if args == "avg_occupancy_layer_file" or args == "":
+        hist["avg_occupancy_layer_file"] = dic["avg_occupancy_layer_file"]
+        hist["total_number_of_layers"] = dic["total_number_of_layers"]
         
     if args == "cells_per_layer":
         hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
         hist["total_number_of_cells"] = dic["total_number_of_cells"]
-        hist["total_number_of_layers"] = dic["total_number_of_layers"]
-        print(f"total_number_of_cells: {hist['total_number_of_cells']}")
-        print(f"total_number_of_layers: {hist['total_number_of_layers']}")
-        print(f"n_cells_per_layer: {hist['n_cells_per_layer']}")
+    hist["total_number_of_layers"] = dic["total_number_of_layers"]
+        # print(f"total_number_of_cells: {hist['total_number_of_cells']}")
+        # print(f"total_number_of_layers: {hist['total_number_of_layers']}")
+        # print(f"n_cells_per_layer: {hist['n_cells_per_layer']}")
+        
+    if args == "occupancy_one_file":
+        hist["occupancy_one_file"] = dic["occupancy_one_file"]
+    
+    if args == "occupancy_one_file_non_normalized":
+        hist["occupancy_one_file_non_normalized"] = dic["occupancy_one_file_non_normalized"]
+    
+    if args == "occupancy_per_20_file":
+        hist["occupancy_per_20_file"] = dic["occupancy_per_20_file"]
+        hist["occupancy_per_20_file_error"] = dic["occupancy_per_20_file_error"]
+        
+    if args == "occupancy_per_20_file_non_normalized":
+        hist["occupancy_per_20_file_non_normalized"] = dic["occupancy_per_20_file_non_normalized"]
+        hist["occupancy_per_20_file_non_normalized_error"] = dic["occupancy_per_20_file_non_normalized_error"]
     
     return hist
     
@@ -484,99 +516,132 @@ def occupancy(dic, args = ""):
     
 
 # hist = momPerMC(dic, "")
-# hist_plot(hist, imageOutputPath + "momentumMC500.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0.0001, xMax=0.175)
-# hist_plot(hist, imageOutputPath + "momentumMC500Loggedx.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500Logged.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
+# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + ".png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Loggedx.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Logged.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
 
 # hist = momPerMC(dic, "onlyOH")
-# hist_plot(hist, imageOutputPath + "momentumMC500onlyOneHit.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0.0001, xMax=0.175)
-# hist_plot(hist["onlyOH"], imageOutputPath + "momentumMC500onlyOneHitLoggedx.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500onlyOneHitLogged.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# hist_plot(hist["onlyOH"], imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHit.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+# hist_plot(hist["onlyOH"], imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHitLoggedx.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist["onlyOH"], imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHitLogged.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "only+H")
-# hist_plot(hist, imageOutputPath + "momentumMC500only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
-# hist_plot(hist["only+H"], imageOutputPath + "momentumMC500only+HitLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
+# hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "onlyParPhoton")
-# hist_plot(hist, imageOutputPath + "momentumMC500onlyParentPhoton.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0, xMax=0.12)
-# hist_plot(hist, imageOutputPath + "momentumMC500onlyParentPhotonLoggedx.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500onlyParentPhotonLogged.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyParentPhoton.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyParentPhotonLoggedx.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyParentPhotonLogged.png", "Momentum of MC particles with a Parent Photon (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "ptBelow10R")
-# hist_plot(hist, imageOutputPath + "momentumMC500pt10R.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0, xMax=1)
-# hist_plot(hist, imageOutputPath + "momentumMC500pt10RLoggedx.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500pt10RLogged.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "pt10R.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "pt10RLoggedx.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "pt10RLogged.png", "Transverse Momentum of MC particles within a radius of 10mm (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 
 
 
 ####multi:
 # hist = PDGPerMC(dic, "")
-# bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC500.png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80)
+# bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", width=1.3, rotation=90, includeLegend=False)
 
 # hist = PDGPerMC(dic, "electron")
-# bar_plot("electron", hist["electron"], imageOutputPath + "pdgElectronPhotonMC500.png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Electrons")
-# bar_plot("electron", hist["e_photon_parent"], imageOutputPath + "pdgElectronPhotonMC500.png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, label="Only Electrons with a Parent Photon")
+# bar_plot(["electron"], hist["all"], imageOutputPath + "pdgElectronPhotonMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Electrons")
+# bar_plot(["electron"], hist["electron"], imageOutputPath + "pdgElectronPhotonMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Electrons")
+# bar_plot(["electron"], hist["e_photon_parent"], imageOutputPath + "pdgElectronPhotonMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, label="Only Electrons with a Parent Photon")
 
 # hist = PDGPerMC(dic, "gen")
-# bar_plot("MC Particles", hist["all"], imageOutputPath + "pdgGeneratorStatusMC500.png", "Primary or Secondary MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Particles")
-# multi_bar_plot("MC Particles", hist, imageOutputPath + "pdgElectronGeneratorStatusMC500.png", "Primary or Secondary for Electron MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles")
+# bar_plot("MC Particles", hist["all"], imageOutputPath + "pdgGeneratorStatusMC" + str(numFiles) + ".png", "Primary or Secondary MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Particles")
+# multi_bar_plot("MC Particles", hist, imageOutputPath + "pdgElectronGeneratorStatusMC" + str(numFiles) + ".png", "Primary or Secondary for Electron MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles")
 
 ######3maybe return entire dictionary and in plotting remove zero valued keys
-# hist = hitsPerMC(dic, "photonSec")
-# hist_plot(hist["all"], imageOutputPath + "hitsMC500.png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", autoBin=False, logX=True, logY=True)
-# multi_hist_plot(hist, imageOutputPath + "hitsPhotonMC500.png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", autoBin=True, binLow=0.1, binHigh=900, binSteps=5, binType="lin", logY=True)
-# multi_bar_plot("MCP", hist, imageOutputPath + "hitsPhotonMC500.png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80,  
+# hist = hitsPerMC(dic, "neutronSec")
+# print(f"hist: {max(hist['all'])}")
+# hist_plot(hist["all"], imageOutputPath + "hitsMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", autoBin=False, logX=True, logY=True)
+# multi_hist_plot(hist, imageOutputPath + "hitsNeutronMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True, contrast=True)
+# multi_hist_plot(hist, imageOutputPath + "hitsNeutronZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", logY=True)
+# multi_bar_plot("MCP", hist, imageOutputPath + "hitsPhotonMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80,  
 #          additionalText=f"Percentage of photons that were produced by secondary particles: {round(hist['Only Photons Produced by Secondary Particles']/hist['Only Photons'], 3)}")
-# multi_bar_plot("MCP", hist, imageOutputPath + "hitsPDGMC500.png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80)
-# multi_bar_plot("MCP", hist, imageOutputPath + "hitsNeutronMC500.png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80,  
-#          additionalText=f"Percentage of neutrons that were produced by secondary particles: {round(hist['Only Neutrons Produced by Secondary Particles']/hist['Only Neutrons'], 3)}")
 
-# hist = momPerMC(dic, "")
-# hist_plot(hist, imageOutputPath + "momentumMC500.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", xMin=0.0001, xMax=0.175)
-# hist_plot(hist, imageOutputPath + "momentumMC500Loggedx.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist, imageOutputPath + "momentumMC500Logged.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
 
+
+
+####byPDG
 # hist = momPerMC(dic, "onlyOH", byPDG=True)
-#multi_hist_plot(hist, imageOutputPath + "momentumMC500onlyOneHitSepPDG.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0.0001, xMax=0.175)
-# multi_hist_plot(hist, imageOutputPath + "momentumMC500onlyOneHitSepPDGLoggedx.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-#multi_hist_plot(hist, imageOutputPath + "momentumMC500onlyOneHitSepPDGLogged.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# print(max(hist["onlyOH"]))
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHitSepPDG.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", barType="step")
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHitSepPDGLoggedx.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, barType="step", contrast=True)
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHitSepPDGLogged.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True, barType="step")
 
 # hist = momPerMC(dic, "only+H", byPDG=True)
-# multi_hist_plot(hist, imageOutputPath + "momentumMC500only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
-# multi_hist_plot(hist, imageOutputPath + "momentumMC500only+HitSetpPDGLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# multi_hist_plot(hist, imageOutputPath + "momentumMC500only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
+# print(f"hist: {hist['only+H']}")
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3, barType="step")
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+HitSetpPDGLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, barType="step", contrast=True)
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True, barType="step")
 
 # hist = momPerMC(dic, "multiHitsExcludeOne")
-# multi_hist_plot(hist, imageOutputPath + "momentumMC500MultiHitsExcludeOneLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist = momPerMC(dic, "multiHits")
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "MultiHitsExcludeOneLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "MultiHitsLoggedx.png", "Momentum of MC particles with hits (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
 
 
 
+###overlay bkg and signal hits
+# histSignal = hitsPerMC(dic, "all")
+# histBkg = hitsPerMC(dicbkg, "all")
+# histBkg["All Particles BKG"] = histBkg.pop("all")
+# histSignal["Electron Particles Signal"] = histSignal.pop("Only Electrons")
+# bar_step_multi_hist_plot(histSignal["all"], histBkg, imageOutputPath + "hitsSignalBkgMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True)
+# histBkg["All Particles Signal"] = histSignal["all"]
+# histBkg.pop("all")
+# multi_hist_plot(histBkg, imageOutputPath + "hitsElectronDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step",logY=True, density=True)
+# multi_hist_plot(histBkg, imageOutputPath + "hitsDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
 
-hist = occupancy(dic, "")
+###overlay bkg and signal mom
+# histSignal = momPerMC(dic, "all")
+# histBkg = momPerMC(dicbkg, "all")
+# histBkg["All Particles BKG"] = histBkg.pop("all")
+# histBkg["All Particles Signal"] = histSignal["all"]
+# print(f"max histSignal: {max(histBkg['All Particles Signal'])}")
+# multi_hist_plot(histBkg, imageOutputPath + "momSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (Gev)", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.0001, binHigh=50, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
+
+
+#####occupancy
+# hist = occupancy(dic, "avg_occupancy_layer_file")
+hist = occupancy(dic, "occupancy_20_file_non_normalized")
 #total number of layers: 112
 #total number of cells 56448
-#full numpy print
-# np.set_printoptions(threshold=sys.maxsize)
-np.set_printoptions(threshold=10)
-#print non one values
-# print(f"n_cells: {hist['n_cells']}")
-# print(f"max: {max(hist['n_cells'])}")
-# print(f"size: {len(hist['n_cells'])}")
+
 # print(f"hist['percentage_fired']: {hist['percentage_fired']}")
-# print(f"max: {max(hist['percentage_fired'])}")
-print(f"hist['avg_occupancy']: {hist['avg_occupancy']}")
-# print(f"hist['occupancy_per_layer']: {hist['occupancy_per_layer']}")
-# print(f"max: {max(hist['occupancy_per_layer'])}")
-hist_plot(hist["n_cells"], imageOutputPath + "occupancyMC500.png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count MC particles", xMin=0, xMax=20, binLow=1, binHigh=86, binSteps=0.3, binType="exp")
-# hist_plot(hist["percentage_fired"], imageOutputPath + "occupancyPercMC500.png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Percentage of cells fired", yLabel="Count MC particles", xMin=0, xMax=80, binHigh=80, binSteps=1, binType="lin")
-hist_plot(hist["avg_occupancy"], imageOutputPath + "occupancyPerLayerMC500.png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Unique Layer Index", yLabel="Occupancy (Count of hits for that ULI)", xMin=0, xMax=110, binHigh=110, binSteps=3, binType="lin")
+# hist_plot(hist["n_cells"], imageOutputPath + "occupancyMC" + str(numFiles) + ".png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count MC particles", xMin=0, xMax=20, binLow=1, binHigh=86, binSteps=0.3, binType="exp")
+# hist_plot(hist["percentage_fired"], imageOutputPath + "occupancyPercMC" + str(numFiles) + ".png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Percentage of cells fired", yLabel="Count MC particles", xMin=0, xMax=80, binHigh=80, binSteps=1, binType="lin")
+# hist_plot(hist["avg_occupancy_file"], imageOutputPath + "occupancyPerFileMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=112, binHigh=112, binSteps=1, binType="lin")
+# hist_plot(hist["avg_occupancy_event"], imageOutputPath + "occupancyPerEventMC" + str(numFiles) + ".png", "Average Occupancy Per Event (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=1.3, binHigh=112, binSteps=1, binType="lin")
+
+# print(hist)
+layers = [i for i in range(0, hist["total_number_of_layers"])]
+# xy_plot(layers, hist["avg_occupancy_event_file"], imageOutputPath + "occupancyPerEventPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per Event Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=False)
+# xy_plot(layers, hist["avg_occupancy_layer_file"], imageOutputPath + "occupancyPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
+
+# xy_plot(layers, hist["occupancy_one_file_non_normalized"], imageOutputPath + "occupancyOneFileMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy", includeLegend=False, label="", scatter=True)
+# xy_plot(layers, hist["occupancy_one_file"], imageOutputPath + "occupancyOneFilePercMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
+
+xy_plot(layers, hist["occupancy_20_file_non_normalized"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
+        "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
+        xLabel="Radial Layer Index", yLabel="Average Channel Occupancy", 
+        includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_20_file_non_normalized_error"])
+# xy_plot(layers, hist["occupancy_20_file"], imageOutputPath + "occupancy20FileBatchPercMC" + str(numFiles) + ".png", "Average Occupancy Across 20 File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True, errorBars=True)
+
 # x = [int(i) for i in list(hist["n_cells_per_layer"].keys())]
-# xy_plot(x, list(hist["n_cells_per_layer"].values()), imageOutputPath + "nCellsPerLayerMC500.png", "Cells Per Layer (" + str(numFiles) + " Files)", xLabel="Number of Layers", yLabel="Cells Per Layer")
-# print(f"hist['occupancies_per_layer_profile']: {hist['occupancies_profile']}")
-#given hist['occupancies_per_layer_profile'] is an array of tuples that correspond to x and y, plot:
-hist_plot(hist['occupancies_profile'][0], imageOutputPath + "occupanciesProfileMC500.png", "Occupancy Profile of the detector (" + str(numFiles) + " Files)", weight=hist['occupancies_profile'][1], bins=hist["occupancies_profile"][0], xLabel="Unique Layer Index", yLabel="Occupancy (Count of hits for that ULI)")
+# xy_plot(x, list(hist["n_cells_per_layer"].values()), imageOutputPath + "nCellsPerLayerMC" + str(numFiles) + ".png", "Cells Per Layer (" + str(numFiles) + " Files)", xLabel="Layer Number", yLabel="Cells Per Layer", includeLegend=False, label="")
+
+###plot wire chamber
+# hist = occupancy(dic, "cells_per_layer")
+# print(hist['total_number_of_layers'])
+# print(len(hist['n_cells_per_layer']))
+# plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamber" + ".png", title="Wire Chamber Diagram (" + str(numFiles) + " Files)")
 
 
 

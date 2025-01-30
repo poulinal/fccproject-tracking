@@ -316,7 +316,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print("Beginning to xy plot...")
     if scatter:
         if errorBars:
-            axe.errorbar(x, y, yerr, label=label)
+            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker='_')
         else:
             axe.scatter(x, y, label=label)
     else:

@@ -53,7 +53,7 @@ combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_b
 bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
-type = "signal"
+type = "bkg"
 print("type: ", type)
 input("Press Enter to continue...")
 
@@ -305,11 +305,6 @@ for i in range(0, len(list_overlay)):
         occupancies_a_20_file_non_normalized += np.array(occupancy_one_file_non_normalized)
         occupancies_per_layer += np.array(event_occupancy) #this will accumulate over all events
         
-        #the next one resets the 20 file batch
-        if i + 1 % 20 == 0:
-            occupancies_per_20_file[(i+1)/20] = occupancies_a_20_file
-            occupancies_per_20_file_non_normalized[(i+1)/20] = occupancies_a_20_file_non_normalized
-        
         print("updating dictionary")
         #update dictionary
         dic["R"] += (list_R)
@@ -338,16 +333,19 @@ for i in range(0, len(list_overlay)):
         # print(f"avg_occupancy_event: {dic['avg_occupancy_event']}")
     #end of event loop
     
+    #the next one resets the 20 file batch
+    if (i + 1) % 20 == 0:
+        # print(f"shape: {occupancies_per_20_file.shape}")
+        occupancies_per_20_file[int((i+1)/20) - 1] = occupancies_a_20_file
+        occupancies_per_20_file_non_normalized[int((i+1)/20) - 1] = occupancies_a_20_file_non_normalized
+        # print(f"occupancies_per_20_file: {occupancies_per_20_file}")
+    
     #the occupancy given we iterated through all hits,
     #we got the occupancy for that event
     #then we went through all events, added to this array
     #now we divide by the number of events to get the mean occupancy per layer
     occupancies_per_event_per_layer_per_file = occupancies_per_event_per_layer / numEvents
     
-    dic["occupancy_per_20_file_non_normalized_error"] = np.std(occupancies_per_20_file_non_normalized, axis=0)
-    dic["occupancy_per_20_file_non_normalized"] = np.mean(occupancies_per_20_file_non_normalized, axis=0)
-    dic["occupancy_per_20_file"] = np.mean(occupancies_per_20_file, axis=0)
-    dic["occupancy_per_20_file_error"] = np.std(occupancies_per_20_file, axis=0)
     #calculate the mean for one file
     # file_occupancy = []
     # for unique_layer_index in range(0, total_number_of_layers):
@@ -381,14 +379,12 @@ dic["avg_occupancy_event_file"] = occupancies_per_event_per_layer_per_file
 occupancies_per_layer /= numfiles
 dic["avg_occupancy_layer_file"] = occupancies_per_layer
 
-# dic = np.load(dic_file_path, allow_pickle=True).item() 
-# Normalize the occupancy per layer th1 (divide the number of cell fired by the total number of cell) and fill the TProfile of occupancies
-# overall_occupancy = []
-# for unique_layer_index in range(0, total_number_of_layers):
-#     overall_occupancy.append(calculateOccupancy(overall_occupancies, unique_layer_index, n_cell_per_layer))
-#similarly we should take the mean of the occupancies_per_file
-# overall_occupancy = np.mean(occupancies_per_file)
-# dic["overall_occupancy"] = overall_occupancy
+#at this point we have filled the occupancy so there are 500 rows and 112 columns
+print(f"occupancies_per_event_per_layer_per_file: {occupancies_per_event_per_layer_per_file}")
+dic["occupancy_per_20_file_non_normalized"] = np.mean(occupancies_per_20_file_non_normalized, axis=0)
+dic["occupancy_per_20_file_non_normalized_error"] = np.std(occupancies_per_20_file_non_normalized, axis=0)
+dic["occupancy_per_20_file"] = np.mean(occupancies_per_20_file, axis=0)
+dic["occupancy_per_20_file_error"] = np.std(occupancies_per_20_file, axis=0)
 
 # dic["percentage_of_fired_cells"] += percentage_of_fired_cells
 dic["list_n_cells_fired_mc"] += list_n_cells_fired_mc

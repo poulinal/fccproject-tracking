@@ -13,11 +13,11 @@ available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC",
 
 numFiles = 500
 # backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
-backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy"
+backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
 signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/signal_background_particles_"+str(numFiles)+".npy"
-type="bkg"
+type="signal"
 
 #set numpy display to default
 np.set_printoptions(threshold=10)
@@ -610,29 +610,36 @@ def occupancy(dic, args = ""):
 
 #####occupancy
 # hist = occupancy(dic, "avg_occupancy_layer_file")
-hist = occupancy(dic, "occupancy_20_file_non_normalized")
+# hist = occupancy(dic, "occupancy_per_20_file_non_normalized")
+hist = occupancy(dic, "n_cells")
 #total number of layers: 112
 #total number of cells 56448
 
 # print(f"hist['percentage_fired']: {hist['percentage_fired']}")
-# hist_plot(hist["n_cells"], imageOutputPath + "occupancyMC" + str(numFiles) + ".png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count MC particles", xMin=0, xMax=20, binLow=1, binHigh=86, binSteps=0.3, binType="exp")
+print(f"max(n_cells): {hist['n_cells']}")
+hist_plot(hist["n_cells"], imageOutputPath + "nCellsFiredMC" + str(numFiles) + ".png", "Number of Cells Fired by Particles (" + str(numFiles) + " Files)", xLabel="Number of cells fired by an MC particle", yLabel="Count", xMin=0, xMax=4000, binLow=0.01, binHigh=4000, binSteps=0.3, binType="lin")
 # hist_plot(hist["percentage_fired"], imageOutputPath + "occupancyPercMC" + str(numFiles) + ".png", "Occupancy of the detector (" + str(numFiles) + " Files)", xLabel="Percentage of cells fired", yLabel="Count MC particles", xMin=0, xMax=80, binHigh=80, binSteps=1, binType="lin")
 # hist_plot(hist["avg_occupancy_file"], imageOutputPath + "occupancyPerFileMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=112, binHigh=112, binSteps=1, binType="lin")
 # hist_plot(hist["avg_occupancy_event"], imageOutputPath + "occupancyPerEventMC" + str(numFiles) + ".png", "Average Occupancy Per Event (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=1.3, binHigh=112, binSteps=1, binType="lin")
 
 # print(hist)
-layers = [i for i in range(0, hist["total_number_of_layers"])]
+# layers = [i for i in range(0, hist["total_number_of_layers"])]
 # xy_plot(layers, hist["avg_occupancy_event_file"], imageOutputPath + "occupancyPerEventPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per Event Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=False)
 # xy_plot(layers, hist["avg_occupancy_layer_file"], imageOutputPath + "occupancyPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
 
 # xy_plot(layers, hist["occupancy_one_file_non_normalized"], imageOutputPath + "occupancyOneFileMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy", includeLegend=False, label="", scatter=True)
 # xy_plot(layers, hist["occupancy_one_file"], imageOutputPath + "occupancyOneFilePercMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
 
-xy_plot(layers, hist["occupancy_20_file_non_normalized"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
-        "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
-        xLabel="Radial Layer Index", yLabel="Average Channel Occupancy", 
-        includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_20_file_non_normalized_error"])
-# xy_plot(layers, hist["occupancy_20_file"], imageOutputPath + "occupancy20FileBatchPercMC" + str(numFiles) + ".png", "Average Occupancy Across 20 File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True, errorBars=True)
+# print(hist["occupancy_per_20_file_non_normalized"])
+# xy_plot(layers, hist["occupancy_per_20_file_non_normalized"], imageOutputPath + "occupancy20FileBatchNNMC" + str(numFiles) + ".png", 
+#         "Average Occupancy Across 20 File Non Normalized (" + str(numFiles) + " Files)",
+#         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy", 
+#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_20_file_non_normalized_error"])
+# xy_plot(layers, hist["occupancy_per_20_file"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
+#         "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
+#         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_20_file_error"])
+
 
 # x = [int(i) for i in list(hist["n_cells_per_layer"].keys())]
 # xy_plot(x, list(hist["n_cells_per_layer"].values()), imageOutputPath + "nCellsPerLayerMC" + str(numFiles) + ".png", "Cells Per Layer (" + str(numFiles) + " Files)", xLabel="Layer Number", yLabel="Cells Per Layer", includeLegend=False, label="")

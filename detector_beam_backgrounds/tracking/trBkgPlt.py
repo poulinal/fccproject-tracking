@@ -17,7 +17,7 @@ backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/dat
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
 signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/signal_background_particles_"+str(numFiles)+".npy"
-type="bkg"
+type="signal"
 
 #set numpy display to default
 np.set_printoptions(threshold=10)
@@ -190,14 +190,14 @@ def momPerMC(dic, args = "", byPDG = False):
         #seperate hits based on if they occur once or more than once with the same mcParticle
         for i in range(0, len(count_hits)):
             if count_hits[i] == 1:
-                if byPDG:
+                if byPDG and args == "onlyOH":
                     if pdg[i] in hist:
                         hist[pdg[i]].append(p[i])
                     else:
                         hist[pdg[i]] = [p[i]]
                 hist["onlyOH"].append(p[i])
             else:
-                if byPDG:
+                if byPDG and args == "only+H":
                     if pdg[i] in hist:
                         hist[pdg[i]].append(p[i])
                     else:
@@ -442,12 +442,9 @@ def occupancy(dic, args = ""):
         "" -- all values \n
         "n_cells" -- number of cells fired by an mcParticle\n
         "percentage_fired" -- percentage of cells fired by an mcParticle\n
-        "avg_occupancy_file" -- average occupancy per file\n
-        "avg_occupancy_event" -- average occupancy per event\n
-        "avg_occupancy_event_file" -- average occupancy per event per file, 
-            same length as total layers\n
-        "avg_occupancy_layer_file" -- average occupancy per file, but all events together,
-            same length as total layers\n
+        "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch\n
         "cells_per_layer" -- cells per layer\n
     """
     # Create the histogram
@@ -509,7 +506,7 @@ def occupancy(dic, args = ""):
 
 # hist = momPerMC(dic, "only+H")
 # hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3)
-# hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLoggedx.png", "Momentum of BKG MC particles \nwith more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
 # hist_plot(hist["only+H"], imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True)
 
 # hist = momPerMC(dic, "onlyParPhoton")
@@ -526,8 +523,8 @@ def occupancy(dic, args = ""):
 
 
 ####multi:
-# hist = PDGPerMC(dic, "")
-# bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", width=1.3, rotation=90, includeLegend=False)
+hist = PDGPerMC(dic, "")
+bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC" + str(numFiles) + ".png", "PDG of BKG MC particles \n(" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", width=1.3, rotation=90, includeLegend=False)
 
 # hist = PDGPerMC(dic, "electron")
 # bar_plot(["electron"], hist["all"], imageOutputPath + "pdgElectronPhotonMC" + str(numFiles) + ".png", "PDG of MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Electrons")
@@ -559,8 +556,8 @@ def occupancy(dic, args = ""):
 
 # hist = momPerMC(dic, "only+H", byPDG=True)
 # print(f"hist: {hist['only+H']}")
-# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+Hit.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3, barType="step")
-# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+HitSetpPDGLoggedx.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, barType="step", contrast=True)
+# multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+Hit.png", "Momentum of BKG MC particles \n with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles",  xMin=0, xMax=0.3, barType="step")
+# multi_hist_plot(hist, imageOutputPath + "momentum" + str(type) + "MC" + str(numFiles) + "only+HitSetpPDGLoggedx.png", "Momentum of " + str(type) + " MC particles \nwith more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, barType="step")
 # multi_hist_plot(hist, imageOutputPath + "momentumMC" + str(numFiles) + "only+HitLogged.png", "Momentum of MC particles with more than one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logY=True, logX=True, barType="step")
 
 # hist = momPerMC(dic, "multiHitsExcludeOne")
@@ -571,12 +568,12 @@ def occupancy(dic, args = ""):
 
 
 ###overlay bkg and signal hits
-# histSignal = hitsPerMC(dic, "all")
-# histBkg = hitsPerMC(dicbkg, "all")
-# histBkg["All Particles BKG"] = histBkg.pop("all")
+# histSignal = hitsPerMC(dic, "electron")
+# histBkg = hitsPerMC(dicbkg, "electron")
+# histBkg["Electron Particles Signal"] = histSignal["Only Electrons"]
+# histBkg["Electron Particles BKG"] = histBkg.pop("Only Electrons")
 # histSignal["Electron Particles Signal"] = histSignal.pop("Only Electrons")
 # bar_step_multi_hist_plot(histSignal["all"], histBkg, imageOutputPath + "hitsSignalBkgMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True)
-# histBkg["All Particles Signal"] = histSignal["all"]
 # histBkg.pop("all")
 # multi_hist_plot(histBkg, imageOutputPath + "hitsElectronDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step",logY=True, density=True)
 # multi_hist_plot(histBkg, imageOutputPath + "hitsDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
@@ -592,7 +589,6 @@ def occupancy(dic, args = ""):
 
 #####occupancy
 # hist = occupancy(dic, "avg_occupancy_layer_file")
-hist = occupancy(dic, "occupancy_per_batch_sum_batches")
 # hist = occupancy(dic, "n_cells")
 #total number of layers: 112
 #total number of cells 56448
@@ -605,22 +601,18 @@ hist = occupancy(dic, "occupancy_per_batch_sum_batches")
 # hist_plot(hist["avg_occupancy_event"], imageOutputPath + "occupancyPerEventMC" + str(numFiles) + ".png", "Average Occupancy Per Event (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", xMin=0, xMax=1.3, binHigh=112, binSteps=1, binType="lin")
 
 # print(hist)
-layers = [i for i in range(0, hist["total_number_of_layers"])]
-# xy_plot(layers, hist["avg_occupancy_event_file"], imageOutputPath + "occupancyPerEventPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per Event Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=False)
-# xy_plot(layers, hist["avg_occupancy_layer_file"], imageOutputPath + "occupancyPerLayerMC" + str(numFiles) + ".png", "Average Occupancy Per File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
-
-# xy_plot(layers, hist["occupancy_one_file_non_normalized"], imageOutputPath + "occupancyOneFileMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy", includeLegend=False, label="", scatter=True)
-# xy_plot(layers, hist["occupancy_one_file"], imageOutputPath + "occupancyOneFilePercMC" + str(numFiles) + ".png", "Occupancy One File (" + str(numFiles) + " Files)", xLabel="Radial Layer Index", yLabel="Channel Occupancy [%]", includeLegend=False, label="", scatter=True)
+# hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+# layers = [i for i in range(0, hist["total_number_of_layers"])]
 
 # print(hist["occupancy_per_batch_file_non_normalized"])
 # xy_plot(layers, hist["occupancy_per_batch_file_non_normalized"], imageOutputPath + "occupancy20FileBatchNNMC" + str(numFiles) + ".png", 
 #         "Average Occupancy Across 20 File Non Normalized (" + str(numFiles) + " Files)",
 #         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy", 
 #         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_file_non_normalized_error"])
-xy_plot(layers, hist["occupancy_per_batch_sum_batches"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
-        "Average Occupancy Across 20 File (" + str(numFiles) + " Files)",
-        xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
-        includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_error"])
+# xy_plot(layers, hist["occupancy_per_batch_sum_batches"], imageOutputPath + "occupancy20FileBatchMC" + str(numFiles) + ".png", 
+#         "Average Occupancy Across \nEach 20 BKG File Batch (" + str(numFiles) + " Files)",
+#         xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+#         includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_error"])
 
 
 # x = [int(i) for i in list(hist["n_cells_per_layer"].keys())]
@@ -630,7 +622,7 @@ xy_plot(layers, hist["occupancy_per_batch_sum_batches"], imageOutputPath + "occu
 # hist = occupancy(dic, "cells_per_layer")
 # print(hist['total_number_of_layers'])
 # print(len(hist['n_cells_per_layer']))
-# plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamber" + ".png", title="Wire Chamber Diagram (" + str(numFiles) + " Files)")
+# plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamberFirstQuad" + ".png", title="", firstQuadrant=True)
 
 
 

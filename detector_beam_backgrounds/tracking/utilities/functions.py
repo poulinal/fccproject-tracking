@@ -110,7 +110,7 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
               binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
               figure = plt.figure(), axe = "", save=True, barType="bar",
               includeLegend = True, lineStyle = "", lineColor = "", alpha=1,
-              density=False):
+              density=False, legendOutside=False, includeGrid=True, ncols=1):
     #recreate plot_hist but using hist instead of hep
     if axe == "":
         axe = figure.subplots()
@@ -137,10 +137,14 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
         axe.set_title(title)
         axe.set_xlabel(xLabel)
         axe.set_ylabel(yLabel)
-        axe.legend(fontsize='x-small')
+        if includeGrid:
+            axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
+            axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
         
         if includeLegend:
-            axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+            axe.legend(fontsize='x-small')
+            if legendOutside:
+                axe.legend(loc='upper left', ncols=ncols, bbox_to_anchor=(1.05, 1))
         if logY:
             axe.set_yscale("log")
         if logX:
@@ -151,7 +155,7 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
         if yMin != -1 and yMax != -1:
             axe.set_ylim([yMin, yMax])
         
-        figure.savefig(outname, bbox_inches="tight")
+        figure.savefig(outname, dpi=300, bbox_inches="tight")
         #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
 def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
@@ -169,11 +173,19 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     for key in keys:
         if len(h[key]) == 0:
             h.pop(key)
+            
+    ncol=1
+    legendOutside=False
+    if len(h.keys()) > 10:
+        ncol=3
+    elif len(h.keys()) > 5:
+        ncol=2
+    if len(h.keys()) > 3:
+        legendOutside=True
     
     i = 0
     for key in h.keys():
         #if hStakced is a string
-        # print(key)
         # print(f"last key: {type(list(h.keys())[-1])}")
         # if type(key) == str:
         if key == list(h.keys())[-1]:
@@ -183,7 +195,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                         binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                         binType=binType, barType=barType,
                         save=True, label=key, 
-                        figure=figure, axe=axe, density=density)
+                        figure=figure, axe=axe, density=density, ncols=ncol, legendOutside=legendOutside)
         else:
             #alternate linestyles:
             lineStyle = ""
@@ -199,14 +211,14 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                             save=False, label=key, 
                             figure=figure, axe=axe, 
                             lineStyle=lineStyle[i % len(lineStyle)], lineColor=colors[i % len(colors)],
-                            alpha=alpha, density=density)
+                            alpha=alpha, density=density, legendOutside=legendOutside, ncols=ncol)
             else:
                 hist_plot(h[key], outname, title, xLabel=xLabel, yLabel=yLabel, 
                                 logY=logY, logX=logX, autoBin=autoBin, 
                                 binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                                 binType=binType, barType=barType,
                                 save=False, label=key, 
-                                figure=figure, axe=axe, density=density)
+                                figure=figure, axe=axe, density=density, legendOutside=legendOutside, ncols=ncol)
         i += 1
     
 def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
@@ -229,7 +241,7 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
              width=0.8, logY=False, save=True, rotation=0, 
              label="*MC Particle", statusUpdate=False, additionalText="", 
              includeLegend = True,
-             figure = plt.figure(), axe = ""):
+             figure = plt.figure(), axe = "", fontSize=20):
     if axe == "":
         axe = figure.subplots()
     
@@ -241,7 +253,7 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
     if rotation > 60:
         tickrange = [x*1.5 for x in tickrange]
         
-    axe.bar(tickrange, hvalues, width=width, label=label)
+    axe.bar(tickrange, sorted(hvalues), width=width, label=label)
     
     if statusUpdate:
         print("Finished plotting, updating plot parameters...")
@@ -250,7 +262,7 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         #fix when h.keys() is long and overlaps with neighboring labels:
         #plt.xticks(rotation=rotation)
         axe.set_xticks(tickrange)
-        axe.set_xticklabels(hkeys, rotation = rotation, fontsize=12)
+        axe.set_xticklabels(hkeys, rotation = rotation, fontsize=fontSize)
         
         axe.set_title(title)
         axe.set_xlabel(xLabel)
@@ -309,7 +321,7 @@ def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel,
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
-            errorBars=False, yerr=[]):
+            errorBars=False, yerr=[], includeGrid=True):
     if axe == "":
         axe = figure.subplots()
     if statusUpdate:
@@ -329,6 +341,11 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     axe.set_title(title)
     axe.set_xlabel(xLabel)
     axe.set_ylabel(yLabel)
+    
+    if includeGrid:
+            axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
+            axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
+            
     if logY:
         axe.set_yscale("log")
     if logX:

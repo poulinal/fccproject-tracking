@@ -12,7 +12,7 @@ num_cells_per_layer = np.array([8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 3
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/cylinder_layers.png"
 
 
-def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutputPath, layer_radii=layer_radii, title="Cylinder Layers with Scattered Cells"):
+def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutputPath, layer_radii=layer_radii, title="Cylinder Layers with Scattered Cells", firstQuadrant=False):
     # print(num_cells_per_layer)
     n_cells_per_layer = num_cells_per_layer.values()
     layer_radii *= 20  # Double radii for better visualization
@@ -29,16 +29,29 @@ def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutp
 
     # Generate Cells in Each Layer
     for radius, num_cells in zip(layer_radii, n_cells_per_layer):
-        theta = np.linspace(0, 2 * np.pi, num_cells, endpoint=False)  # Evenly distribute cells
+        if firstQuadrant:
+            theta = np.linspace(0, np.pi / 2, num_cells, endpoint=False)
+        else:
+            theta = np.linspace(0, 2 * np.pi, num_cells, endpoint=False)  # Evenly distribute cells
         r = np.full_like(theta, radius)  # Set radius for all points in this layer
         
-        ax.scatter(theta, r, s=2, marker='.', label=f'Layer {radius}', alpha=0.7)  # Scatter plot for cells
+        ax.scatter(theta, r, s=0.1, marker='.', label=f'Layer {radius}', alpha=1)  # Scatter plot for cells
+
 
     #draw a line circle at 349
-    ax.plot(np.linspace(0, 2 * np.pi, 100), np.full(100, 349), color='black', linestyle='--', linewidth=1, label='Vertex')    
+    if firstQuadrant:
+        ax.plot(np.linspace(0, np.pi / 2, 100), np.full(100, 349), color='black', linestyle='--', linewidth=1, label='Vertex')
+    else:
+        ax.plot(np.linspace(0, 2 * np.pi, 100), np.full(100, 349), color='black', linestyle='--', linewidth=1, label='Vertex')    
     
+    if firstQuadrant:
+        ax.set_thetamin(0)    # 0 degrees
+        ax.set_thetamax(90)   # 90 degrees
+
+
     # Styling
     ax.set_title(title)
+    ax.set_xticklabels([])
     ax.set_yticklabels([])  # Hide radial labels for cleaner look
     # ax.legend(loc="upper right", bbox_to_anchor=(1.2, 1.1))  # Move legend to the side
 

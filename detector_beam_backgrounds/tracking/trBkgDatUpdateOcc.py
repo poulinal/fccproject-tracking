@@ -23,7 +23,7 @@ combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_b
 bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
-type = "bkg"
+type = "signal"
 if type == "combined":
     print("WARNING: combined files are not yet supported")
 print("type: ", type)
@@ -158,6 +158,7 @@ for i in range(0, len(list_overlay)):
         occupancies_an_event = []
         
         if type == "signal": #want to reset every 1 signal event
+            print(f"resetting occupancy for batch, new batch: {numBatches}")
             dict_cellID_nHits = {} #reset cells for every 1 signal event
             occupancies_a_batch = []
             # numBatches = 0 #total batches should be numFiles * 10
@@ -218,6 +219,7 @@ for i in range(0, len(list_overlay)):
         
         ##signal files we want to reset every event
         if type == "signal":
+            print(f"setting occupancy for batch: {numBatches}")
             batch_occupancy = []
             for unique_layer_index in range(0, total_number_of_layers):
                 batch_occupancy.append(calculateOccupancy(occupancies_a_batch, unique_layer_index, n_cell_per_layer))

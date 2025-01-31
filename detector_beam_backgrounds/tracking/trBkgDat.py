@@ -23,7 +23,7 @@ combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_b
 bkgFilePath = "out_sim_edm4hep_background_"
 combinedFilePath = "/out_sim_edm4hep"
 signalFilePath = "/out_sim_edm4hep_base"
-type = "bkg"
+type = "signal"
 print("type: ", type)
 input("Press Enter to continue...")
 

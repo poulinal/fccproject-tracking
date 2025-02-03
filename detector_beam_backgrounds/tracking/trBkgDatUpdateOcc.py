@@ -7,6 +7,13 @@ from ROOT import dd4hep
 import sys
 from trBkgDat import configure_paths
 
+"""
+This script is used to update the occupancy of the background particles in the dictionary.
+This can be run standalone just make sure to update filePaths accordingly.
+This is meant to be ran after trBkgDat.py (which save a .npy)
+but doesnt have to, it will just create a new .npy.
+"""
+
 
 list_overlay = []
 numfiles = 500

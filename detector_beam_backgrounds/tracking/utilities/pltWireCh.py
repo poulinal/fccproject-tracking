@@ -2,6 +2,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+"""
+This file contains a function to plot a wire chamber with cells scattered in each layer.
+"""
+
+
+
+
 # Cylinder and Layer Definitions
 num_layers = 112  # Total layers
 # layer_radii = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])  # Radii of each layer

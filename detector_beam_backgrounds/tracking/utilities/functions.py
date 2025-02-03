@@ -3,6 +3,12 @@ import matplotlib.pyplot as plt
 import mplhep as hep 
 import numpy as np
 
+"""
+This file contains functions to create plots for the tracking project.
+"""
+
+
+
 hep.style.use(hep.style.CMS)
 
 def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):

@@ -1,12 +1,7 @@
+#Alexander Poulin Jan 2025
 from podio import root_io
-#import edm4hep
-#import sys
-#import ROOT
-#from ROOT import TFile, TTree
 import numpy as np 
-#from array import array
 import math
-#import os
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
@@ -14,18 +9,48 @@ import sys
 
 list_overlay = []
 numfiles = 500
+bkgDataPath=""
+combinedDataPath=""
+bkgFilePath=""
+combinedFilePath=""
+signalFilePath=""
 
-# oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
-bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
-# bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/"
-# combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
-combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
-bkgFilePath = "out_sim_edm4hep_background_"
-combinedFilePath = "/out_sim_edm4hep"
-signalFilePath = "/out_sim_edm4hep_base"
-type = "signal"
-print("type: ", type)
-input("Press Enter to continue...")
+dic = {}
+#can change:
+dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
+keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits", 
+        "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
+        "pos_z", "count_hits", "has_par_photon", "pdg", 
+        "hits_produced_secondary", "hits_mc_produced_secondary"]
+#assign dic to empty dictionary
+for key in keys:
+    dic[key] = []
+np.save(dic_file_path, dic)
+# dic = np.load(dic_file_path, allow_pickle=True).item() 
+
+def configure_paths(type="bkg"):
+    """Basic function to set the paths for the data files, these should be changed to the correct paths for the data files.
+    
+    Keyword arguments:
+    type -- the type of data file to be used, either "bkg", "signal", or "combined" (default "bkg")
+    Return: None, but sets the global variables bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath
+    """
+    
+    # oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
+    bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
+    # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/"
+    # combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
+    combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
+    bkgFilePath = "out_sim_edm4hep_background_"
+    combinedFilePath = "/out_sim_edm4hep"
+    signalFilePath = "/out_sim_edm4hep_base"
+    # type = "signal"
+    if type == "combined":
+        print("WARNING: combined files are not yet supported")
+    print("type: ", type)
+    input("Press Enter to continue...")
+
+configure_paths(type="signal")
 
 
 for i in range(1,numfiles + 1):
@@ -41,21 +66,6 @@ for i in range(1,numfiles + 1):
         print("Error: type not recognized")
         sys.exit(1)
 
-dic = {}
-dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
-
-keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits", 
-        "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
-        "pos_z", "count_hits", "has_par_photon", "pdg", 
-        "hits_produced_secondary", "hits_mc_produced_secondary"]
-#assign dic to empty dictionary
-dic = {}
-for key in keys:
-    dic[key] = []
-    
-np.save(dic_file_path, dic)
-    
-dic = np.load(dic_file_path, allow_pickle=True).item() 
     
 
 

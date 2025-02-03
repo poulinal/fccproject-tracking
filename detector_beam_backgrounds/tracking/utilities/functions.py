@@ -1,85 +1,9 @@
-#from podio import root_io
-#import ROOT
-#import math
-#import numpy as np
-#import os
-
-
+#Alexander Poulin Jan 2025
 import matplotlib.pyplot as plt
 import mplhep as hep 
-#import seaborn as sns
-#import pickle
-#import hist
 import numpy as np
 
-#hep.style.use(hep.style.ROOT)
 hep.style.use(hep.style.CMS)
-
-'''
-def phi(x,y):
-    """
-    Calculates phi of particle.
-    Inputs: x,y floats.
-    Output: phi, float representing angle in radians from 0 to 2 pi.
-    """
-    phi = math.atan(y/x)
-    if x < 0:
-        phi +=  math.pi
-    elif y < 0:
-        phi += 2*math.pi
-    return phi
-
-def theta(x,y,z):
-    """
-    Calculates theta of particle.
-    Inputs: x,y,z floats.
-    Output: theta, float representing angle in radians from 0 to pi.
-    """
-    return math.acos(z/np.sqrt(x**2 + y**2 + z**2))
-
-
-def radius_idx(hit, layer_radii):
-    """
-    Calculates polar radius of particle.
-    Inputs: hit, SimTrackerHit object.
-    Output: r, int representing polar radius in mm.
-    """
-    true_radius = hit.rho()
-    for i,r in enumerate(layer_radii):
-        if abs(true_radius-r) < 4:
-            return i
-    raise ValueError(f"Not close enough to any of the layers {true_radius}")
-'''
-
-def plot_hist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False, logX=False):
-    fig = plt.figure()
-    ax = fig.subplots()
-
-    binn = np.exp(np.arange(np.log(0.00001), np.log(2), 0.3))
-    hep.histplot(h, label="", ax=ax, histtype="fill", yerr=False)
-
-    ax.set_title(title)
-    ax.set_xlabel(xLabel)
-    ax.set_ylabel(yLabel)
-    #ax.legend(fontsize='x-small')
-    if logY:
-        ax.set_yscale("log")
-    if logX:
-        ax.set_xscale("log")
-
-    if xMin != -1 and xMax != -1:
-        ax.set_xlim([xMin, xMax])
-    if yMin != -1 and yMax != -1:
-        ax.set_ylim([yMin, yMax])
-        
-    
-    
-
-
-    fig.savefig(outname, bbox_inches="tight")
-    #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
-
-
 
 def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
     fig = plt.figure()
@@ -106,22 +30,49 @@ def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel=""
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
               xLabel="", yLabel="Events", logY=False, logX=False, 
-              label="*MC Particle", autoBin=False, bins="", weight="",
+              label="*MC Particle", autoBin=False,
               binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
               figure = plt.figure(), axe = "", save=True, barType="bar",
-              includeLegend = True, lineStyle = "", lineColor = "", alpha=1,
+              includeLegend = True, lineStyle = "", alpha=1,
               density=False, legendOutside=False, includeGrid=True, ncols=1):
+    """
+    Create a histogram plot with the given parameters.
+    
+    Inputs:
+        h: histogram data
+        outname: output file name
+        title: plot title
+        xMin: minimum x value
+        xMax: maximum x value
+        yMin: minimum y value
+        yMax: maximum y value
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        label: label for the histogram
+        autoBin: automatically determine binning
+        binLow: low end of binning
+        binHigh: high end of binning
+        binSteps: binning steps
+        binType: binning type
+        figure: figure object
+        axe: axis object
+        save: save the plot
+        barType: type of bar
+        includeLegend: include legend
+        lineStyle: line style
+        alpha: transparency
+    Return: None, save the plot
+    """
+    
     #recreate plot_hist but using hist instead of hep
     if axe == "":
         axe = figure.subplots()
     
-    
     if autoBin: #autoBin lets hist decide the binning
         axe.hist(h, histtype=barType, linewidth=2, label=label, alpha=alpha, density=density)
-    # elif bins != "" and weight != "":
-    #     axe.hist(h, bins=bins, weights=weight, linewidth=2, histtype='bar', label=label)
     else:
-        # print(f"binType: {binType}")
         if binType == "exp":
             binn = np.exp(np.arange(np.log(binLow), np.log(binHigh), binSteps))
         elif binType == "lin":
@@ -129,8 +80,6 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
         if lineStyle != "":
             axe.hist(h, bins=binn, histtype=barType, linewidth=2, label=label, linestyle=lineStyle, alpha=alpha, density=density)
         else:
-            # print(f"binn: {binn}")
-            # print(f"hist: {h}")
             axe.hist(h, bins=binn, histtype=barType, linewidth=2, label=label, alpha=alpha, density=density)
     
     if save:
@@ -164,6 +113,34 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                     binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
                     label="*MC Particle", figure = plt.figure(), axe = "",
                     contrast=False, density=False):
+    """
+    Create a histogram plot (which will be multi-stacked) with the given parameters.
+    
+    Inputs:
+        h: dictionary of histogram data
+        outname: output file name
+        title: plot title
+        xMin: minimum x value
+        xMax: maximum x value
+        yMin: minimum y value
+        yMax: maximum y value
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        autoBin: automatically determine binning
+        binLow: low end of binning
+        binHigh: high end of binning
+        binSteps: binning steps
+        binType: binning type
+        figure: figure object
+        axe: axis object
+        contrast: create more difference between the lines
+        density: density plot
+        
+    Return: None, save the plot
+    """
+    
     if axe == "":
         axe = figure.subplots()
     #h is a dictionary, iterate through all keys and plot them
@@ -185,22 +162,19 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     
     i = 0
     for key in h.keys():
-        #if hStakced is a string
-        # print(f"last key: {type(list(h.keys())[-1])}")
-        # if type(key) == str:
         if key == list(h.keys())[-1]:
             # print("plotting last key")
             hist_plot(h[key], outname, title, xLabel=xLabel, yLabel=yLabel, 
                         logY=logY, logX=logX, autoBin=autoBin, 
                         binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                         binType=binType, barType=barType,
-                        save=True, label=key, 
+                        save=True, label=key, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
                         figure=figure, axe=axe, density=density, ncols=ncol, legendOutside=legendOutside)
         else:
             #alternate linestyles:
             lineStyle = ""
             alpha = 1
-            if contrast:
+            if contrast: #create more difference between the lines
                 colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'black']
                 lineStyle = ["-","--",":","-."]
                 alpha = 0.7
@@ -209,7 +183,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                             binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                             binType=binType, barType=barType,
                             save=False, label=key, 
-                            figure=figure, axe=axe, 
+                            figure=figure, axe=axe, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
                             lineStyle=lineStyle[i % len(lineStyle)], lineColor=colors[i % len(colors)],
                             alpha=alpha, density=density, legendOutside=legendOutside, ncols=ncol)
             else:
@@ -217,7 +191,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                                 logY=logY, logX=logX, autoBin=autoBin, 
                                 binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                                 binType=binType, barType=barType,
-                                save=False, label=key, 
+                                save=False, label=key, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
                                 figure=figure, axe=axe, density=density, legendOutside=legendOutside, ncols=ncol)
         i += 1
     
@@ -225,14 +199,42 @@ def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, 
                              xLabel="", yLabel="Events", logY=False, logX=False, autoBin=False, 
                              binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
                              label="*MC Particle", figure = plt.figure(), axe = ""):
+    """
+    Create a histogram plot (plot first hist with filled, each subseequent will be lines) with the given parameters.
+    
+    Inputs:
+        h1: histogram data
+        hr: dictionary of histogram data
+        outname: output file name
+        title: plot title
+        xMin: minimum x value
+        xMax: maximum x value
+        yMin: minimum y value
+        yMax: maximum y value
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        autoBin: automatically determine binning
+        binLow: low end of binning
+        binHigh: high end of binning
+        binSteps: binning steps
+        binType: binning type
+        figure: figure object
+        axe: axis object
+    Return: None, save the plot
+    """
+    
     if axe == "":
         axe = figure.subplots()
 
+    #plot first one filled
     hist_plot(h1, outname, title, xMin, xMax, yMin, yMax, xLabel, yLabel, \
         logY, logX, label, autoBin, barType="bar", binLow=binLow, \
             binHigh=binHigh, binSteps=binSteps, binType=binType, \
                 figure=figure, axe=axe, save=False)
     
+    #plot the rest as lines
     multi_hist_plot(hr, outname, title, xMin, xMax, yMin, yMax, xLabel, yLabel, \
         logY, logX, autoBin, "step", binLow, binHigh, binSteps, binType=binType, \
             label=label, figure=figure, axe=axe)
@@ -242,6 +244,30 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
              label="*MC Particle", statusUpdate=False, additionalText="", 
              includeLegend = True,
              figure = plt.figure(), axe = "", fontSize=20):
+    """
+    Create a bar plot with the given parameters.
+    
+    Inputs:
+        hkeys: keys for the histogram
+        hvalues: values for the histogram
+        outname: output file name
+        title: plot title
+        xLabel: x-axis label
+        yLabel: y-axis label
+        width: width of the bars
+        logY: log scale for y-axis
+        save: save the plot
+        rotation: rotation of the x-axis labels
+        label: label for the histogram
+        statusUpdate: print status updates
+        additionalText: additional text to add to the plot
+        includeLegend: include legend
+        figure: figure object
+        axe: axis object
+        fontSize: font size for the x-axis labels
+    Return: None, save the plot
+    """
+    
     if axe == "":
         axe = figure.subplots()
     
@@ -260,7 +286,6 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         
     if save:
         #fix when h.keys() is long and overlaps with neighboring labels:
-        #plt.xticks(rotation=rotation)
         axe.set_xticks(tickrange)
         axe.set_xticklabels(hkeys, rotation = rotation, fontsize=fontSize)
         
@@ -269,15 +294,12 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         axe.set_ylabel(yLabel)
         axe.set_yscale("log")
         
-        # plt.legend(fontsize='x-small')
-        # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         # Legend to the side
         if includeLegend:
             axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
         if additionalText != "":
             axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
-
         
         if statusUpdate:
             print("Saving plot...")
@@ -287,6 +309,26 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
 def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel, 
              width=0.8, logY=False, rotation=0, 
              label=[], statusUpdate=False, additionalText="", sort=True):
+    """
+    Create a multi-bar plot with the given parameters.
+    
+    Inputs:
+        hStacked: keys for the histogram
+        h: values for the histogram
+        outname: output file name
+        title: plot title
+        xLabel: x-axis label
+        yLabel: y-axis label
+        width: width of the bars
+        logY: log scale for y-axis
+        rotation: rotation of the x-axis labels
+        label: label for the histogram
+        statusUpdate: print status updates
+        additionalText: additional text to add to the plot
+        sort: sort the keys by value
+    Return: None, save the plot
+    """
+    
     
     figure = plt.figure()
     axe = figure.subplots()
@@ -317,11 +359,34 @@ def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel,
                          statusUpdate=statusUpdate, additionalText=additionalText, 
                          figure=figure, axe=axe)
     
-
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
             errorBars=False, yerr=[], includeGrid=True):
+    """
+    Create a xy plot with the given parameters.
+    
+    Inputs:
+        x: x values
+        y: y values
+        outname: output file name
+        title: plot title
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        label: label for the histogram
+        statusUpdate: print status updates
+        additionalText: additional text to add to the plot
+        figure: figure object
+        axe: axis object
+        includeLegend: include legend
+        scatter: scatter plot
+        errorBars: include error bars
+        yerr: y error values
+        includeGrid: include grid
+    Return: None, save the plot
+    """
     if axe == "":
         axe = figure.subplots()
     if statusUpdate:

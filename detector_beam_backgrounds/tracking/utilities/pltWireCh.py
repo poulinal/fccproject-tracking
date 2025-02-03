@@ -1,3 +1,4 @@
+#Alexander Poulin Jan 2025
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -7,17 +8,25 @@ num_layers = 112  # Total layers
 layer_radii = np.arange(1, num_layers + 1, 1)  # Radii of each layer
 num_cells_per_layer = np.array([8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34])  # Cells per layer
 
-# print(len(layer_radii))
-
-imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/cylinder_layers.png"
+imageOutputPathDef = "fccproject-tracking/detector_beam_backgrounds/tracking/images/cylinder_layers.png"
 
 
-def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutputPath, layer_radii=layer_radii, title="Cylinder Layers with Scattered Cells", firstQuadrant=False):
-    # print(num_cells_per_layer)
+def plot_wire_chamber(num_layers, num_cells_per_layer, imageOutputPath=imageOutputPathDef, layer_radii=layer_radii, title="Cylinder Layers with Scattered Cells", firstQuadrant=False):
+    """Plot a wire chamber with cells scattered in each layer.
+    
+    Inputs:
+        num_layers -- Number of layers in the wire chamber
+        num_cells_per_layer -- Number of cells in each layer
+        imageOutputPath -- Path to save the image
+        layer_radii -- Radii of each layer
+        title -- Title of the plot
+        firstQuadrant -- If True, only plot the first quadrant of the wire chamber
+    Return: None, save the image to the given path
+    """
+    
     n_cells_per_layer = num_cells_per_layer.values()
     layer_radii *= 20  # Double radii for better visualization
     layer_radii += 349
-    # print(n_cells_per_layer)
     #check right size of num_cells_per_layer
     if len(num_cells_per_layer) != num_layers:
         raise ValueError("num_cells_per_layer must have the same length as num_layers")

@@ -1,6 +1,14 @@
 Repository for investigating background events in the drift chamber of the idea detector of the FCC
+For project: Research in Experimental Particle Physics in January (MIT)
 Members: Alexander Poulin, Charles Schwarze
 Supervisor: Dolores Garcia
+
+## Goals:
+Characterize the beam background as well as physics events.
+Determine effective methods to separate background hits from event hits.
+
+
+
 
 # helpful documents:
 

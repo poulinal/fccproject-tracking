@@ -1,3 +1,4 @@
+#Alexander Poulin Jan 2025
 import ROOT
 import numpy as np 
 from utilities.functions import hist_plot, plot_hist, multi_hist_plot, \
@@ -9,130 +10,162 @@ import matplotlib.pyplot as plt
 import math
 
 
-available_functions = ["hitsPerMC", "momPerMC", "pathLenWireMC", "totPathLenMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits"]
-
+available_functions = ["hitsPerMC", "momPerMC", "PDGPerMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits", "occupancy"]
+dic = {}
+dicbkg = {}
 numFiles = 500
 # backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy"
 backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy"
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
-imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/"
+imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test"
 signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/signal_background_particles_"+str(numFiles)+".npy"
-type="signal"
 
-#set numpy display to default
-np.set_printoptions(threshold=10)
-
-if type == "bkg":
-    dic = np.load(backgroundDataPath, allow_pickle=True).item()
-elif type == "combined":
-    dic = np.load(combinedDataPath, allow_pickle=True).item()
-elif type == "signal":
-    dic = np.load(signalDataPath, allow_pickle=True).item()
-else:
-    print("Type must be either background, combined, or signal")
-    sys.exit()
-#dic = np.load("fccproject-tracking/detector_beam_backgrounds/tracking/data/background_particles_20.npy", allow_pickle=True).item()
-# dicbkg = np.load(backgroundDataPath, allow_pickle=True).item()
+#change to personal directories in here:
+def setup(type: str ="bkg", includeBkg: bool =False):
+    """
+    Setups the file paths and outputs.
+    Data paths will lead to either the background or signal data or their combined files (not yet tested).
+    Output paths should be entirely dependent on your directory and where you want to specify.
+    
+    Note data paths should point to a .npy file that contains a dictionary with the following keys: \n
+    "hits" -- list of hits per mcParticle \n
+    "pdg" -- list of pdg per mcParticle \n
+    "p" -- list of momentum per mcParticle \n
+    "px" -- list of px per mcParticle \n
+    "py" -- list of py per mcParticle \n
+    "pz" -- list of pz per mcParticle \n
+    "gens" -- list of generator status per mcParticle \n
+    "R" -- list of vertex radius per mcParticle \n
+    "pos_z" -- list of z position of hits \n
+    "hits_produced_secondary" -- list of hits produced by secondary particles \n
+    "hits_mc_produced_secondary" -- list of mcParticles that produced secondary particles \n
+    "has_par_photon" -- list of mcParticles that have a parent photon \n
+    "count_hits" -- list of number of hits per mcParticle \n
+    "pdg" -- list of pdg per mcParticle \n
+    "list_n_cells_fired_mc" -- list of number of cells fired per mcParticle \n
+    "percentage_of_fired_cells" -- list of percentage of cells fired per mcParticle \n
+    "n_cell_per_layer" -- list of number of cells per layer \n
+    "total_number_of_cells" -- total number of cells \n
+    "total_number_of_layers" -- total number of layers \n
+    "occupancy_per_batch_sum_events" -- list of occupancy per batch, summing occupancies an event \n
+    "occupancy_per_batch_sum_events_error" -- list of occupancy per batch, summing occupancies an event \n
+    "occupancy_per_batch_sum_events_non_normalized" -- list of occupancy per batch, summing occupancies an event \n
+    "occupancy_per_batch_sum_events_non_normalized_error" -- list of occupancy per batch, summing occupancies an event \n
+    "occupancy_per_batch_sum_batches" -- list of occupancy per batch, summing occupancies a batch \n
+    "occupancy_per_batch_sum_batches_error" -- list of occupancy per batch, summing occupancies a batch \n
+    "occupancy_per_batch_sum_batches_non_normalized" -- list of occupancy per batch, summing occupancies a batch \n
+    "occupancy_per_batch_sum_batches_non_normalized_error" -- list of occupancy per batch, summing occupancies a batch \n
+    
+    Keyword arguments:
+    type -- what type of data to load, either background, combined, or signal \n
+    includeBkg -- for when we want to overlay bkg and signal files in a plot \n
+    Return: no return, just updates the global dictionary dic
+    """
+    if type == "bkg":
+        dic = np.load(backgroundDataPath, allow_pickle=True).item()
+    elif type == "combined":
+        dic = np.load(combinedDataPath, allow_pickle=True).item()
+    elif type == "signal":
+        dic = np.load(signalDataPath, allow_pickle=True).item()
+    else:
+        print("Type must be either background, combined, or signal")
+        sys.exit()
+    if includeBkg:
+        dicbkg = np.load(backgroundDataPath, allow_pickle=True).item()
 
 def hitsPerMC(dic, args = ""):
     """
-    Function that returns the number of hits per MC particle.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    Given that there was a hit for this particle, count the number of times that particle hits the detector.
+    Inputs: dic from setup,
+            args is the type of hits to calculate:
+                "" -- calculate all args \n
+                "all" -- all particles \n
+                "photon" -- all particles with pdg 22 \n
+                "photonSec" -- all particles with pdg 22 and produced secondary particles \n
+                "neutron" -- all particles with pdg 2112 \n
+                "neutronSec" -- all particles with pdg 2112 and produced secondary particles \n
+                "electron" -- all particles with pdg 11 \n
+                "allPDG" -- all particles with pdg as key and count as value \n
+                "multiHits" -- all particles with keys of one hit, >1 hit, >5 hits, >10 hits, >20 hits \n
     Outputs: hist, dictionary of values (count of hits) with keys: \n
-        "all" -- all particles \n
-        "photon" -- all particles with pdg 22 \n
-        "photonSec" -- all particles with pdg 22 and produced secondary particles \n
-        "neutron" -- all particles with pdg 2112 \n
-        "neutronSec" -- all particles with pdg 2112 and produced secondary particles \n
-        "electron" -- all particles with pdg 11 \n
-        "allPDG" -- all particles with pdg as key and count as value \n
-        "multiHits" -- all particles with keys of one hit, >1 hit, >5 hits, >10 hits, >20 hits \n
+        "All", "Only Photons","Only Photons Produced by Secondary Particles", 
+        "Only Neutrons", "Only Neutrons Produced by Secondary Particles", 
+        "Only Electrons", "Only Electrons Produced by Secondary Particles", 
+        "[allPDG] -- various dic of pdg number", "1 Hit", ">1 Hits", ">5 Hits", ">10 Hits", ">20 Hits"
     """
-    hist = {}
-    hist["all"] = []
-    #set mcParticles to be numpy array size of the last entry of dic["hits"]
+    hist = {} #empty dictionary to hold all the calculations
+    hist["All"] = []
+    hist["Only Photons"] = []
+    hist["Only Photons Produced by Secondary Particles"] = []
+    hist["Only Neutrons"] = []
+    hist["Only Neutrons Produced by Secondary Particles"] = []
+    hist["Only Electrons"] = []
+    hist["Only Electrons Produced by Secondary Particles"] = []
+    hist["1 Hit"] = []
+    hist[">1 Hits"] = []
+    hist[">5 Hits"] = []
+    hist[">10 Hits"] = []
+    hist[">20 Hits"] = []
     list_hits_per_mc = dic["count_hits"]
-    # print(f"max list_hits_per_mc: {max(list_hits_per_mc)}")
-
-    # print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
+    hist["All"] = list_hits_per_mc
     
-    # for i in range(0, len(list_hits_per_mc)):
-    #     hist["all"] += 1
-    hist["all"] = list_hits_per_mc
+    if args == "All": #return all hits
+        return hist
     
-    pdg = dic["pdg"]
-    
-    if args.startswith("photon"): #return only the hits that have a pdg photon
-        hist["Only Photons"] = []
+    pdg = dic["pdg"] #separate hits by pdg
+    if args == "photon" or args == "photonSec" or args == "": #return only the hits that have a pdg photon
+        # hist["Only Photons"] = []
         for i in range(0, len(list_hits_per_mc)):
             if pdg[i] == 22:
                 hist["Only Photons"].append(list_hits_per_mc[i])
         
-        
-        if args == "photonSec":
-            hist["Only Photons Produced by Secondary Particles"] = []
-            hits_produced_secondary = dic["hits_produced_secondary"]
+        if args == "photonSec" or args == "":
+            # hist["Only Photons Produced by Secondary Particles"] = []
+            hits_produced_secondary = dic["hits_produced_secondary"] #doesnt have same shape as list mcs
             hits_mc_produced_secondary = dic["hits_mc_produced_secondary"]
-            
-            # print(f"len pdg: {len(pdg)}")
-            # print(f"len produced_secondary: {len(hits_produced_secondary)}") 
-            # print(f"len hits_mc_produced_secondary: {len(hits_mc_produced_secondary)}")
-            
-            for i in range(0, len(list_hits_per_mc)):
+            for i in range(0, len(list_hits_per_mc)): #get all the hits that are photons and produced by secondary particles
                 if pdg[i] == 22 and hits_mc_produced_secondary[i]:
                     hist["Only Photons Produced by Secondary Particles"].append(list_hits_per_mc[i])
-            #print(f"hits: {hits_mc_produced_secondary}")
             
-    if args.startswith("neutron"):
-        hist["Only Neutrons"] = []
+    if args == "neutron" or args == "neutronSec" or args == "": #return only the hits that have a pdg neutron
+        # hist["Only Neutrons"] = []
         for i in range(0, len(list_hits_per_mc)):
             if pdg[i] == 2112:
                 hist["Only Neutrons"].append(list_hits_per_mc[i])
         
-        if args == "neutronSec":
-            hist["Only Neutrons Produced by Secondary Particles"] = []
+        if args == "neutronSec" or args == "":
+            # hist["Only Neutrons Produced by Secondary Particles"] = []
             hits_mc_produced_secondary = dic["hits_mc_produced_secondary"]
             
             for i in range(0, len(list_hits_per_mc)):
                 if pdg[i] == 2112 and hits_mc_produced_secondary[i]:
                     hist["Only Neutrons Produced by Secondary Particles"].append(list_hits_per_mc[i])
                     
-    if args == "electron":
-        hist["Only Electrons"] = []
-        # print(f"len pdg: {len(pdg)}")
-        # print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
-        
+    if args == "electron" or args == "": #return only the hits that have a pdg electron; also get ones produced by secondary particles
+        # hist["Only Electrons"] = []
         for i in range(0, len(list_hits_per_mc)):
             if pdg[i] == 11:
                 hist["Only Electrons"].append(list_hits_per_mc[i])
         
-        hist["Only Electrons Produced by Secondary Particles"] = []
+        # hist["Only Electrons Produced by Secondary Particles"] = []
         hits_mc_produced_secondary = dic["hits_mc_produced_secondary"]
-        
         for i in range(0, len(list_hits_per_mc)):
             if pdg[i] == 11 and hits_mc_produced_secondary[i]:
                 hist["Only Electrons Produced by Secondary Particles"].append(list_hits_per_mc[i])
                     
-    if args == "allPDG":
+    if args == "allPDG" or args == "": #return all hits with pdg as key and count as value
         pdg_unique = np.unique(pdg)
-        # print(f"pdg_unique: {pdg_unique}")
-        # print(f"len pdg_unique: {len(pdg_unique)}")
-        # print(f"len pdg: {len(pdg)}")
-        # print(f"len list_hits_per_mc: {len(list_hits_per_mc)}")
         for i in range(0, len(pdg_unique)):
             hist[pdg_unique[i]] = 0
-        #print all keys in hist
-        # print(f"hist keys: {hist.keys()}")
         for i in range(0, len(list_hits_per_mc)):
-            #print(f"pdg[i]: {pdg[i]}")
             hist[pdg[i]] += 1
     
-    if args == "multiHits":
-        hist["1 Hit"] = []
-        hist[">1 Hits"] = []
-        hist[">5 Hits"] = []
-        hist[">10 Hits"] = []
-        hist[">20 Hits"] = []
+    if args == "multiHits" or args == "": #return all hits with keys of one hit, >1 hit, >5 hits, >10 hits, >20 hits
+        # hist["1 Hit"] = []
+        # hist[">1 Hits"] = []
+        # hist[">5 Hits"] = []
+        # hist[">10 Hits"] = []
+        # hist[">20 Hits"] = []
         for i in range(0, len(list_hits_per_mc)):
             if list_hits_per_mc[i] == 1:
                 hist["1 Hit"].append(list_hits_per_mc[i])
@@ -150,11 +183,19 @@ def hitsPerMC(dic, args = ""):
 
 def momPerMC(dic, args = "", byPDG = False):
     """
-    Function that returns the momentum of MC particles.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens. \n
-    arguments can either be "", "onlyOH", "only+H", "onlyParPhoton", "ptBelow10R" \n
+    Given a hit by a particle, what is that particles momentum.
+    Inputs: dic from setup,
+            args is the type of hits to calculate:
+                "" -- calculate all args \n
+                "all" -- all particles \n
+                "onlyOH" -- all particles with only one hit \n
+                "only+H" -- all particles with more than one hit \n
+                "onlyParPhoton" -- all particles with a parent photon \n
+                "ptBelow10R" -- all particles with a vertex radius below 10 \n
+                "multiHits" -- all particles with keys of one hit, >1 hit, >5 hits, >10 hits, >20 hits \n
+                "multiHitsExcludeOne" -- all particles with keys of >1 hit, >5 hits, >10 hits, >20 hits \n
     Outputs: hist, dictionary of values (count of hits) with keys: \n
-        "all" -- all particles momentum \n
+        "All" -- all particles momentum \n
         "onlyOH" -- all particles momentum with only one hit \n
         "only+H" -- all particles momentum with more than one hit \n
         "onlyParPhoton" -- all particles momentum with a parent photon \n
@@ -162,9 +203,9 @@ def momPerMC(dic, args = "", byPDG = False):
         "multiHits" -- all particles with keys of one hit, >1 hit, >5 hits, >10 hits, >20 hits \n
         "multiHitsExcludeOne" -- all particles with keys of >1 hit, >5 hits, >10 hits, >20 hits \n
     """
-    # Create the histogram
+    # Create the dictionary
     hist = {}
-    hist["all"] = []
+    hist["All"] = []
     hist["onlyOH"] = []
     hist["only+H"] = []
     hist["onlyParPhoton"] = []
@@ -177,13 +218,9 @@ def momPerMC(dic, args = "", byPDG = False):
     if byPDG:
         pdg = dic["pdg"]
     
-    if args == "" or args == "all": #regular get all momenta
-        # for i in range(0, len(p)):
-        #     hist.append(p[i])
+    if args == "" or args == "All": #regular get all momenta
         hist["all"] = p
-        # print(f"max hist: {max(hist)}")
         return hist
-
 
     if args == "onlyOH" or args == "only+H":
         count_hits = dic["count_hits"] #the index of the mcParticle for each hit
@@ -203,10 +240,9 @@ def momPerMC(dic, args = "", byPDG = False):
                     else:
                         hist[pdg[i]] = [p[i]]
                 hist["only+H"].append(p[i])
-            hist["all"].append(p[i])
-        # print(f"max hist: {max(hist)}")
+            hist["All"].append(p[i])
         if byPDG:
-            hist["all"] = []
+            hist["All"] = []
         if args == "onlyOH":
             hist["only+H"] = []
         else:
@@ -223,7 +259,6 @@ def momPerMC(dic, args = "", byPDG = False):
         for i in range(0, len(photon)):
             if photon[i]:
                 hist["onlyParPhoton"].append(p[i])
-        # print(f"max hist: {max(hist)}")
         return hist
     
     if args == "ptBelow10R":
@@ -236,13 +271,9 @@ def momPerMC(dic, args = "", byPDG = False):
         px = dic["px"]
         py = dic["py"]
         
-        # print(f"max R: {max(R) * 0.01}")
-        #print how many R's (meters) above 10 (cm)
-        # print(f"R's above 10: {len(R[R > 0.01])}")
         for i in range(0, len(R)):
             if R[i] < 0.01:
                 hist["ptBelow10R"].append(math.sqrt(px[i]**2 + py[i]**2))
-        # print(f"max hist: {max(hist)}")
         return hist
     
     if args == "multiHits" or args == "multiHitsExcludeOne":
@@ -252,9 +283,8 @@ def momPerMC(dic, args = "", byPDG = False):
         hist[">10 Hits"] = []
         hist[">20 Hits"] = []
         count_hits = dic["count_hits"]
-        # print(f"max count_hits: {max(count_hits)}")
+        
         for i in range(0, len(count_hits)):
-            # print(f"count_hits[i]: {count_hits[i]}")
             if count_hits[i] == 1 and not args.endswith("ExcludeOne"):
                 hist["1 Hit"].append(p[i])
             if count_hits[i] > 1:
@@ -265,110 +295,181 @@ def momPerMC(dic, args = "", byPDG = False):
                 hist[">10 Hits"].append(p[i])
             if count_hits[i] > 20:
                 hist[">20 Hits"].append(p[i])
-        # print(f"max hist: {max(hist)}")
-        return hist
-        
+        return hist       
                 
 def PDGPerMC(dic, args = "", sepSecondary = False):
     """
-    Function that returns the PDG of MC particles.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
-    Outputs: hist, histogram with the PDG of MC particles.
+    Given a hit, what is the PDG of the particle which produced that hit.
+    Inputs: dic from setup,
+            args is the type of hits to calculate:
+                "" -- calculate all args \n
+                "all" -- all particles \n
+                "electron" -- all particles with pdg 11 \n
+                "gen" -- all particles with generator status 1 (WIP) \n
+    Outputs: hist, dictionary of values (count of hits) with keys:
+        "all" -- all particles \n
+        "electron" -- all particles with pdg 11 \n
+        "e_photon_parent" -- all particles with pdg 11 and a parent photon \n
+        "allGens" -- all particles with generator status \n
+        "primary" -- all particles with generator status 1 \n
+        "secondary" -- all particles with generator status non1 \n
     """
-    # Create the histogram
     pdg = dic["pdg"]
-    # prodSec = dic["hits_mc_produced_secondary"]
-    hist_dic = {}
-    if args == "": ##want to return all pdg's as a dictionary of pdg, key = pdg, value = count
-        #hist_dic = {}
+    hist = {}
+    hist["all"] = []
+    hist["electron"] = []
+    hist["e_photon_parent"] = []
+    hist["allGens"] = []
+    hist["primary"] = []
+    hist["secondary"] = []
+    if args == "" or args == "all": ##want to return all pdg's as a dictionary of pdg, key = pdg, value = count
         for i in range(0, len(pdg)):
-            if str(pdg[i]) in hist_dic:
-                hist_dic[str(pdg[i])] += 1
+            if str(pdg[i]) in hist:
+                hist[str(pdg[i])] += 1
             else:
-                hist_dic[str(pdg[i])] = 1
-        return hist_dic
+                hist[str(pdg[i])] = 1
+        return hist
     if args == "electron":
         """
         Given there was a hit, add a count if the pdg is an electron. 
-        If the pdg of the particle is an electron AND has a parent photon, add a count to hist
-        Keyword arguments:
-        argument -- description
-        Return: return_description
+        If the pdg of the particle is an electron AND has a parent photon, add a count to hist["e_photon_parent"].
+        Return: hist, dictionary with keys:
+            "electron" -- count of electrons
+            "e_photon_parent" -- pdg of electrons with a parent photon
         """
-        hist_dic["electron"] = 0
-        hist_dic["e_photon_parent"] = []
+        hist["electron"] = 0
+        hist["e_photon_parent"] = []
         has_par_photon = dic["has_par_photon"]
-        # print(len(has_par_photon))
-        # print(len(pdg))
         for i in range(0, len(pdg)):
             if pdg[i] == 11:
-                hist_dic["electron"] += 1
+                hist["electron"] += 1
                 if has_par_photon[i]:
-                    hist_dic["e_photon_parent"].append(pdg[i])
-        return hist_dic
+                    hist["e_photon_parent"].append(pdg[i])
+        return hist
     if args == "gen":
         """
         given generator status, return a dictionary with the following:
-        key: all, value: all particles
+        key: allGens, value: all particles
         key: primary, value: particles with generator status 1
         key: secondary, value: particles with generator status 2
-        Keyword arguments:
-        argument -- description
         Return: dictionary with keys:
-        "all" -- all particles
+            "allGens" -- all particles
+            "primary" -- particles with generator status 1
+            "secondary" -- particles with generator status non1
         ...
         """
         gen = dic["gens"]
-        #print full numpy
-        #np.set_printoptions(threshold=sys.maxsize)
-        # print(f"gen: {gen}")
-        # input("Press Enter to continue...")
-        #print only non zero entries
-        # print(f"gen: {gen[gen != 0]}")
-        # input("Press Enter to continue...")
-        hist_dic["all"] = 0
-        hist_dic["primary"] = 0
-        hist_dic["secondary"] = 0
-        
+        hist["allGens"] = 0
+        hist["primary"] = 0
+        hist["secondary"] = 0
         #gen 0 is created by simulation
         #gen 1 is original particles
         
         for i in range(0, len(gen)):
-            hist_dic["all"] += 1
+            hist["all"] += 1
             if gen[i] == 1:
-                hist_dic["primary"] += 1
+                hist["primary"] += 1
             if gen[i] != 1:
-                hist_dic["secondary"] += 1
-        return hist_dic
+                hist["secondary"] += 1
+        return hist
+    
+def occupancy(dic, args = ""):
+    """
+    Determines occupancy and related values.
+    Inputs: dic from setup,
+            args is the type to calculate:
+                "" -- calculate all args \n
+                "n_cells" -- number of cells fired by an mcParticle \n
+                "percentage_fired" -- percentage of cells fired by an mcParticle \n
+                "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event \n
+                "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event \n
+                "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch \n
+                "occupancy_per_batch_sum_batches_non_normalized" -- average occupancy (not %) per batch, summing occupancies a batch \n
+                "cells_per_layer" -- cells per layer \n
+            note most of these occupancy values are pre-calculated in the data file
+            
+    Outputs: hist, dictionary of values (count of hits) with keys: \n
+        "" -- all values \n
+        "n_cells" -- number of cells fired by an mcParticle\n
+        "percentage_fired" -- percentage of cells fired by an mcParticle\n
+        "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_events_error" -- average occupancy (%) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_events_non_normalized_error" -- average occupancy (not %) per batch, summing occupancies an event\n
+        "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch\n
+        "occupancy_per_batch_sum_batches_error" -- average occupancy (%) per batch, summing occupancies a batch\n
+        "occupancy_per_batch_sum_batches_non_normalized" -- average occupancy (not %) per batch, summing occupancies a batch\n
+        "occupancy_per_batch_sum_batches_non_normalized_error" -- average occupancy (not %) per batch, summing occupancies a batch\n
+        "n_cells_per_layer" -- cells per layer\n
+        "total_number_of_cells" -- total number of cells\n
+        "total_number_of_layers" -- total number of layers\n
+    """
+    hist = {}
+    hist["n_cells"]= []
+    hist["percentage_fired"] = []
+    hist["n_cells_per_layer"] = []
+    hist["total_number_of_cells"] = []
+    hist["total_number_of_layers"] = []
+    
+    hist["occupancy_per_batch_sum_events"] = []
+    hist["occupancy_per_batch_sum_events_error"] = []
+    hist["occupancy_per_batch_sum_events_non_normalized"] = []
+    hist["occupancy_per_batch_sum_events_non_normalized_error"] = []
+    
+    hist["occupancy_per_batch_sum_batches"] = []
+    hist["occupancy_per_batch_sum_batches_error"] = []
+    
+    
+    if args == "n_cells" or args == "":
+        hist["n_cells"] = dic["list_n_cells_fired_mc"]
+        
+    if args == "percentage_fired" or args == "":
+        hist["percentage_fired"] = dic["percentage_of_fired_cells"]
+        
+    if args == "cells_per_layer" or args == "":
+        hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
+        hist["total_number_of_cells"] = dic["total_number_of_cells"]
+    hist["total_number_of_layers"] = dic["total_number_of_layers"]
+    
+    if args == "occupancy_per_batch_sum_events" or args == "":
+        hist["occupancy_per_batch_sum_events"] = dic["occupancy_per_batch_sum_events"]
+        hist["occupancy_per_batch_sum_events_error"] = dic["occupancy_per_batch_sum_events_error"]
+        
+    if args == "occupancy_per_batch_sum_events_non_normalized" or args == "":
+        hist["occupancy_per_batch_sum_events_non_normalized"] = dic["occupancy_per_batch_sum_events_non_normalized"]
+        hist["occupancy_per_batch_sum_events_non_normalized_error"] = dic["occupancy_per_batch_sum_events_non_normalized_error"]
+    
+    if args == "occupancy_per_batch_sum_batches" or args == "":
+        hist["occupancy_per_batch_sum_batches"] = dic["occupancy_per_batch_sum_batches"]
+        hist["occupancy_per_batch_sum_batches_error"] = dic["occupancy_per_batch_sum_batches_error"]
+        
+    if args == "occupancy_per_batch_sum_batches_non_normalized" or args == "":
+        hist["occupancy_per_batch_sum_batches_non_normalized"] = dic["occupancy_per_batch_sum_batches_non_normalized"]
+        hist["occupancy_per_batch_sum_batches_non_normalized_error"] = dic["occupancy_per_batch_sum_batches_non_normalized_error"]
+    
+    return hist
 
 def wiresPerMC(dic):
     """
     Function that returns the number of wires per MC particle.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    WIP
+    Inputs: dic, 
     Outputs: hist, histogram with the number of wires per MC particle.
     """
-    # Create the histogram
-    #hist = ROOT.TH1F("hist", "Number of wires per MC particle", 100, 0, 100)
     hist = []
-    # Fill the histogram
-    list_index = dic["hits"]
-    mcParticles = np.zeros(max(list_index))
-    for i in range(0, len(list_index)):
-        mcParticles[list_index[i] - 1] += 1
-    mcParticles = mcParticles[mcParticles != 0]
-    for i in range(0, len(mcParticles)):
-        hist.append(mcParticles[i])
     return hist
 
 def trajLen(dic):
     """
     Function that returns the trajectory length of MC particles.
+    WIP
     Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
     Outputs: hist, histogram with the trajectory length of MC particles.
     """
     hist = []
     #get the length of the vertex to the first hit
-    mcParticlesPosHit = groupHits(dic, dic["pos_z"])
+    # mcParticlesPosHit = groupHits(dic, dic["pos_z"])
+    mcParticlesPosHit  = []
     totMCPL = []
     #go through each mcParticle, 
     for i in range(0, len(mcParticlesPosHit)):
@@ -396,14 +497,11 @@ def trajLen(dic):
 def radiusPerMC(dic):
     """
     Function that returns the radius of MC particles.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    WIP
+    Inputs: dic, 
     Outputs: hist, histogram with the radius of MC particles.
     """
-    # Create the histogram
     hist = []
-    #mcParticleR = groupHits(dic, dic["R"])
-    # Fill the histogram
-    #print(max(dic["R"]))
     for i in range(0, len(dic["R"])):
         hist.append(dic["R"][i])
     return hist
@@ -411,12 +509,11 @@ def radiusPerMC(dic):
 def angleHits(dic):
     """
     Function that returns the angle of hits.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
+    WIP
+    Inputs: dic,
     Outputs: hist, histogram with the angle of hits.
     """
-    # Create the histogram
     hist = []
-    # Fill the histogram
     for i in range(0, len(dic["px"])):
         hist.append(phi(dic["px"][i], dic["py"][i]))
     return hist
@@ -433,71 +530,14 @@ def phi(pos_vec):
     elif pos_vec[1] < 0:
         phi += 2*math.pi
     return phi
-
-def occupancy(dic, args = ""):
-    """
-    Function that returns the occupancy of the detector.
-    Inputs: dic, dictionary with keys R, p, px, py, pz, gens.
-    Outputs: hist, dictionary of values (count of hits) with keys: \n
-        "" -- all values \n
-        "n_cells" -- number of cells fired by an mcParticle\n
-        "percentage_fired" -- percentage of cells fired by an mcParticle\n
-        "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event\n
-        "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event\n
-        "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch\n
-        "cells_per_layer" -- cells per layer\n
-    """
-    # Create the histogram
-    hist = {}
-    hist["n_cells"]= []
-    hist["percentage_fired"] = []
-    hist["n_cells_per_layer"] = []
-    
-    hist["occupancy_per_batch_sum_events"] = []
-    hist["occupancy_per_batch_sum_events_error"] = []
-    hist["occupancy_per_batch_sum_events_non_normalized"] = []
-    hist["occupancy_per_batch_sum_events_non_normalized_error"] = []
-    
-    hist["occupancy_per_batch_sum_batches"] = []
-    hist["occupancy_per_batch_sum_batches_error"] = []
-    
-    
-    if args == "n_cells" or args == "":
-        hist["n_cells"] = dic["list_n_cells_fired_mc"]
-        
-    if args == "percentage_fired" or args == "":
-        hist["percentage_fired"] = dic["percentage_of_fired_cells"]
-        
-    if args == "cells_per_layer":
-        hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
-        hist["total_number_of_cells"] = dic["total_number_of_cells"]
-    hist["total_number_of_layers"] = dic["total_number_of_layers"]
-    
-    if args == "occupancy_per_batch_sum_events":
-        hist["occupancy_per_batch_sum_events"] = dic["occupancy_per_batch_sum_events"]
-        hist["occupancy_per_batch_sum_events_error"] = dic["occupancy_per_batch_sum_events_error"]
-        
-    if args == "occupancy_per_batch_sum_events_non_normalized":
-        hist["occupancy_per_batch_sum_events_non_normalized"] = dic["occupancy_per_batch_sum_events_non_normalized"]
-        hist["occupancy_per_batch_sum_events_non_normalized_error"] = dic["occupancy_per_batch_sum_events_non_normalized_error"]
-    
-    if args == "occupancy_per_batch_sum_batches":
-        hist["occupancy_per_batch_sum_batches"] = dic["occupancy_per_batch_sum_batches"]
-        hist["occupancy_per_batch_sum_batches_error"] = dic["occupancy_per_batch_sum_batches_error"]
-        
-    if args == "occupancy_per_batch_sum_batches_non_normalized":
-        hist["occupancy_per_batch_sum_batches_non_normalized"] = dic["occupancy_per_batch_sum_batches_non_normalized"]
-        hist["occupancy_per_batch_sum_batches_non_normalized_error"] = dic["occupancy_per_batch_sum_batches_non_normalized_error"]
-    
-    return hist
     
     
     
 
 # hist = momPerMC(dic, "")
-# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + ".png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
-# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Loggedx.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-# hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Logged.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
+# hist_plot(hist['All'], imageOutputPath + "momentumMC" + str(numFiles) + ".png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+# hist_plot(hist['All'], imageOutputPath + "momentumMC" + str(numFiles) + "Loggedx.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+# hist_plot(hist['All'], imageOutputPath + "momentumMC" + str(numFiles) + "Logged.png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
 
 # hist = momPerMC(dic, "onlyOH")
 # hist_plot(hist["onlyOH"], imageOutputPath + "momentumMC" + str(numFiles) + "onlyOneHit.png", "Momentum of MC particles with only one hit (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
@@ -579,10 +619,10 @@ bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC" + str(numFiles) +
 # multi_hist_plot(histBkg, imageOutputPath + "hitsDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
 
 ###overlay bkg and signal mom
-# histSignal = momPerMC(dic, "all")
-# histBkg = momPerMC(dicbkg, "all")
-# histBkg["All Particles BKG"] = histBkg.pop("all")
-# histBkg["All Particles Signal"] = histSignal["all"]
+# histSignal = momPerMC(dic, "All")
+# histBkg = momPerMC(dicbkg, "All")
+# histBkg["All Particles BKG"] = histBkg.pop("All")
+# histBkg["All Particles Signal"] = histSignal["All"]
 # print(f"max histSignal: {max(histBkg['All Particles Signal'])}")
 # multi_hist_plot(histBkg, imageOutputPath + "momSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "Momentum of MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (Gev)", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.0001, binHigh=50, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
 
@@ -629,11 +669,12 @@ bar_plot(hist.keys(), hist.values(), imageOutputPath + "pdgMC" + str(numFiles) +
 
     
     
-def genPlot(inputArgs):
+def genPlot(inputArgs, imageOutputPath):
     """
-    Function that generates the desired histogram.
-    Inputs: None
-    Outputs: None
+    Used by the argparse to generate the desired plot(s).
+    Inputs: inputArgs, should be one argument either "" or from typePlots
+            imageOutputPath, path to save the image
+    Outputs: plot saved to imageOutputPath
     """
     if len(inputArgs) < 2:
         raise argparse.ArgumentTypeError("The --plot argument requires at least hist.")
@@ -676,24 +717,21 @@ def genPlot(inputArgs):
         plot_hist(hist, imageOutputPath + "" + outname + ".png", title, xMin, xMax, yLabel, ylog)
     else:
         plot_hist(hist, imageOutputPath + "" + outname + ".png", title, xMin, xMax, yMin, yMax, xLabel, yLabel, ylog)
-        
-        
-        
+          
        
-'''
+#'''
 parser = argparse.ArgumentParser()
-parser.add_argument('--plot', help="Plot histogram; hist*(str) " +
-                    "+ outname*(str) + title(str) + xMin(int) + xMax(int) " +
-                    "+ yMin(int) + yMax(int) + xLabel(str) + yLabel(str) " +
-                    "+ ylog(bool)", type=str, default="", nargs='9')
+typePlots = ["all", "momentum-all", "momentum-onlyOH", "momentum-only+H", "momentum-onlyParPhoton", "momentum-ptBelow10R", "PDGPerMC", "hitsPerMC", "occupancy"]
+parser.add_argument('--plot', help="Plot histogram -- type(str): " +
+                    str(typePlots), type=str, default="", nargs='1')
 args = parser.parse_args()
 
 outputFolder = imageOutputPath + ""
 
-if args.plot:
+if args.plot and args.plot != "":
     try:
-        genPlot(args.plot)
-        #print(f"Parsed --plot arguments: ...")
+        print(f"Parsed --plot arguments: ...")
+        genPlot(args.plot, outputFolder)
     except ValueError as e:
         parser.error(str(e))
 #'''

@@ -1,51 +1,25 @@
+#Alexander Poulin Jan 2025
 from podio import root_io
-#import edm4hep
-#import sys
-#import ROOT
-#from ROOT import TFile, TTree
 import numpy as np 
-#from array import array
 import math
-#import os
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
+from trBkgDat import configure_paths
 
 
 list_overlay = []
 numfiles = 500
+bkgDataPath=""
+combinedDataPath=""
+bkgFilePath=""
+combinedFilePath=""
+signalFilePath=""
 
-# oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
-bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
-# bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/"
-# combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
-combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
-bkgFilePath = "out_sim_edm4hep_background_"
-combinedFilePath = "/out_sim_edm4hep"
-signalFilePath = "/out_sim_edm4hep_base"
-type = "signal"
-if type == "combined":
-    print("WARNING: combined files are not yet supported")
-print("type: ", type)
-input("Press Enter to continue...")
-
-
-for i in range(1,numfiles + 1):
-    #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
-    if type == "combined":
-        list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
-    elif type == "bkg":
-        list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
-    elif type == "signal":
-        list_overlay.append(combinedDataPath + str(i) + signalFilePath + ".root")
-    else:
-        #throw error
-        print("Error: type not recognized")
-        sys.exit(1)
-
+#setup dictionary
 dic = {}
+#can change dic_file_path to the correct path:
 dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
-
 occ_keys = ["list_n_cells_fired_mc", "max_n_cell_per_layer",
         "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
         "occupancy_per_batch_sum_events", "occupancy_per_batch_sum_events_error",
@@ -65,7 +39,21 @@ except:
     for key in occ_keys:
         dic[key] = []
     np.save(dic_file_path, dic)
-    # dic = np.load(dic_file_path, allow_pickle=True).item() 
+    
+
+
+configure_paths(type="signal")
+for i in range(1,numfiles + 1):
+    if type == "combined":
+        list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
+    elif type == "bkg":
+        list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
+    elif type == "signal":
+        list_overlay.append(combinedDataPath + str(i) + signalFilePath + ".root")
+    else:
+        #throw error
+        print("Error: type not recognized")
+        sys.exit(1)
 
 
 
@@ -79,6 +67,7 @@ def calculateOccupancy(occupancy, unique_layer_index, n_cell_per_layer):
     return percentage_occupancy
 
 def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_layer):
+    #calculate occupancy but just number of fired cells per layer pretty much
     filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
     layer_count = len(filtered_occupancies)
     return layer_count

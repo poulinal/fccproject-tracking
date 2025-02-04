@@ -14,19 +14,15 @@ This is meant to be ran after trBkgDat.py (which save a .npy)
 but doesnt have to, it will just create a new .npy.
 """
 
-
+print("Calculating occupancy data from files...")
 list_overlay = []
 numfiles = 500
-bkgDataPath=""
-combinedDataPath=""
-bkgFilePath=""
-combinedFilePath=""
-signalFilePath=""
+typeFile = "signal"
 
 #setup dictionary
 dic = {}
 #can change dic_file_path to the correct path:
-dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(type) + "_background_particles_" + str(numfiles) + ".npy"
+dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy"
 occ_keys = ["list_n_cells_fired_mc", "max_n_cell_per_layer",
         "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
         "occupancy_per_batch_sum_events", "occupancy_per_batch_sum_events_error",
@@ -48,18 +44,19 @@ except:
     np.save(dic_file_path, dic)
     
 
+print(f"typeFile: {typeFile}")
+bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath = configure_paths(typeFile)
 
-configure_paths(type="signal")
 for i in range(1,numfiles + 1):
-    if type == "combined":
+    if typeFile == "combined":
         list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
-    elif type == "bkg":
+    elif typeFile == "bkg":
         list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
-    elif type == "signal":
-        list_overlay.append(combinedDataPath + str(i) + signalFilePath + ".root")
+    elif typeFile == "signal":
+        list_overlay.append(signalDataPath + str(i) + signalFilePath + ".root")
     else:
         #throw error
-        print("Error: type not recognized")
+        print("Error: typeFile not recognized")
         sys.exit(1)
 
 
@@ -101,10 +98,10 @@ max_n_cell_per_layer = n_cell_per_layer[str(total_number_of_layers - 1)]
 
 
 list_n_cells_fired_mc = []
-if type=="bkg": #we want to get the occupancy for 20 events/files at a time
+if typeFile=="bkg": #we want to get the occupancy for 20 events/files at a time
     batches=20
     eventFactor=1
-elif type=="signal": #we want to get the occupancy for 1 event at a time
+elif typeFile=="signal": #we want to get the occupancy for 1 event at a time
     batches=1
     eventFactor=10
 
@@ -128,7 +125,7 @@ for i in range(0, len(list_overlay)):
     print(f"Running over file: {rootfile}")
     reader = root_io.Reader(rootfile)
     metadata = reader.get("metadata")[0]
-    if type == "":
+    if typeFile == "":
         cellid_encoding = metadata.get_parameter("CDCHHits__CellIDEncoding")
     else:
         cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
@@ -141,7 +138,7 @@ for i in range(0, len(list_overlay)):
     if i % batches == 0:
         occupancies_a_batch_sum_each_event = np.zeros(total_number_of_layers)
         occupancies_a_batch_sum_each_event_non_normalized = np.zeros(total_number_of_layers)
-        if type == "bkg": #want to reset every 20 bkg files
+        if typeFile == "bkg": #want to reset every 20 bkg files
             # numBatches = 0 #total batches should be numFiles / 20
             print(f"resetting occupancy for batch, new batch: {numBatches}")
             dict_cellID_nHits = {} #reset cells for every 20 bkg event
@@ -153,13 +150,13 @@ for i in range(0, len(list_overlay)):
         numEvents += 1
         occupancies_an_event = []
         
-        if type == "signal": #want to reset every 1 signal event
+        if typeFile == "signal": #want to reset every 1 signal event
             print(f"resetting occupancy for batch, new batch: {numBatches}")
             dict_cellID_nHits = {} #reset cells for every 1 signal event
             occupancies_a_batch = []
             # numBatches = 0 #total batches should be numFiles * 10
     
-        if type == "":
+        if typeFile == "":
             dc_hits = event.get("CDCHHits")
         else:
             dc_hits = event.get("DCHCollection")
@@ -209,22 +206,22 @@ for i in range(0, len(list_overlay)):
             event_occupancy.append(calculateOccupancy(occupancies_an_event, unique_layer_index, n_cell_per_layer))
             #this gets the percent occupancy for a given layer for this event
             event_occupancy_non_normalized.append(calculateOccupancyNonNormalized(occupancies_an_event, unique_layer_index, n_cell_per_layer))
-
         occupancies_a_batch_sum_each_event += np.array(event_occupancy)
         occupancies_a_batch_sum_each_event_non_normalized += np.array(event_occupancy_non_normalized)
         
         ##signal files we want to reset every event
-        if type == "signal":
+        if typeFile == "signal":
             print(f"setting occupancy for batch: {numBatches}")
             batch_occupancy = []
             for unique_layer_index in range(0, total_number_of_layers):
                 batch_occupancy.append(calculateOccupancy(occupancies_a_batch, unique_layer_index, n_cell_per_layer))
             occupancies_per_batch_sum_batch[numBatches] = batch_occupancy #note index should be fileNum + eventNum / batches(1)
+            print(f"occupancies_per_batch_sum_batch: {occupancies_per_batch_sum_batch}")
             numBatches += 1
         
         
     #the next one resets the 20 file batch
-    if (i + 1) % batches == 0 and type == "bkg":
+    if (i + 1) % batches == 0 and typeFile == "bkg":
         print(f"setting occupancy for batch: {numBatches}")
         batch_occupancy = []
         for unique_layer_index in range(0, total_number_of_layers): #get the occupancy for a given layer 
@@ -259,8 +256,9 @@ dic["occupancy_per_batch_sum_events_error"] = np.std(occupancies_per_batch_sum_e
 
 dic["occupancy_per_batch_sum_batches"] = np.mean(occupancies_per_batch_sum_batch, axis=0)
 dic["occupancy_per_batch_sum_batches_error"] = np.std(occupancies_per_batch_sum_batch, axis=0)
+dic["occupancy_per_batch_sum_batches_non_meaned"] = occupancies_per_batch_sum_batch
 
-print(f"shape of occupancy_per_batch_sum_batches: {dic['occupancy_per_batch_sum_batches'].shape}")
+# print(f"shape of occupancy_per_batch_sum_batches: {dic['occupancy_per_batch_sum_batches'].shape}")
 
 # dic["percentage_of_fired_cells"] += percentage_of_fired_cells
 dic["list_n_cells_fired_mc"] += list_n_cells_fired_mc

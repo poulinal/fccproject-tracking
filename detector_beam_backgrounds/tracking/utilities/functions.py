@@ -428,5 +428,6 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     if additionalText != "":
         axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
     
+    print(f"outname: {outname}")
     figure.savefig(outname, bbox_inches="tight")
     

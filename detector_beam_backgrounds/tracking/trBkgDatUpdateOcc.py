@@ -116,7 +116,9 @@ occupancies_per_batch_sum_batch_non_normalized = np.zeros((int(eventFactor*numfi
 
 
 
-numBatches = 0 #total batches should be numFiles / 20
+numBatches = 0 
+#total batches for bkg should be numFiles / 20
+#total batches for signal should be numFiles * 10
 
 #loop over all the files
 for i in range(0, len(list_overlay)): 
@@ -216,7 +218,7 @@ for i in range(0, len(list_overlay)):
             for unique_layer_index in range(0, total_number_of_layers):
                 batch_occupancy.append(calculateOccupancy(occupancies_a_batch, unique_layer_index, n_cell_per_layer))
             occupancies_per_batch_sum_batch[numBatches] = batch_occupancy #note index should be fileNum + eventNum / batches(1)
-            print(f"occupancies_per_batch_sum_batch: {occupancies_per_batch_sum_batch}")
+            # print(f"occupancies_per_batch_sum_batch: {occupancies_per_batch_sum_batch}")
             numBatches += 1
         
         

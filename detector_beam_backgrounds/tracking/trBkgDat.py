@@ -35,7 +35,7 @@ def configure_paths(typeFile="bkg"):
 def calcDic():
     list_overlay = []
     numfiles = 500
-    typeFile = "signal" ### change here ###
+    typeFile = "bkg" ### change here ###
     
     dic = {}
     #can change:
@@ -166,10 +166,12 @@ def calcDic():
             dic["py"] += (list_py)
             dic["pz"] += (list_pz)
             dic["gens"] += (list_gen_status)
-            dic["pos_ver"] += (dic_pos_ver)
+            
+            dic["pos_ver"].append((dic_pos_ver))
+            dic["pos_hit"].append((dic_pos_hit))
+
 
             dic["hits"] += (list_index)
-            dic["pos_hit"] += (dic_pos_hit)
             dic["unique_mcs"] += (unique_mcs.tolist())
             dic["superLayer"] += (list_superLayer)
             dic["layer"] += (list_layer)

@@ -8,6 +8,7 @@ import argparse
 import sys
 import matplotlib.pyplot as plt
 import math
+import random
 
 """
 This file contains functions to plot the background data.
@@ -22,12 +23,33 @@ plotHits -- Plot the number of hits per particle.
 plotOccupancy -- Plot the occupancy of the detector.
 
 See the function docstrings for more information on each function.
+    In general, I split the functions into two parts: one that calculates the values and one that plots the values.
 See bottom for example usage and documentation of argument parsing.
+
+To run, use the following command:
+python <'path'> <'function'> <'fileType'>
+    where:  <'path'> is the path to this file
+            <'function'> is the function to run
+            <'fileType'> is the type of file to run the function on
+All functions:
+    typePlots = ["", "all", 
+                "momentum-all", "momentum-onlyOH", "momentum-only+H",
+                    "momentum-onlyParPhoton", "momentum-ptBelow10R", "momentum-onlyOH-pdg",
+                    "momentum-only+H-pdg", "momentum-multiHits", "momentum-multiHitsExcludeOne",
+                    "pdg-all", "pdg-electron", "pdg-gen",
+                    "hits-all", "hits-neutron", "hits-photon", "hits-electron",
+                    "hitsOverlay-all", "hitsOverlay-electron", "hitsOverlay-photon",
+                    "momentumOverlay-all",
+                    "occupancy-nCellsFired", "occupancy-BatchedBatch", "occupancy-BatchedBatchNN",
+                    "occupancy-nCellsPerLayer",
+                    "wireChamber-all",
+                    "plot3dPos", "hitRadius-all", "hitRadius-layers-radius", "hitRadius-all-layers"
+                ]
 """
 
 
 
-available_functions = ["hitsPerMC", "momPerMC", "PDGPerMC", "wiresPerMC", "trajLen", "radiusPerMC", "angleHits", "occupancy"]
+available_functions = ["hitsPerMC", "momPerMC", "PDGPerMC", "occupancy", "hitRadius", "plot3dPosition"]
 dic = {}
 dicbkg = {}
 numFiles = 500
@@ -36,10 +58,10 @@ backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/dat
 combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
 imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test/"
 signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/signal_background_particles_"+str(numFiles)+".npy"
-typeFile="Bkg"#dont change
+typeFile="Bkg"#dont change (change when calling setup)
 
 #change to personal directories in here:
-def setup(typeFile: str =typeFile, includeBkg: bool =False):
+def setup(typefile: str =typeFile, includeBkg: bool =False):
     """
     Setups the file paths and outputs.
     Data paths will lead to either the background or signal data or their combined files (not yet tested).
@@ -79,13 +101,13 @@ def setup(typeFile: str =typeFile, includeBkg: bool =False):
         includeBkg -- for when we want to overlay bkg and signal files in a plot 
     Return: no return, just updates the global dictionary dic
     """
-    if typeFile == "Bkg":
+    if typefile == "Bkg":
         dic = np.load(backgroundDataPath, allow_pickle=True).item()
         print(f"Reading dictionary from: {backgroundDataPath}")
-    elif typeFile == "Combined":
+    elif typefile == "Combined":
         dic = np.load(combinedDataPath, allow_pickle=True).item()
         print(f"Reading dictionary from: {combinedDataPath}")
-    elif typeFile == "Signal":
+    elif typefile == "Signal":
         dic = np.load(signalDataPath, allow_pickle=True).item()
         print(f"Reading dictionary from: {signalDataPath}")
     else:
@@ -96,6 +118,9 @@ def setup(typeFile: str =typeFile, includeBkg: bool =False):
         print(f"Reading extra bkg dictionary from: {backgroundDataPath}")
     else:
         dicbkg = {}
+    global typeFile
+    typeFile = typefile
+    print(f"Setup complete for {typeFile} data")
     return dic, dicbkg
 
 # dic, dicbkg = setup(typeFile, includeBkg)
@@ -479,7 +504,152 @@ def occupancy(dic, args = ""):
     
     return hist
 
+def hitRadius(dic, args = ""):
+    """
+    Given a hit, what is the radius of the hit.
 
+    Args:
+        dic (dictionary): _description_
+        args (str, optional): _description_. Defaults to "".
+
+    Returns:
+        dictionary: dictionary with keys: \n
+            "All" -- a list of all hit's radius \n
+    """
+    hist = {}
+    hist["All"] = []
+    hist["Position of Hit"] = []
+    hist["Position of Vertex"] = []
+    hist["OverlayLayer"] = []
+    
+    # list_hits_per_mc = dic["count_hits"]
+    # list_r_per_mc = dic["R"]
+    # list_hits = dic["hits"]
+    
+    dic_pos = dic["pos_hit"] 
+    #this is a list of dictionaries (each is dictionary is an event)
+    #each dictionary has a key of mcParticle index and a value of a list of tuples (3position) of where it hit
+    #we dont care by what particle generated the hit, but get the number of hits for a certain radius
+    
+    if args == "All" or args == "":
+        for event in dic_pos:
+            for mcParticle, positions in event.items():
+                for position in positions:
+                    # hist["All"].append(math.sqrt(position[0]**2 + position[1]**2 + position[2]**2))
+                    hist["All"].append(math.sqrt(position[0]**2 + position[1]**2))
+    
+    if args == "OverlayLayer" or args == "":
+        dic_n_cells_per_layer = dic["n_cell_per_layer"] #just get the number of cells per layer
+        total_number_of_layers = dic["total_number_of_layers"]
+        hist["OverlayLayer"] = dic_n_cells_per_layer #dictionary where keys are layer number, values are ncells
+    return hist
+
+
+def plot3dPosition(dic, dicbkg, args=""):
+    plt.ion()
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Generate a color map for particles
+    color_map = {}
+    
+    particle_data_hit = dic["pos_hit"]
+    particle_data_ver = dic["pos_ver"]
+    # print(f"particle_data: {particle_data[0]}")
+    #so particle data is a list of dictionaries
+    #there should be a dictionary for every event
+    #in each dictionary, the key is the mcParticle index, and the value is a list of positions
+
+    # Iterate through the list of dictionaries
+    print(len(particle_data_ver))
+    print(len(particle_data_hit)) #these should be the same length
+    
+    #now we want to match indexes and append the hits onto the vers
+    merged_pos = []
+
+    for dict1, dict2 in zip(particle_data_ver, particle_data_hit):
+        merged_dict = {}
+        
+        # Merge first dictionary
+        for key, value in dict1.items(): #should only be one tuple that gets added
+            # print(f"valuedic1: {value}")
+            if key not in merged_dict:
+                merged_dict[key] = []
+            merged_dict[key].append(value)
+        
+        # Merge second dictionary
+        for key, value in dict2.items(): #a range of possible tuples
+            # print(f"valuedic2: {value}")
+            if key not in merged_dict:
+                print("key not found for hits???")
+                input("press Enter to continue...")
+                merged_dict[key] = []
+            # merged_dict[key].append(value)
+            merged_dict[key] += value
+        
+        merged_pos.append(merged_dict)
+        
+    # print(f"merged_pos: {merged_pos[0]}")
+    # print(f"merged_pos: {len(merged_pos)}")
+    
+    numEventsCutoff = 0 #set to -1 to get all events (after event 'n', stop)
+    numParticlesCutoff = -1 #set to -1 to get all particles
+    particleSeen = 0
+    for i, file_dict in enumerate(merged_pos): #particle_dict is the dictionary for each event
+        # print(f"file_dict: {i}")
+        #signal theres 5000 events so lets restrict to 20
+        if i != -1 and i > numEventsCutoff:
+            print("break numEvents")
+            break
+        for particle_index, positions in file_dict.items():
+            if particle_index not in color_map:
+                if numParticlesCutoff != -1 and particleSeen > numParticlesCutoff:
+                    print("break numParticles")
+                    break
+                particleSeen += 1
+                color_map[particle_index] = (random.random(), random.random(), random.random())  # Assign a random color
+            
+            # Convert positions to numpy arrays for easy plotting
+            positions = np.array(positions) #for when list of tuples
+            
+            x, y, z = positions[:, 0], positions[:, 1], positions[:, 2] #for when list of tuples
+            # x, y, z = positions[0], positions[1], positions[2] #for when just tuples
+
+            # Plot the trajectory with lines and points
+            ax.plot(x, y, z, marker='o', markersize=3, linestyle='-', alpha=0.7, color=color_map[particle_index], label=f'Particle {particle_index}')
+
+    # Labels
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    #make tick labels small
+    ax.tick_params(axis='both', which='major', labelsize=8)
+    ax.set_title('3D Particle Trajectories ' + str(typeFile) + " seen: " + str(particleSeen) + "MC")
+
+    # Show legend (if particles overlap, the legend might repeat)
+    # handles, labels = ax.get_legend_handles_labels()
+    # unique_labels = dict(zip(labels, handles))  # Remove duplicates
+    # ax.legend(unique_labels.values(), unique_labels.keys())
+    fig.savefig(imageOutputPath + "3D" + str(typeFile) + "MCTrajE" + str(numEventsCutoff) + "P" + str(numParticlesCutoff), bbox_inches="tight")
+    
+    ax.view_init(elev=0, azim=0)  # Adjust elevation and azimuth
+    fig.savefig(imageOutputPath + "3D" + str(typeFile) + "MC00TrajE" + str(numEventsCutoff) + "P" + str(numParticlesCutoff), bbox_inches="tight")
+    
+    #plot a radial sphere to show the detector layers with extreme alpha
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = 10 * np.outer(np.cos(u), np.sin(v)) *300
+    print(x)
+    y = 10 * np.outer(np.sin(u), np.sin(v)) * 300
+    z = 10 * np.outer(np.ones(np.size(u)), np.cos(v)) * 300
+    ax.plot_surface(x, y, z, color='b', alpha=0.1)
+    #make sure plot is square
+    # ax.set_box_aspect([1,1,1])
+    #Set y limit to be 3000
+    ax.set_ylim(-3000, 3000)
+    ax.set_zlim(-3000, 3000)
+    ax.set_xlim(-3000, 3000)
+    # fig.savefig(imageOutputPath + "3D" + str(typeFile) + "MC00TrajSphereE" + str(numEventsCutoff) + "P" + str(numParticlesCutoff), bbox_inches="tight")
 
 
 
@@ -739,35 +909,129 @@ def plotWireChamber(dic, dicbkg, args=""):
         hist = occupancy(dic, "cells_per_layer")
         plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamberFirstQuad" + ".png", title="", firstQuadrant=True)
     
+def plotHitRadius(dic, dicbkg, args=""):
+    """
+    Plot the hit radius of all particles.
+
+    Args:
+        dic (dictionary): _description_
+        dicbkg (dictionary): _description_
+        args (str, optional): _description_. Defaults to "".
+    """
+    if args == "hitRadius-all" or args == "":
+        hist = hitRadius(dic, "All")
+        # print(np.array(hist["All"]))
+        print(f"max hit radius: {max(hist['All'])}")
+        print(f"min hit radius: {min(hist['All'])}")
+        hist_plot(hist["All"], 
+                  imageOutputPath + "hitRadius" + str(typeFile) + "MC" + str(numFiles) + ".png", 
+                  "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
+                  xLabel="Hit Radius (mm)", yLabel="Count MC particles", binLow=min(hist['All']), binHigh=max(hist['All']), binType="lin", binSteps=10)
+    
+    if args == "hitRadius-layers-radius" or args == "":
+        hist = hitRadius(dic, "OverlayLayer")
+        #superlayers 14
+        #layers 112
+        fig = plt.figure(figsize=(10, 8))
+        # ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111)
+        layers = np.arange(1, 113)
+        radii = np.linspace(350, 2000, 112)
+        # print(hist["OverlayLayer"].values())
+        
+        numCells = list(hist["OverlayLayer"].values())
+        scatter = ax.scatter(radii, layers, c=numCells, cmap='viridis', s=20, edgecolors="black")
+        # Labels
+        ax.set_xlabel('Radius (mm)')
+        ax.set_ylabel('Layer Number')
+        # ax.set_zlabel('Number of Cells')
+
+        # Adding color bar
+        fig.colorbar(scatter, ax=ax, label="Number of Cells")
+
+        plt.title("3D Distribution of Cells per Layer")
+        # plt.show()
+        plt.savefig(imageOutputPath + "hitRadiusLayersDistribution" + str(typeFile) + "MC" + str(numFiles) + ".png")
+        
+    if args == "hitRadius-all-layers" or args == "":
+        hist = hitRadius(dic, "All")
+        # print(np.array(hist["All"]))
+        # print(f"max hit radius: {max(hist['All'])}")
+        # print(f"min hit radius: {min(hist['All'])}")
+        # hist["layers"] = [i for i in range(1, 113)]
+        
+
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111)
+        hist_plot(hist["All"], 
+                  imageOutputPath + "hitRadius" + str(typeFile) + "MC" + str(numFiles) + ".png", 
+                  "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
+                  xLabel="Hit Radius (mm)", yLabel="Count MC particles", binLow=min(hist['All']), binHigh=max(hist['All']), binType="lin", binSteps=5,
+                  save=False, figure=fig, axe=ax)
+        # colors = ["red", "orange", "black", "yellow", "pink", "brown", "cyan", "magenta", "grey", "lime", "teal", "indigo"]
+        save=False
+        superLayerRadii = np.linspace(350, 2000, 15)
+        superLayerHeight = [10000 for i in range(15)]
+        for i in range(0, 15):
+            xy_plot([superLayerRadii[i], superLayerRadii[i]], [0, superLayerHeight[i]], 
+                    imageOutputPath + "hitRadiusSuperLayers" + str(typeFile) + "MC" + str(numFiles) + ".png", 
+                    "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
+                    xLabel="Radius (mm)", yLabel="Count MC particles", includeLegend=False, label="", scatter=False, figure=fig, axe=ax, save=save, color="red")
+            #plot the lyaers in the superlayer
+            currentSuperLayerLow = (2000-350)/15 * i + 350
+            currentSuperLayerHigh = (2000-350)/15 * (i+1) + 350
+            layerRadii = np.linspace(currentSuperLayerLow, currentSuperLayerHigh, 9)
+            layerHeight = [7500 for i in range(9)]
+            for j in range(0,9):
+                if i == 14 and j == 8:
+                    save=True
+                xy_plot([layerRadii[j], layerRadii[j]], [0, layerHeight[j]], 
+                        imageOutputPath + "hitRadiusLayers" + str(typeFile) + "MC" + str(numFiles) + ".png", 
+                        "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
+                        xLabel="Radius (mm)", yLabel="Count MC particles", includeLegend=False, label="", scatter=False, figure=fig, axe=ax, save=save, color="yellow")
+    
+    
 def plotAll(dic, dicbkg, args=""):
     """
     Plot all histograms.
     """
     ###momentum plots
-    plotMomentum()
+    plotMomentum(dic)
     
     ###pdg plots
-    plotPDG()
+    plotPDG(dic)
     
     ###hits plots
-    plotHits()
+    plotHits(dic)
     
     ###overlay bkg and signal mom
-    plotMomOverlay()
+    plotMomOverlay(dic, dicbkg)
     
     ###overlay bkg and signal hits
-    plotHitsOverlay()
+    plotHitsOverlay(dic, dicbkg)
     
     ###occupancy
-    plotOccupancy()
+    plotOccupancy(dic)
     
     ###wireChamber
-    plotWireChamber()
+    plotWireChamber(dic)
+    
+    ###hitRadius
+    plotHitRadius(dic)
+    
+    ###3d position
+    plot3dPosition(dic)
+    
+    print("All plots saved")
     
 def genPlot(inputArgs):
     """
-    Used by the argparse to generate the desired plot(s). 
-    Basically just want to map the inputArgs to the correct function.
+    Used by the argparse to generate the desired plot(s). \n
+    Basically just want to map the inputArgs to the correct function. \n
+    For a given input, it will call the corresponding plot-function which will delegate to the correct part of function and plot. \n
+    Note though I trie dto be as general with plotting, there are some instances where I use specific values which may need to be changed depending on the data. 
+    
+    
     Inputs: inputArgs, should be one argument either "" or from typePlots
             imageOutputPath, path to save the image
     Outputs: plot saved to imageOutputPath
@@ -776,8 +1040,8 @@ def genPlot(inputArgs):
         raise argparse.ArgumentTypeError("The --plot argument requires 2 arguments, the type of plot to generate, the type of files to use.")
     
     typePlot = inputArgs[0]
-    typeFile = inputArgs[1]
-    dic, dicbkg = setup(typeFile, False)
+    typefile = inputArgs[1]
+    dic, dicbkg = setup(typefile, False)
     # Mapping strings to functions
     function_map = {
         "": plotAll,
@@ -806,10 +1070,12 @@ def genPlot(inputArgs):
         "occupancy-BatchedBatch": plotOccupancy,
         "occupancy-BatchedBatchNN": plotOccupancy,
         "occupancy-nCellsPerLayer": plotOccupancy,
-        "wireChamber-all": plotWireChamber
+        "wireChamber-all": plotWireChamber,
+        "plot3dPos": plot3dPosition,
+        "hitRadius-all": plotHitRadius,
+        "hitRadius-layers-radius": plotHitRadius,
+        "hitRadius-all-layers": plotHitRadius
     }
-    
-    # print(type(typePlot))
 
     # Execute the corresponding function if the key exists
     if typePlot in function_map:
@@ -822,8 +1088,18 @@ def genPlot(inputArgs):
 #'''
 #create argument parser so someone can create plots without hard coding
 parser = argparse.ArgumentParser()
-typePlots = ["all", 
+typePlots = ["", "all", 
              "momentum-all", "momentum-onlyOH", "momentum-only+H",
+                "momentum-onlyParPhoton", "momentum-ptBelow10R", "momentum-onlyOH-pdg",
+                "momentum-only+H-pdg", "momentum-multiHits", "momentum-multiHitsExcludeOne",
+                "pdg-all", "pdg-electron", "pdg-gen",
+                "hits-all", "hits-neutron", "hits-photon", "hits-electron",
+                "hitsOverlay-all", "hitsOverlay-electron", "hitsOverlay-photon",
+                "momentumOverlay-all",
+                "occupancy-nCellsFired", "occupancy-BatchedBatch", "occupancy-BatchedBatchNN",
+                "occupancy-nCellsPerLayer",
+                "wireChamber-all",
+                "plot3dPos", "hitRadius-all", "hitRadius-layers-radius", "hitRadius-all-layers"
              ]
 parser.add_argument('--plot', help="Plot histogram \n-- plotType(str): " +
                     str(typePlots) + "\n-- fileType(str): [Bkg], [Signal], [Combined]", type=str, default="", nargs='+')
@@ -838,8 +1114,8 @@ if args.plot and args.plot != "":
 #'''
 '''    
 example (plot all):
-/work/submit/poulin/fccproject-tracking/detector_beam_backgrounds/tracking/trBkgPlt.py --plot
+/work/submit/poulin/fccproject-tracking/detector_beam_backgrounds/tracking/trBkgPlt.py --plot all Bkg
 
 example(plot momentum)
-/work/submit/poulin/fccproject-tracking/detector_beam_backgrounds/tracking/trBkgPlt.py --plot momentum-all
+/work/submit/poulin/fccproject-tracking/detector_beam_backgrounds/tracking/trBkgPlt.py --plot momentum-all Signal
 '''

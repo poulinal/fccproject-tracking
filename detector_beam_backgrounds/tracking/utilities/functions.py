@@ -76,10 +76,15 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     if axe == "":
         axe = figure.subplots()
     
-    if autoBin: #autoBin lets hist decide the binning
-        axe.hist(h, histtype=barType, linewidth=2, label=label, alpha=alpha, density=density)
+    if autoBin or binType not in ["exp", "lin"]:
+        if binType not in ["exp", "lin"]:
+            print("Invalid binType, using auto binning")
+        axe.hist(h, histtype=barType, linewidth=2, label=label, alpha=alpha, density=density) #autoBin lets hist decide the binning
     else:
-        if binType == "exp":
+        if binType not in ["exp", "lin"]:
+            print("Invalid binType, using auto binning")
+            axe.hist(h, histtype=barType, linewidth=2, label=label, alpha=alpha, density=density)
+        elif binType == "exp":
             binn = np.exp(np.arange(np.log(binLow), np.log(binHigh), binSteps))
         elif binType == "lin":
             binn = np.arange(binLow, binHigh, binSteps)
@@ -368,7 +373,7 @@ def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel,
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
-            errorBars=False, yerr=[], includeGrid=True):
+            errorBars=False, yerr=[], includeGrid=True, save=True, color=""):
     """
     Create a xy plot with the given parameters.
     
@@ -401,33 +406,41 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         if errorBars:
             axe.errorbar(x, y, yerr, label=label, linestyle='none', marker='_')
         else:
-            axe.scatter(x, y, label=label)
+            if color == "":
+                axe.scatter(x, y, label=label)
+            else:
+                axe.scatter(x, y, label=label, color=color)
     else:
-        axe.step(x, y, label=label)
-    
-    if statusUpdate:
-        print("Finished plotting, updating plot parameters...")
+        if color == "":
+            axe.step(x, y, label=label)
+        else:
+            axe.step(x, y, label=label, color=color)
         
-    #fix when h.keys() is long and overlaps with neighboring labels:
-    axe.set_title(title)
-    axe.set_xlabel(xLabel)
-    axe.set_ylabel(yLabel)
-    
-    if includeGrid:
-            axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
-            axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
+        
+    if save:
+        if statusUpdate:
+            print("Finished plotting, updating plot parameters...")
             
-    if logY:
-        axe.set_yscale("log")
-    if logX:
-        axe.set_xscale("log")
-    plt.legend(fontsize='x-small')
-    if includeLegend:
-            # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
-        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    if additionalText != "":
-        axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
-    
-    print(f"outname: {outname}")
-    figure.savefig(outname, bbox_inches="tight")
+        #fix when h.keys() is long and overlaps with neighboring labels:
+        axe.set_title(title)
+        axe.set_xlabel(xLabel)
+        axe.set_ylabel(yLabel)
+        
+        if includeGrid:
+                axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
+                axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
+                
+        if logY:
+            axe.set_yscale("log")
+        if logX:
+            axe.set_xscale("log")
+        plt.legend(fontsize='x-small')
+        if includeLegend:
+                # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        if additionalText != "":
+            axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+        
+        print(f"outname: {outname}")
+        figure.savefig(outname, bbox_inches="tight")
     

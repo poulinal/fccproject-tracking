@@ -44,11 +44,22 @@ def calcDic():
             "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
             "pos_z", "count_hits", "has_par_photon", "pdg", 
             "hits_produced_secondary", "hits_mc_produced_secondary"]
-    #assign dic to empty dictionary
-    for key in keys:
-        dic[key] = []
-    np.save(dic_file_path, dic)
-    # dic = np.load(dic_file_path, allow_pickle=True).item() 
+        
+    #check if dic_file_path exists:
+    try:
+        dic = np.load(dic_file_path, allow_pickle=True).item() 
+        print(f"Dictionary loaded from {dic_file_path}")
+        #assign dic to empty dictionary
+        for key in keys:
+            dic[key] = []
+    except:
+        print(f"Dictionary not found at {dic_file_path}")
+        print("Creating new dictionary")
+        #assign dic to empty dictionary
+        dic = {}
+        for key in keys:
+            dic[key] = []
+        np.save(dic_file_path, dic)
 
     bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath = configure_paths(typeFile)
 

@@ -473,6 +473,12 @@ def occupancy(dic, args = ""):
     hist["occupancy_per_batch_sum_batches"] = []
     hist["occupancy_per_batch_sum_batches_error"] = []
     
+    hist["occupancy_per_batch_sum_batches_only_neighbor"] = []
+    hist["occupancy_per_batch_sum_batches_only_neighbor_error"] = []
+    
+    hist["occupancy_per_batch_sum_batches_energy_dep"] = []
+    hist["occupancy_per_batch_sum_batch_avg_energy_dep"] = []
+    
     
     if args == "n_cells" or args == "":
         hist["n_cells"] = dic["list_n_cells_fired_mc"]
@@ -501,6 +507,17 @@ def occupancy(dic, args = ""):
     if args == "occupancy_per_batch_sum_batches_non_normalized" or args == "":
         hist["occupancy_per_batch_sum_batches_non_normalized"] = dic["occupancy_per_batch_sum_batches_non_normalized"]
         hist["occupancy_per_batch_sum_batches_non_normalized_error"] = dic["occupancy_per_batch_sum_batches_non_normalized_error"]
+    
+    if args == "occupancy_per_batch_sum_batches_only_neighbor" or args == "":
+        hist["occupancy_per_batch_sum_batches_only_neighbor"] = dic["occupancy_per_batch_sum_batches_only_neighbor"]
+        hist["occupancy_per_batch_sum_batches_only_neighbor_error"] = dic["occupancy_per_batch_sum_batches_only_neighbor_error"]
+        
+    if args == "energy_deposit" or args == "":
+        hist["occupancy_per_batch_sum_batches_energy_dep"] = dic["occupancy_per_batch_sum_batches_energy_dep"]
+        
+    if args == "avg_energy_deposit" or args == "":
+        hist["occupancy_per_batch_sum_batch_avg_energy_dep"] = dic["occupancy_per_batch_sum_batch_avg_energy_dep"]
+        hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = dic["occupancy_per_batch_sum_batch_avg_energy_dep_error"]
     
     return hist
 
@@ -896,6 +913,23 @@ def plotOccupancy(dic, dicbkg, args=""):
         print(f"n_cells_per_layer: {hist['n_cells_per_layer'].values()}")
         xy_plot(x, list(hist["n_cells_per_layer"].values()), imageOutputPath + "nCellsPerLayer"+str(typeFile)+"MC" + str(numFiles) + ".png", "Cells Per Layer (" + str(numFiles) + " Files)", xLabel="Layer Number", yLabel="Cells Per Layer", includeLegend=False, label="")
     
+    if args == "occupancy-onlyNeighbors" or args == "":
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor"], imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighbors.png",
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]",
+                includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_neighbor_error"])
+        
+    if args == "avg-energy-deposit" or args == "":
+        hist = occupancy(dic, "avg_energy_deposit")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        xy_plot(layers, hist["occupancy_per_batch_sum_batch_avg_energy_dep"], imageOutputPath + "energyDeposit"+str(typeFile)+"MC" + str(numFiles) + ".png",
+                "Average Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Average Energy Deposit [GeV]",
+                includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"])
+        
+        
 def plotWireChamber(dic, dicbkg, args=""):
     """
     Plot the wire chamber.
@@ -1029,7 +1063,7 @@ def genPlot(inputArgs):
     Used by the argparse to generate the desired plot(s). \n
     Basically just want to map the inputArgs to the correct function. \n
     For a given input, it will call the corresponding plot-function which will delegate to the correct part of function and plot. \n
-    Note though I trie dto be as general with plotting, there are some instances where I use specific values which may need to be changed depending on the data. 
+    Note though I tried to be as general with plotting, there are some instances where I use specific values which may need to be changed depending on the data. 
     
     
     Inputs: inputArgs, should be one argument either "" or from typePlots
@@ -1070,6 +1104,8 @@ def genPlot(inputArgs):
         "occupancy-BatchedBatch": plotOccupancy,
         "occupancy-BatchedBatchNN": plotOccupancy,
         "occupancy-nCellsPerLayer": plotOccupancy,
+        "occupancy-onlyNeighbors": plotOccupancy,
+        "avg-energy-deposit": plotOccupancy,
         "wireChamber-all": plotWireChamber,
         "plot3dPos": plot3dPosition,
         "hitRadius-all": plotHitRadius,
@@ -1097,7 +1133,7 @@ typePlots = ["", "all",
                 "hitsOverlay-all", "hitsOverlay-electron", "hitsOverlay-photon",
                 "momentumOverlay-all",
                 "occupancy-nCellsFired", "occupancy-BatchedBatch", "occupancy-BatchedBatchNN",
-                "occupancy-nCellsPerLayer",
+                "occupancy-nCellsPerLayer", "occupancy-onlyNeighbors", "avg-energy-deposit",
                 "wireChamber-all",
                 "plot3dPos", "hitRadius-all", "hitRadius-layers-radius", "hitRadius-all-layers"
              ]

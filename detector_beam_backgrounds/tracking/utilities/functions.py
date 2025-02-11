@@ -1,6 +1,6 @@
 #Alexander Poulin Jan 2025
 import matplotlib.pyplot as plt
-import mplhep as hep 
+# import mplhep as hep 
 import numpy as np
 
 """
@@ -9,29 +9,29 @@ This file contains functions to create plots for the tracking project.
 
 
 
-hep.style.use(hep.style.CMS)
+# hep.style.use(hep.style.CMS)
 
-def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
-    fig = plt.figure()
-    ax = fig.subplots()
+# def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
+#     fig = plt.figure()
+#     ax = fig.subplots()
 
-    hep.hist2dplot(h, label="", ax=ax)
+#     hep.hist2dplot(h, label="", ax=ax)
 
-    ax.set_title(title)
-    ax.set_xlabel(xLabel)
-    ax.set_ylabel(yLabel)
-    #ax.legend(fontsize='x-small')
-    if logY:
-        ax.set_yscale("log")
+#     ax.set_title(title)
+#     ax.set_xlabel(xLabel)
+#     ax.set_ylabel(yLabel)
+#     #ax.legend(fontsize='x-small')
+#     if logY:
+#         ax.set_yscale("log")
 
-    if xMin != -1 and xMax != -1:
-        ax.set_xlim([xMin, xMax])
-    if yMin != -1 and yMax != -1:
-        ax.set_ylim([yMin, yMax])
+#     if xMin != -1 and xMax != -1:
+#         ax.set_xlim([xMin, xMax])
+#     if yMin != -1 and yMax != -1:
+#         ax.set_ylim([yMin, yMax])
 
 
-    fig.savefig(outname, bbox_inches="tight")
-    fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+#     fig.savefig(outname, bbox_inches="tight")
+#     fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
 
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 

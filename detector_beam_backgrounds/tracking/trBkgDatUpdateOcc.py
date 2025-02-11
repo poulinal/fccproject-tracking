@@ -22,14 +22,15 @@ typeFile = "bkg"
 #setup dictionary
 dic = {}
 #can change dic_file_path to the correct path:
-dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy"
+# dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
+dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6.npy" #lxplus
 occ_keys = ["list_n_cells_fired_mc", "max_n_cell_per_layer",
-        "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
-        "occupancy_per_batch_sum_batch_non_normalized", "occupancy_per_batch_sum_batch_non_normalized_error"
-        "occupancy_per_batch_sum_batches", "occupancy_per_batch_sum_batches_error", "occupancy_per_batch_sum_batches_non_meaned",
-        "occupancy_per_batch_sum_batches_only_neighbor", "occupancy_per_batch_sum_batches_only_neighbor_error",
-        "occupancy_per_batch_sum_batches_energy_dep", "occupancy_per_batch_sum_batches_energy_dep_error",
-        "occupancy_per_batch_sum_batch_avg_energy_dep", "occupancy_per_batch_sum_batch_avg_energy_dep_error"]
+    "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
+    "occupancy_per_batch_sum_batch_non_normalized", "occupancy_per_batch_sum_batch_non_normalized_error"
+    "occupancy_per_batch_sum_batches", "occupancy_per_batch_sum_batches_error", "occupancy_per_batch_sum_batches_non_meaned",
+    "occupancy_per_batch_sum_batches_only_neighbor", "occupancy_per_batch_sum_batches_only_neighbor_error",
+    "occupancy_per_batch_sum_batches_energy_dep", "occupancy_per_batch_sum_batches_energy_dep_error",
+    "occupancy_per_batch_sum_batch_avg_energy_dep", "occupancy_per_batch_sum_batch_avg_energy_dep_error"]
 #check if dic_file_path exists:
 try:
     dic = np.load(dic_file_path, allow_pickle=True).item() 

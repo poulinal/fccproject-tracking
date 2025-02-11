@@ -5,6 +5,7 @@ import math
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
+# import os
 
 # print("Calculating data from files...")
 
@@ -18,8 +19,10 @@ def configure_paths(typeFile="bkg"):
     ### change here ###
     
     # oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
-    bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/"
-    # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/"
+    # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/" #mit-submit
+    # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/" #old mit-submit
+    # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v6_CAD/" #lxplus with cad pipe #source source '/cvmfs/sw.hsf.org/key4hep/setup.sh -r 2024-10-03'
+    bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v5/" #lxplus without cad pipe
     combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
     signalDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
     bkgFilePath = "out_sim_edm4hep_background_"
@@ -39,11 +42,13 @@ def calcDic():
     
     dic = {}
     #can change:
-    dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy"
+    # dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
+    dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6.npy" #lxplus
     keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits", 
             "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
             "pos_z", "count_hits", "has_par_photon", "pdg", 
             "hits_produced_secondary", "hits_mc_produced_secondary"]
+    
         
     #check if dic_file_path exists:
     try:

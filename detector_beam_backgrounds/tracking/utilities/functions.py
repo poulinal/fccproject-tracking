@@ -2,37 +2,11 @@
 import matplotlib.pyplot as plt
 # import mplhep as hep 
 import numpy as np
+from matplotlib.colors import LogNorm
 
 """
 This file contains functions to create plots for the tracking project.
 """
-
-
-
-# hep.style.use(hep.style.CMS)
-
-# def plot_2dhist(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, xLabel="", yLabel="Events", logY=False):
-#     fig = plt.figure()
-#     ax = fig.subplots()
-
-#     hep.hist2dplot(h, label="", ax=ax)
-
-#     ax.set_title(title)
-#     ax.set_xlabel(xLabel)
-#     ax.set_ylabel(yLabel)
-#     #ax.legend(fontsize='x-small')
-#     if logY:
-#         ax.set_yscale("log")
-
-#     if xMin != -1 and xMax != -1:
-#         ax.set_xlim([xMin, xMax])
-#     if yMin != -1 and yMax != -1:
-#         ax.set_ylim([yMin, yMax])
-
-
-#     fig.savefig(outname, bbox_inches="tight")
-#     fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
-
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
               xLabel="", yLabel="Events", logY=False, logX=False, 
@@ -185,6 +159,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
             #alternate linestyles:
             lineStyle = ""
             alpha = 1
+            print(key)
             if contrast: #create more difference between the lines
                 colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'black']
                 lineStyle = ["-","--",":","-."]
@@ -444,3 +419,113 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
     
+    
+def hist2d(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
+            label="*MC Particle", statusUpdate=False, additionalText="", 
+            figure = plt.figure(), axe = "", includeLegend = True, save=True, z=""):
+    """
+    Create a 2d histogram plot with the given parameters.
+    
+    Inputs:
+        x: x values
+        y: y values
+        outname: output file name
+        title: plot title
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        label: label for the histogram
+        statusUpdate: print status updates
+        additionalText: additional text to add to the plot
+        figure: figure object
+        axe: axis object
+        includeLegend: include legend
+    Return: None, save the plot
+    """
+    if axe == "":
+        axe = figure.subplots()
+    if statusUpdate:
+        print("Beginning to 2dhist plot...")
+    axe.hist2d(x, y, bins=(100, 100), cmap='Blues')
+        
+    if save:
+        if statusUpdate:
+            print("Finished plotting, updating plot parameters...")
+            
+        #fix when h.keys() is long and overlaps with neighboring labels:
+        axe.set_title(title)
+        axe.set_xlabel(xLabel)
+        axe.set_ylabel(yLabel)
+        
+        if logY:
+            axe.set_yscale("log")
+        if logX:
+            axe.set_xscale("log")
+        plt.legend(fontsize='x-small')
+        if includeLegend:
+                # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        if additionalText != "":
+            axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+        
+        print(f"outname: {outname}")
+        figure.savefig(outname, bbox_inches="tight")
+        
+def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
+            label="*MC Particle", statusUpdate=False, additionalText="", 
+            figure = plt.figure(figsize=(10, 10)), axe = "", save=True):
+    """
+    Create a imshow plot with the given parameters.
+    
+    Inputs:
+        z: matrix in shape of 2d, with each point being the z value
+        outname: output file name
+        title: plot title
+        xLabel: x-axis label
+        yLabel: y-axis label
+        logY: log scale for y-axis
+        logX: log scale for x-axis
+        label: label for the histogram
+        statusUpdate: print status updates
+        additionalText: additional text to add to the plot
+        figure: figure object
+        axe: axis object
+    Return: None, save the plot
+    """
+    if axe == "":
+        axe = figure.subplots()
+    if statusUpdate:
+        print("Beginning to heatmap plot...")
+        
+    if logScale:
+        img = axe.imshow(z, cmap='Blues', norm=LogNorm(), interpolation="nearest", aspect='5', origin='lower')
+    else:
+        img = axe.imshow(z, cmap='Blues', interpolation="nearest", aspect='5', origin='lower')
+    
+    if save:
+        if statusUpdate:
+            print("Finished plotting, updating plot parameters...")
+            
+        #fix when h.keys() is long and overlaps with neighboring labels:
+        axe.set_title(title)
+        axe.set_xlabel(xLabel)
+        axe.set_ylabel(yLabel)
+        
+        # #set x and y rangegs
+        # axe.set_aspect('equal', adjustable='box')
+        # axe.invert_yaxis()
+        
+        # #colorbar
+        cbar = figure.colorbar(img, ax=axe, shrink=0.6)
+        cbar.set_label(label, rotation=-90, labelpad=15)
+        
+        # plt.legend(fontsize='x-small')
+        # if includeLegend:
+        #         # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        #     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        if additionalText != "":
+            axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+        
+        print(f"outname: {outname}")
+        figure.savefig(outname, bbox_inches="tight")

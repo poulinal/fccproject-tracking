@@ -2,7 +2,7 @@
 import ROOT
 import numpy as np 
 from utilities.functions import hist_plot, multi_hist_plot, \
-    bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot
+    bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot, heatmap
 from utilities.pltWireCh import plot_wire_chamber
 import argparse
 import sys
@@ -52,19 +52,14 @@ All functions:
 available_functions = ["hitsPerMC", "momPerMC", "PDGPerMC", "occupancy", "hitRadius", "plot3dPosition"]
 dic = {}
 dicbkg = {}
-numFiles = 510
-# backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy" #mit-submit
-# backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy" #mit-submit
-backgroundDataPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/bkg_background_particles_" + str(numFiles) + "_v6.npy" #lxplus
-combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
+dicBkgnumFiles = 500
 # imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test/" #mit-submit
 imageOutputPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/images/lxplus/" #lxplus
-# signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/signal_background_particles_"+str(numFiles)+".npy" #mit-submit
-signalDataPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/bkg_background_particles_" + str(numFiles) + "_v6.npy" #lxplus
-typeFile="Bkg"#dont change (change when calling setup)
+numFiles = 0
+
 
 #change to personal directories in here:
-def setup(typefile: str =typeFile, includeBkg: bool =False):
+def setup(typefile: str ="Bkg", includeBkg: bool =False, numfiles=500):
     """
     Setups the file paths and outputs.
     Data paths will lead to either the background or signal data or their combined files (not yet tested).
@@ -74,6 +69,7 @@ def setup(typefile: str =typeFile, includeBkg: bool =False):
         "hits" -- list of hits per mcParticle \n
         "pdg" -- list of pdg per mcParticle \n
         "p" -- list of momentum per mcParticle \n
+        "pt" -- list of pt per mcParticle \n
         "px" -- list of px per mcParticle \n
         "py" -- list of py per mcParticle \n
         "pz" -- list of pz per mcParticle \n
@@ -104,6 +100,14 @@ def setup(typefile: str =typeFile, includeBkg: bool =False):
         includeBkg -- for when we want to overlay bkg and signal files in a plot 
     Return: no return, just updates the global dictionary dic
     """
+    # backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/bkg_background_particles_"+str(numFiles)+".npy" #mit-submit
+    # backgroundDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/bkg_background_particles_"+str(numFiles)+".npy" #mit-submit
+    backgroundDataPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/bkg_background_particles_" + str(numfiles) + "_v6_R1_PN.npy" #lxplus
+    dicbkgDataPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/bkg_background_particles_" + str(dicBkgnumFiles) + "_v6_R4_P1.npy" #lxplus
+    combinedDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/combined/"
+    # signalDataPath = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/signal_background_particles_"+str(numFiles)+".npy" #mit-submit
+    signalDataPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/signal_background_particles_" + str(numfiles) + "_v6_R1_PN.npy" #lxplus
+    
     if typefile == "Bkg":
         dic = np.load(backgroundDataPath, allow_pickle=True).item()
         print(f"Reading dictionary from: {backgroundDataPath}")
@@ -117,12 +121,14 @@ def setup(typefile: str =typeFile, includeBkg: bool =False):
         print("Type must be either Bkg, Combined, or Signal")
         sys.exit()
     if includeBkg:
-        dicbkg = np.load(backgroundDataPath, allow_pickle=True).item()
-        print(f"Reading extra bkg dictionary from: {backgroundDataPath}")
+        dicbkg = np.load(dicbkgDataPath, allow_pickle=True).item()
+        print(f"Reading extra bkg dictionary from: {dicbkgDataPath}")
     else:
         dicbkg = {}
     global typeFile
     typeFile = typefile
+    global numFiles
+    numFiles = numfiles
     print(f"Setup complete for {typeFile} data")
     return dic, dicbkg
 
@@ -236,7 +242,7 @@ def hitsPerMC(dic, args = ""):
             
     return hist
 
-def momPerMC(dic, args = "", byPDG: bool = False):
+def momPerMC(dic, args = "", pPtArg="p", byPDG: bool = False):
     """
     Given a hit by a particle, what is that particles momentum.
     Inputs: dic from setup,
@@ -262,20 +268,27 @@ def momPerMC(dic, args = "", byPDG: bool = False):
     """
     # Create the dictionary
     hist = {}
-    hist["All"] = []
+    hist["all"] = []
     hist["onlyOH"] = []
     hist["only+H"] = []
     hist["onlyParPhoton"] = []
     hist["ptBelow10R"] = []
     hist["multiHits"] = []
     hist["multiHitsExcludeOne"] = []
-    p = dic["p"]
+    
+    if pPtArg == "p":
+        p = dic["p"]
+    elif pPtArg == "pt":
+        p = dic["pt"]
+    else:
+        print("pPtarg must be either 'p' or 'pt'")
+        sys.exit()
     # print(f"dic: {dic['p']}")
     
     if byPDG:
         pdg = dic["pdg"]
     
-    if args == "" or args == "All": #regular get all momenta
+    if args == "" or args == "all": #regular get all momenta
         hist["all"] = p
         return hist
 
@@ -438,21 +451,17 @@ def occupancy(dic, args = ""):
                 "" -- calculate all args \n
                 "n_cells" -- number of cells fired by an mcParticle \n
                 "percentage_fired" -- percentage of cells fired by an mcParticle \n
-                "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event \n
-                "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event \n
                 "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch \n
                 "occupancy_per_batch_sum_batches_non_normalized" -- average occupancy (not %) per batch, summing occupancies a batch \n
                 "cells_per_layer" -- cells per layer \n
+                "avg_energy_deposit" -- average energy deposit per batch \n
+                "energy_deposit" -- energy deposit per batch \n
             note most of these occupancy values are pre-calculated in the data file
             
     Outputs: hist, dictionary of values (count of hits) with keys: \n
         "" -- all values \n
         "n_cells" -- number of cells fired by an mcParticle\n
         "percentage_fired" -- percentage of cells fired by an mcParticle\n
-        "occupancy_per_batch_sum_events" -- average occupancy (%) per batch, summing occupancies an event\n
-        "occupancy_per_batch_sum_events_error" -- average occupancy (%) per batch, summing occupancies an event\n
-        "occupancy_per_batch_sum_events_non_normalized" -- average occupancy (not %) per batch, summing occupancies an event\n
-        "occupancy_per_batch_sum_events_non_normalized_error" -- average occupancy (not %) per batch, summing occupancies an event\n
         "occupancy_per_batch_sum_batches" -- average occupancy (%) per batch, summing occupancies a batch\n
         "occupancy_per_batch_sum_batches_error" -- average occupancy (%) per batch, summing occupancies a batch\n
         "occupancy_per_batch_sum_batches_non_normalized" -- average occupancy (not %) per batch, summing occupancies a batch\n
@@ -460,6 +469,9 @@ def occupancy(dic, args = ""):
         "n_cells_per_layer" -- cells per layer\n
         "total_number_of_cells" -- total number of cells\n
         "total_number_of_layers" -- total number of layers\n
+        "occupancy_per_batch_sum_batches_energy_dep" -- energy deposit per batch\n
+        "occupancy_per_batch_sum_batch_avg_energy_dep" -- average energy deposit per batch\n
+        "occupancy_per_batch_sum_batch_avg_energy_dep_error" -- average energy deposit per batch\n
     """
     hist = {}
     hist["n_cells"]= []
@@ -467,11 +479,6 @@ def occupancy(dic, args = ""):
     hist["n_cells_per_layer"] = []
     hist["total_number_of_cells"] = []
     hist["total_number_of_layers"] = []
-    
-    hist["occupancy_per_batch_sum_events"] = []
-    hist["occupancy_per_batch_sum_events_error"] = []
-    hist["occupancy_per_batch_sum_events_non_normalized"] = []
-    hist["occupancy_per_batch_sum_events_non_normalized_error"] = []
     
     hist["occupancy_per_batch_sum_batches"] = []
     hist["occupancy_per_batch_sum_batches_error"] = []
@@ -481,6 +488,7 @@ def occupancy(dic, args = ""):
     
     hist["occupancy_per_batch_sum_batches_energy_dep"] = []
     hist["occupancy_per_batch_sum_batch_avg_energy_dep"] = []
+    hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = []
     
     
     if args == "n_cells" or args == "":
@@ -493,14 +501,6 @@ def occupancy(dic, args = ""):
         hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
         hist["total_number_of_cells"] = dic["total_number_of_cells"]
     hist["total_number_of_layers"] = dic["total_number_of_layers"]
-    
-    if args == "occupancy_per_batch_sum_events" or args == "":
-        hist["occupancy_per_batch_sum_events"] = dic["occupancy_per_batch_sum_events"]
-        hist["occupancy_per_batch_sum_events_error"] = dic["occupancy_per_batch_sum_events_error"]
-        
-    if args == "occupancy_per_batch_sum_events_non_normalized" or args == "":
-        hist["occupancy_per_batch_sum_events_non_normalized"] = dic["occupancy_per_batch_sum_events_non_normalized"]
-        hist["occupancy_per_batch_sum_events_non_normalized_error"] = dic["occupancy_per_batch_sum_events_non_normalized_error"]
     
     if args == "occupancy_per_batch_sum_batches" or args == "":
         hist["occupancy_per_batch_sum_batches"] = dic["occupancy_per_batch_sum_batches"]
@@ -515,12 +515,21 @@ def occupancy(dic, args = ""):
         hist["occupancy_per_batch_sum_batches_only_neighbor"] = dic["occupancy_per_batch_sum_batches_only_neighbor"]
         hist["occupancy_per_batch_sum_batches_only_neighbor_error"] = dic["occupancy_per_batch_sum_batches_only_neighbor_error"]
         
-    if args == "energy_deposit" or args == "":
-        hist["occupancy_per_batch_sum_batches_energy_dep"] = dic["occupancy_per_batch_sum_batches_energy_dep"]
-        
     if args == "avg_energy_deposit" or args == "":
         hist["occupancy_per_batch_sum_batch_avg_energy_dep"] = dic["occupancy_per_batch_sum_batch_avg_energy_dep"]
         hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = dic["occupancy_per_batch_sum_batch_avg_energy_dep_error"]
+        
+    if args == "energy_deposit" or args == "":
+        edepdic = dic["dic_occupancy_per_batch_sum_batches_energy_dep"] #this is dictionary where key is tuple (unique_layer_index, nphi) and value is energy deposit
+        #we want to restructure this so that we have a total layers by nphi matrix where each element is the energy deposit
+        #we can then plot this as a heatmap
+        total_layers = dic["total_number_of_layers"]
+        total_cells = dic["total_number_of_cells"]
+        total_nphi = dic['max_n_cell_per_layer']
+        print(f"total_layers: {total_layers}, total_cells: {total_cells}, nphi: {dic['max_n_cell_per_layer']}")
+        hist["occupancy_per_batch_sum_batches_energy_dep"] = np.zeros((total_layers, total_nphi))
+        for key, value in edepdic.items():
+            hist["occupancy_per_batch_sum_batches_energy_dep"][key[0], key[1]] = value
     
     return hist
 
@@ -691,11 +700,18 @@ def plotMomentum(dic, dicbkg, args=""):
             "momentum-multiHitsExcludeOne" -- plot only momentums with keys of >1 hit, >5 hits, >10 hits, >20 hits \n
     Returns: no return, just saves the plots
     """
+    #get first two char of args
+    pPtArg = ""
+    if args[:2] == "pt":
+        pPtArg = "pt"
+        args = args[2:]
+    #get all but first two char of args
+    args = args[2:]
     if args == "momentum-all" or args == "":
         hist = momPerMC(dic, "")
-        hist_plot(hist['All'], imageOutputPath + "momentum" + str(typeFile) + "MC" + str(numFiles) + ".png", "Momentum of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
-        hist_plot(hist['All'], imageOutputPath + "momentumMC" + str(numFiles) + "Loggedx.png", "Momentum of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
-        hist_plot(hist['All'], imageOutputPath + "momentumMC" + str(numFiles) + "Logged.png", "Momentum of " + str(typeFile) + "MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
+        hist_plot(hist['all'], imageOutputPath + "momentum" + str(typeFile) + "MC" + str(numFiles) + ".png", "Momentum of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles")
+        hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Loggedx.png", "Momentum of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
+        hist_plot(hist['all'], imageOutputPath + "momentumMC" + str(numFiles) + "Logged.png", "Momentum of " + str(typeFile) + "MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True, logY=True)
 
     if args == "momentum-onlyOH" or args == "":
         hist = momPerMC(dic, "onlyOH")
@@ -854,14 +870,22 @@ def plotMomOverlay(dic, dicbkg, args=""):
         args -- the type of momentum to plot
             "" -- plot all momentum plots \n
             "momentumOverlay-all" -- plot all momentums \n
+            "ptmomentumOverlay-all" -- plot all transverse momentums \n
     Returns: no return, just saves the plots
     """
     if args == "momentumOverlay-all" or args == "":
-        histSignal = momPerMC(dic, "All")
-        histBkg = momPerMC(dicbkg, "All")
-        histBkg["All Particles BKG"] = histBkg.pop("All")
-        histBkg["All Particles Signal"] = histSignal["All"]
-        multi_hist_plot(histBkg, imageOutputPath + "momSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "Momentum of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (Gev)", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.0001, binHigh=50, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
+        histSignal = momPerMC(dic, "all")
+        histBkg = momPerMC(dicbkg, "all")
+        histBkg["All Particles BKG"] = histBkg.pop("all")
+        histBkg["All Particles Signal"] = histSignal["all"]
+        multi_hist_plot(histBkg, imageOutputPath + "momSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "Momentum of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
+        
+    if args == "ptmomentumOverlay-all" or args == "":
+        histSignal = momPerMC(dic, "all", "pt")
+        histBkg = momPerMC(dicbkg, "all", "pt")
+        histBkg["All Particles BKG"] = histBkg.pop("all")
+        histBkg["All Particles Signal"] = histSignal["all"]
+        multi_hist_plot(histBkg, imageOutputPath + "ptmomSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "pT of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="pT (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
 
 def plotOccupancy(dic, dicbkg, args=""):
     """
@@ -931,6 +955,13 @@ def plotOccupancy(dic, dicbkg, args=""):
                 "Average Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Average Energy Deposit [GeV]",
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"])
+        
+    if args == "energy-deposit" or args == "":
+        hist = occupancy(dic, "energy_deposit")
+        heatmap(hist["occupancy_per_batch_sum_batches_energy_dep"], imageOutputPath + "energyDepositLogHeatmap"+str(typeFile)+"MC" + str(numFiles) + ".png", 
+                "Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)", 
+                xLabel="Radial Layer Index", yLabel="Cell Layer Index", label="Energy Deposit (Gev)", logScale=True)
+                
         
         
 def plotWireChamber(dic, dicbkg, args=""):
@@ -1073,12 +1104,15 @@ def genPlot(inputArgs):
             imageOutputPath, path to save the image
     Outputs: plot saved to imageOutputPath
     """
-    if len(inputArgs) != 2:
-        raise argparse.ArgumentTypeError("The --plot argument requires 2 arguments, the type of plot to generate, the type of files to use.")
+    if len(inputArgs) != 2 and len(inputArgs) != 3 and len(inputArgs) != 4:
+        raise argparse.ArgumentTypeError("The --plot argument requires at least 2 arguments, the type of plot to generate, the type of files to use (optional 3rd argument includeBkg).")
     
     typePlot = inputArgs[0]
     typefile = inputArgs[1]
-    dic, dicbkg = setup(typefile, False)
+    if len(inputArgs) > 2 and inputArgs[2].isdigit():
+        numFiles=inputArgs[2]
+    includeBkg = bool(inputArgs[3]) if len(inputArgs) == 4 else False
+    dic, dicbkg = setup(typefile, includeBkg, numFiles)
     # Mapping strings to functions
     function_map = {
         "": plotAll,
@@ -1092,6 +1126,15 @@ def genPlot(inputArgs):
         "momentum-only+H-pdg": plotMomentum,
         "momentum-multiHits": plotMomentum,
         "momentum-multiHitsExcludeOne": plotMomentum,
+        "ptmomentum-all": plotMomentum,
+        "ptmomentum-onlyOH": plotMomentum,
+        "ptmomentum-only+H": plotMomentum,
+        "ptmomentum-onlyParPhoton": plotMomentum,
+        "ptmomentum-ptBelow10R": plotMomentum,
+        "ptmomentum-onlyOH-pdg": plotMomentum,
+        "ptmomentum-only+H-pdg": plotMomentum,
+        "ptmomentum-multiHits": plotMomentum,
+        "ptmomentum-multiHitsExcludeOne": plotMomentum,
         "pdg-all": plotPDG,
         "pdg-electron": plotPDG,
         "pdg-gen": plotPDG,
@@ -1103,12 +1146,14 @@ def genPlot(inputArgs):
         "hitsOverlay-electron": plotHitsOverlay,
         "hitsOverlay-photon": plotHitsOverlay,
         "momentumOverlay-all": plotMomOverlay,
+        "ptmomentumOverlay-all": plotMomOverlay,
         "occupancy-nCellsFired": plotOccupancy,
         "occupancy-BatchedBatch": plotOccupancy,
         "occupancy-BatchedBatchNN": plotOccupancy,
         "occupancy-nCellsPerLayer": plotOccupancy,
         "occupancy-onlyNeighbors": plotOccupancy,
         "avg-energy-deposit": plotOccupancy,
+        "energy-deposit": plotOccupancy,
         "wireChamber-all": plotWireChamber,
         "plot3dPos": plot3dPosition,
         "hitRadius-all": plotHitRadius,
@@ -1137,11 +1182,15 @@ typePlots = ["", "all",
                 "momentumOverlay-all",
                 "occupancy-nCellsFired", "occupancy-BatchedBatch", "occupancy-BatchedBatchNN",
                 "occupancy-nCellsPerLayer", "occupancy-onlyNeighbors", "avg-energy-deposit",
+                "energy-deposit",
                 "wireChamber-all",
                 "plot3dPos", "hitRadius-all", "hitRadius-layers-radius", "hitRadius-all-layers"
              ]
-parser.add_argument('--plot', help="Plot histogram \n-- plotType(str): " +
-                    str(typePlots) + "\n-- fileType(str): [Bkg], [Signal], [Combined]", type=str, default="", nargs='+')
+parser.add_argument('--plot', help="Inputs... \n-- plotType(str): " +
+                    str(typePlots) + 
+                    "\n-- fileType(str): [Bkg], [Signal], [Combined]" + 
+                    "\n-- numFiles(int): Default(500)" +
+                    "\n-- includeBkg(optional: Bool): [True] [False]", type=str, default="", nargs='+')
 args = parser.parse_args()
 
 if args.plot and args.plot != "":

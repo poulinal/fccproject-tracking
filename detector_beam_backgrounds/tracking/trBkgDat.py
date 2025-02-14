@@ -5,11 +5,12 @@ import math
 import dd4hep as dd4hepModule
 from ROOT import dd4hep
 import sys
-# import os
+import os
+import argparse
 
 # print("Calculating data from files...")
 
-def configure_paths(typeFile="bkg"):
+def configure_paths(typeFile="bkg"): ###change paths to your system here
     """Basic function to set the paths for the data files, these should be changed to the correct paths for the data files.
     
     Keyword arguments:
@@ -21,10 +22,12 @@ def configure_paths(typeFile="bkg"):
     # oldDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only/"
     # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v3/" #mit-submit
     # bkgDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/IDEA_background_only_IDEA_o1_v03_v1/" #old mit-submit
-    # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v6_CAD/" #lxplus with cad pipe #source source '/cvmfs/sw.hsf.org/key4hep/setup.sh -r 2024-10-03'
-    bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v5/" #lxplus without cad pipe
+    # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v6_CAD/" #lxplus with cad pipe # source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2024-10-03
+    # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v5/" #lxplus without cad pipe
+    bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v8_CAD_brieuc_nominKE_v2/"
     combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
-    signalDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/"
+    # signalDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/" #mit-submit
+    signalDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/scratch/Zcard_CLD_background_IDEA_o1_v03_v8/" #lxplus
     bkgFilePath = "out_sim_edm4hep_background_"
     combinedFilePath = "/out_sim_edm4hep"
     signalFilePath = "/out_sim_edm4hep_base"
@@ -35,16 +38,42 @@ def configure_paths(typeFile="bkg"):
     input("Press Enter to continue...")
     return bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath
 
-def calcDic():
+def setUpFiles(typeFile, flexible, numfiles, bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath):
     list_overlay = []
-    numfiles = 500
-    typeFile = "bkg" ### change here ###
+    for i in range(1,numfiles + 1):
+        #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
+        if typeFile == "combined":
+            list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
+        elif typeFile == "bkg":
+            #check if file exists:
+            if flexible:
+                try:
+                # if os.path.isfile(bkgDataPath + bkgFilePath +str(i)+".root"):
+                    reader = root_io.Reader(bkgDataPath + bkgFilePath +str(i)+".root")
+                    list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
+                except:
+                    print(f"File {bkgDataPath + bkgFilePath +str(i)+'.root'} does not exist, skipping...")
+                    continue
+        elif typeFile == "signal":
+            list_overlay.append(signalDataPath + str(i) + signalFilePath + ".root")
+        else:
+            #throw error
+            print("Error: type not recognized")
+            sys.exit(1)
+    return list_overlay
+
+
+def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
+    list_overlay = []
+    # numfiles = 500
+    # flexible = True ##basically allows the list_overlay to skip over files that dont work
     
     dic = {}
     #can change:
     # dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
-    dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6.npy" #lxplus
-    keys = ["R", "p", "px", "py", "pz", "gens", "pos_ver", "hits", 
+    # print(typeFile)
+    dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/regularDat/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6_R1_PN.npy" #lxplus
+    keys = ["R", "p", "pt", "px", "py", "pz", "gens", "pos_ver", "hits", 
             "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
             "pos_z", "count_hits", "has_par_photon", "pdg", 
             "hits_produced_secondary", "hits_mc_produced_secondary"]
@@ -68,18 +97,7 @@ def calcDic():
 
     bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath = configure_paths(typeFile)
 
-    for i in range(1,numfiles + 1):
-        #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
-        if typeFile == "combined":
-            list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
-        elif typeFile == "bkg":
-            list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
-        elif typeFile == "signal":
-            list_overlay.append(signalDataPath + str(i) + signalFilePath + ".root")
-        else:
-            #throw error
-            print("Error: type not recognized")
-            sys.exit(1)
+    list_overlay = setUpFiles(typeFile, flexible, numfiles, bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath)
 
         
 
@@ -88,6 +106,7 @@ def calcDic():
     #loop over all the files
     for i in range(0, len(list_overlay)): 
 
+        #load root file
         rootfile = list_overlay[i]
         print(f"Running over file: {rootfile}")
         reader = root_io.Reader(rootfile)
@@ -99,11 +118,12 @@ def calcDic():
         decoder = dd4hep.BitFieldCoder(cellid_encoding)
         
         numEvents = 0
+        #loop over all the events
         for event in reader.get("events"):
             numEvents += 1
             list_index, list_superLayer, list_nphi = [], [], []
             list_layer, list_stereo, list_pos_z = [], [], []
-            list_R, list_p = [], []
+            list_R, list_p, list_pt = [], [], []
             list_px, list_py, list_pz, = [], [], []
             list_gen_status, list_par_photon, list_pdg = [], [], []
             list_hits_secondary, list_hits_mc_secondary, percentage_of_fired_cells = [], [], []
@@ -111,17 +131,15 @@ def calcDic():
             dic_pos_hit = {}
             dic_pos_ver = {}
         
+            #get dc hits data
             if typeFile == "combined":
-                dc_hits = event.get("CDCHHits")
+                dc_hits = event.get("CDCHHits") #old format
             else:
                 dc_hits = event.get("DCHCollection")
-            
-            # print("starting hits")
             for num_hit, dc_hit in enumerate(dc_hits):
                 mcParticle = dc_hit.getMCParticle()
                 index_mc = mcParticle.getObjectID().index
                 list_index.append(index_mc)
-                # list_pos_hit.append([dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z])
                 list_pos_z.append(dc_hit.getPosition().z)
                 
                 #check if the hit was produced by a particle already seen (in list_index)
@@ -142,8 +160,8 @@ def calcDic():
                 list_hits_secondary.append(dc_hit.isProducedBySecondary())
             #end of hit loop
         
-
             unique_mcs = np.unique(np.array(list_index))
+            
             #get mcParticle data
             MCparticles = event.get("MCParticles")
             for j in range(0, len(unique_mcs)):
@@ -158,7 +176,9 @@ def calcDic():
                 list_R.append(vertex_R)
                 momentum = mcParticle.getMomentum()
                 p = math.sqrt(momentum.x**2 + momentum.y**2 + momentum.z**2)
+                pt = math.sqrt(momentum.x**2 + momentum.y**2)
                 list_p.append(p)
+                list_pt.append(pt)
                 list_px.append(momentum.x)
                 list_py.append(momentum.y)
                 list_pz.append(momentum.z)
@@ -174,10 +194,11 @@ def calcDic():
             
 
             
-            print("updating dictionary")
+            # print("updating dictionary")
             #update dictionary
             dic["R"] += (list_R)
             dic["p"] += (list_p)
+            dic["pt"] += (list_pt)
             dic["px"] += (list_px)
             dic["py"] += (list_py)
             dic["pz"] += (list_pz)
@@ -199,18 +220,33 @@ def calcDic():
             dic["pdg"] += (list_pdg)
             dic["hits_produced_secondary"] += (list_hits_secondary)
             dic["hits_mc_produced_secondary"] += (list_hits_mc_secondary)
-            
-        #end of event loop
-                    
-                    
+        #end of event loop              
     #end of file loop
-
-    print("end of file loop")
-
 
     print(f"Saving dictionary to {dic_file_path}")
     np.save(dic_file_path, dic)
 
-#if main run
 if __name__ == "__main__":
-    calcDic()
+    #create argument parser so someone can create start dat without hard coding
+    parser = argparse.ArgumentParser()
+    typeFile = ["bkg", "signal", "combined"]
+    parser.add_argument('--calc', help="Inputs... " +
+                        "\n-- fileType(str): [bkg], [signal], [combined] Default(bkg)" +
+                        "\n-- numfiles(int): Default(500)" +
+                        "\n-- flexible(bool): [True], [False] Default(True)", type=str, default="", nargs='+')
+    args = parser.parse_args()
+
+    if args.calc and args.calc != "":
+        try:
+            print(f"Parsed --plot arguments: {args.calc}")
+            if args.calc[0] in typeFile and len(args.calc) == 1:
+                calcDic(args.calc[0])
+            elif args.calc[0] in typeFile and len(args.calc) == 2:
+                calcDic(args.calc[0], int(args.calc[1]))
+            elif args.calc[0] in typeFile and len(args.calc) == 3 and type(bool(args.calc[1])) is bool:
+                calcDic(args.calc[0], int(args.calc[1]), bool(args.calc[1]))
+            else:
+                parser.error("Invalid fileType")
+        except ValueError as e:
+            parser.error(str(e))
+    #'''

@@ -48,6 +48,7 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     
     #recreate plot_hist but using hist instead of hep
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     
     if autoBin or binType not in ["exp", "lin"]:
@@ -127,6 +128,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     """
     
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     #h is a dictionary, iterate through all keys and plot them
     
@@ -212,6 +214,7 @@ def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, 
     """
     
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
 
     #plot first one filled
@@ -226,7 +229,7 @@ def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, 
             label=label, figure=figure, axe=axe)
     
 def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, 
-             width=0.8, logY=False, save=True, rotation=0, 
+             width=0.8, logY=True, save=True, rotation=0, 
              label="*MC Particle", statusUpdate=False, additionalText="", 
              includeLegend = True,
              figure = plt.figure(), axe = "", fontSize=20):
@@ -255,6 +258,7 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
     """
     
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     
     if statusUpdate:
@@ -265,6 +269,7 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
     if rotation > 60:
         tickrange = [x*1.5 for x in tickrange]
         
+    # print(f"hvalues: {hvalues}")
     axe.bar(tickrange, sorted(hvalues), width=width, label=label)
     
     if statusUpdate:
@@ -278,7 +283,9 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         axe.set_title(title)
         axe.set_xlabel(xLabel)
         axe.set_ylabel(yLabel)
-        axe.set_yscale("log")
+        
+        if logY:
+            axe.set_yscale("log")
         
         # Legend to the side
         if includeLegend:
@@ -374,6 +381,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     Return: None, save the plot
     """
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     if statusUpdate:
         print("Beginning to xy plot...")
@@ -414,7 +422,8 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
                 # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         if additionalText != "":
-            axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+            # axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+            axe.text(55, -3.9, additionalText, ha="center", va="bottom", fontsize=9)
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
@@ -444,6 +453,7 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     Return: None, save the plot
     """
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     if statusUpdate:
         print("Beginning to 2dhist plot...")
@@ -494,6 +504,7 @@ def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
     Return: None, save the plot
     """
     if axe == "":
+        figure.clf()
         axe = figure.subplots()
     if statusUpdate:
         print("Beginning to heatmap plot...")

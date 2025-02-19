@@ -25,15 +25,13 @@ def configure_paths(typeFile="bkg"): ###change paths to your system here
     # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v6_CAD/" #lxplus with cad pipe # source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2024-10-03
     # bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v5/" #lxplus without cad pipe
     bkgDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/IDEA_background_only_IDEA_o1_v03_v8_CAD_brieuc_nominKE_v2/"
-    combinedDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_v1/"
+    combinedDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/scratch/Zcard_CLD_background_IDEA_o1_v03_v8/" # source /cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh 
     # signalDataPath = "/ceph/submit/data/group/fcc/ee/detector/tracking/Zcard_CLD_background_IDEA_o1_v03_v4/Zcard_CLD_background_IDEA_o1_v03_v4/" #mit-submit
     signalDataPath = "/eos/experiment/fcc/ee/datasets/DC_tracking/Pythia/scratch/Zcard_CLD_background_IDEA_o1_v03_v8/" #lxplus
     bkgFilePath = "out_sim_edm4hep_background_"
-    combinedFilePath = "/out_sim_edm4hep"
+    combinedFilePath = "/out_sim_edm4hep_v3"
     signalFilePath = "/out_sim_edm4hep_base"
     # type = "signal"
-    if typeFile == "combined":
-        print("WARNING: combined files are not yet supported")
     print("type: ", typeFile)
     input("Press Enter to continue...")
     return bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath
@@ -43,19 +41,28 @@ def setUpFiles(typeFile, flexible, numfiles, bkgDataPath, combinedDataPath, bkgF
     for i in range(1,numfiles + 1):
         #list_overlay.append(oldDataPath + "out_sim_edm4hep_background_"+str(i)+".root")
         if typeFile == "combined":
-            list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
+            if os.path.isfile(combinedDataPath + str(i) + combinedFilePath + ".root"):
+                list_overlay.append(combinedDataPath + str(i) + combinedFilePath + ".root")
+            else:
+                    print(f"File {combinedDataPath + str(i) + combinedFilePath + '.root'} does not exist, skipping...")
+                    continue
         elif typeFile == "bkg":
             #check if file exists:
             if flexible:
-                try:
-                # if os.path.isfile(bkgDataPath + bkgFilePath +str(i)+".root"):
-                    reader = root_io.Reader(bkgDataPath + bkgFilePath +str(i)+".root")
+                # try: #if we want more conclusive file will work
+                if os.path.isfile(bkgDataPath + bkgFilePath +str(i)+".root"):
+                    #reader = root_io.Reader(bkgDataPath + bkgFilePath +str(i)+".root") #if we want more conclusive file will work
                     list_overlay.append(bkgDataPath + bkgFilePath +str(i)+".root")
-                except:
+                # except:
+                else:
                     print(f"File {bkgDataPath + bkgFilePath +str(i)+'.root'} does not exist, skipping...")
                     continue
         elif typeFile == "signal":
-            list_overlay.append(signalDataPath + str(i) + signalFilePath + ".root")
+            if os.path.isfile(signalDataPath + str(i) + signalFilePath + ".root"):
+                list_overlay.append(signalDataPath + str(i) + signalFilePath + ".root")
+            else:
+                    print(f"File {signalDataPath + str(i) + signalFilePath + '.root'} does not exist, skipping...")
+                    continue
         else:
             #throw error
             print("Error: type not recognized")
@@ -72,7 +79,8 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
     #can change:
     # dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
     # print(typeFile)
-    dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/regularDat/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6_R1_PN.npy" #lxplus
+    # dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/regularDat/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6_R1_PN.npy" #lxplus
+    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/noOcc/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #cernbox (to save storage)
     keys = ["R", "p", "pt", "px", "py", "pz", "gens", "pos_ver", "hits", 
             "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
             "pos_z", "count_hits", "has_par_photon", "pdg", 
@@ -111,7 +119,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
         print(f"Running over file: {rootfile}")
         reader = root_io.Reader(rootfile)
         metadata = reader.get("metadata")[0]
-        if typeFile == "combined":
+        if typeFile == "":
             cellid_encoding = metadata.get_parameter("CDCHHits__CellIDEncoding")
         else:
             cellid_encoding = metadata.get_parameter("DCHCollection__CellIDEncoding")
@@ -132,7 +140,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
             dic_pos_ver = {}
         
             #get dc hits data
-            if typeFile == "combined":
+            if typeFile == "":
                 dc_hits = event.get("CDCHHits") #old format
             else:
                 dc_hits = event.get("DCHCollection")

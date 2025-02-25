@@ -3,10 +3,30 @@ import matplotlib.pyplot as plt
 # import mplhep as hep 
 import numpy as np
 from matplotlib.colors import LogNorm
+import matplotlib.colors as mcolors
 
 """
 This file contains functions to create plots for the tracking project.
 """
+
+def percent_difference(a, b):
+    return abs(a - b) / ((a + b) / 2) * 100
+
+def percent_difference_error(a, b, sigma_a, sigma_b):
+    """Computes the propagated error in percent difference."""
+    pd = percent_difference(a, b)
+    factor = 200 / (a + b)**2
+    sigma_pd = factor * (abs(a - b) * sigma_a + abs(b - a) * sigma_b)
+    return pd, sigma_pd
+
+def calcEfficiency(typeFile, hist):
+    if typeFile == "Bkg":
+        efficiency = round(hist["no_neighbors_removed"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
+    elif typeFile == "Signal":
+        efficiency = round(hist["neighbors_remained"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
+    else:
+        efficiency = 0 #placeholder for combined
+    return efficiency
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
               xLabel="", yLabel="Events", logY=False, logX=False, 
@@ -417,21 +437,21 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
             axe.set_yscale("log")
         if logX:
             axe.set_xscale("log")
-        plt.legend(fontsize='x-small')
         if includeLegend:
                 # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+            plt.legend(fontsize='x-small')
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         if additionalText != "":
             # axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
-            axe.text(55, -3.9, additionalText, ha="center", va="bottom", fontsize=9)
+            axe.text(0.5, -0.175,  additionalText, ha="center", va="bottom", fontsize=9, transform=axe.transAxes)
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
     
     
-def hist2d(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
-            label="*MC Particle", statusUpdate=False, additionalText="", 
-            figure = plt.figure(), axe = "", includeLegend = True, save=True, z=""):
+def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False, 
+            label="*MC Particle", statusUpdate=False, additionalText="", cmap="Blues", colorbarLabel="",
+            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, weights=None):
     """
     Create a 2d histogram plot with the given parameters.
     
@@ -457,7 +477,18 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         axe = figure.subplots()
     if statusUpdate:
         print("Beginning to 2dhist plot...")
-    axe.hist2d(x, y, bins=(100, 100), cmap='Blues')
+    if weights is not None:
+        print("weights: ", weights)
+        if logScale:
+            print("log scale")
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights, norm=mcolors.LogNorm())
+        else:
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights)
+    else:
+        if logScale:
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, norm=mcolors.LogNorm())
+        else:
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap)
         
     if save:
         if statusUpdate:
@@ -468,23 +499,26 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         axe.set_xlabel(xLabel)
         axe.set_ylabel(yLabel)
         
-        if logY:
-            axe.set_yscale("log")
-        if logX:
-            axe.set_xscale("log")
-        plt.legend(fontsize='x-small')
+        
+        
         if includeLegend:
                 # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+            plt.legend(fontsize='x-small')
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         if additionalText != "":
             axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+        
+        
+        #include colorbar
+        cbar = figure.colorbar(im, ax=axe)
+        cbar.set_label(colorbarLabel, rotation=-90, labelpad=15)
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
         
 def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
-            label="*MC Particle", statusUpdate=False, additionalText="", 
-            figure = plt.figure(figsize=(10, 10)), axe = "", save=True):
+            label="*MC Particle", statusUpdate=False, additionalText="", colorbarLabel="",
+            figure = plt.figure(figsize=(10, 10)), axe = "", save=True, cmap="Blues"):
     """
     Create a imshow plot with the given parameters.
     
@@ -510,9 +544,9 @@ def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
         print("Beginning to heatmap plot...")
         
     if logScale:
-        img = axe.imshow(z, cmap='Blues', norm=LogNorm(), interpolation="nearest", aspect='5', origin='lower')
+        img = axe.imshow(z, cmap=cmap, norm=LogNorm(), interpolation="nearest", aspect='5', origin='lower')
     else:
-        img = axe.imshow(z, cmap='Blues', interpolation="nearest", aspect='5', origin='lower')
+        img = axe.imshow(z, cmap=cmap, interpolation="nearest", aspect='5', origin='lower')
     
     if save:
         if statusUpdate:
@@ -529,9 +563,9 @@ def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
         
         # #colorbar
         cbar = figure.colorbar(img, ax=axe, shrink=0.6)
-        cbar.set_label(label, rotation=-90, labelpad=15)
+        cbar.set_label(colorbarLabel, rotation=-90, labelpad=15)
         
-        # plt.legend(fontsize='x-small')
+        # xw
         # if includeLegend:
         #         # axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
         #     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)

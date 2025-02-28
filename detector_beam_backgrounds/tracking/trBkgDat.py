@@ -97,6 +97,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
     except:
         print(f"Dictionary not found at {dic_file_path}")
         print("Creating new dictionary")
+        input("Press Enter to continue...")
         #assign dic to empty dictionary
         dic = {}
         for key in keys:

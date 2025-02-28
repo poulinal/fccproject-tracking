@@ -443,7 +443,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
             plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
         if additionalText != "":
             # axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
-            axe.text(0.5, -0.175,  additionalText, ha="center", va="bottom", fontsize=9, transform=axe.transAxes)
+            axe.text(0.5, -0.2,  additionalText, ha="center", va="bottom", fontsize=9, transform=axe.transAxes)
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
@@ -478,9 +478,7 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
     if statusUpdate:
         print("Beginning to 2dhist plot...")
     if weights is not None:
-        print("weights: ", weights)
         if logScale:
-            print("log scale")
             hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights, norm=mcolors.LogNorm())
         else:
             hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights)

@@ -34,7 +34,7 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
               binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
               figure = plt.figure(), axe = "", save=True, barType="bar",
               includeLegend = True, lineStyle = "", alpha=1,
-              density=False, legendOutside=False, includeGrid=True, ncols=1):
+              density=False, legendOutside=False, includeGrid=True, ncols=1, pdf=False):
     """
     Create a histogram plot with the given parameters.
     
@@ -111,14 +111,15 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
             axe.set_ylim([yMin, yMax])
         
         figure.savefig(outname, dpi=300, bbox_inches="tight")
-        #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+        if pdf:
+            figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
 def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                     xLabel="", yLabel="Events", 
                     logY=False, logX=False, autoBin=False, barType="step",
                     binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
                     label="*MC Particle", figure = plt.figure(), axe = "",
-                    contrast=False, density=False):
+                    contrast=False, density=False, pdf=False):
     """
     Create a histogram plot (which will be multi-stacked) with the given parameters.
     
@@ -176,7 +177,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                         binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                         binType=binType, barType=barType,
                         save=True, label=key, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
-                        figure=figure, axe=axe, density=density, ncols=ncol, legendOutside=legendOutside)
+                        figure=figure, axe=axe, density=density, ncols=ncol, legendOutside=legendOutside, pdf=pdf)
         else:
             #alternate linestyles:
             lineStyle = ""
@@ -193,20 +194,21 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
                             save=False, label=key, 
                             figure=figure, axe=axe, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
                             lineStyle=lineStyle[i % len(lineStyle)], lineColor=colors[i % len(colors)],
-                            alpha=alpha, density=density, legendOutside=legendOutside, ncols=ncol)
+                            alpha=alpha, density=density, legendOutside=legendOutside, ncols=ncol, pdf=pdf)
             else:
                 hist_plot(h[key], outname, title, xLabel=xLabel, yLabel=yLabel, 
                                 logY=logY, logX=logX, autoBin=autoBin, 
                                 binLow=binLow, binHigh=binHigh,binSteps=binSteps,
                                 binType=binType, barType=barType,
                                 save=False, label=key, xMax=xMax, xMin=xMin, yMax=yMax, yMin=yMin,
-                                figure=figure, axe=axe, density=density, legendOutside=legendOutside, ncols=ncol)
+                                figure=figure, axe=axe, density=density, legendOutside=legendOutside, 
+                                ncols=ncol, pdf=pdf)
         i += 1
     
 def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
                              xLabel="", yLabel="Events", logY=False, logX=False, autoBin=False, 
                              binLow = 0.00001, binHigh=2, binSteps=0.3, binType="exp", 
-                             label="*MC Particle", figure = plt.figure(), axe = ""):
+                             label="*MC Particle", figure = plt.figure(), axe = "", pdf=False):
     """
     Create a histogram plot (plot first hist with filled, each subseequent will be lines) with the given parameters.
     
@@ -241,18 +243,18 @@ def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, 
     hist_plot(h1, outname, title, xMin, xMax, yMin, yMax, xLabel, yLabel, \
         logY, logX, label, autoBin, barType="bar", binLow=binLow, \
             binHigh=binHigh, binSteps=binSteps, binType=binType, \
-                figure=figure, axe=axe, save=False)
+                figure=figure, axe=axe, save=False, pdf=pdf)
     
     #plot the rest as lines
     multi_hist_plot(hr, outname, title, xMin, xMax, yMin, yMax, xLabel, yLabel, \
         logY, logX, autoBin, "step", binLow, binHigh, binSteps, binType=binType, \
-            label=label, figure=figure, axe=axe)
+            label=label, figure=figure, axe=axe, pdf=pdf)
     
 def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, 
              width=0.8, logY=True, save=True, rotation=0, 
              label="*MC Particle", statusUpdate=False, additionalText="", 
-             includeLegend = True,
-             figure = plt.figure(), axe = "", fontSize=20):
+             includeLegend = False,
+             figure = plt.figure(), axe = "", fontSize=20, pdf=False):
     """
     Create a bar plot with the given parameters.
     
@@ -317,11 +319,12 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         if statusUpdate:
             print("Saving plot...")
         figure.savefig(outname, bbox_inches="tight")
-        #fig.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+        if pdf:
+            figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
         
 def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel, 
              width=0.8, logY=False, rotation=0, 
-             label=[], statusUpdate=False, additionalText="", sort=True):
+             label=[], statusUpdate=False, additionalText="", sort=True, pdf=False):
     """
     Create a multi-bar plot with the given parameters.
     
@@ -365,17 +368,17 @@ def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel,
                 bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, 
                          logY, save=True, rotation=rotation, label=key, 
                          statusUpdate=statusUpdate, additionalText=additionalText, 
-                         figure=figure, axe=axe)
+                         figure=figure, axe=axe, pdf=pdf)
             else:
                 bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, 
                          logY, save=False, rotation=rotation, label=key, 
                          statusUpdate=statusUpdate, additionalText=additionalText, 
-                         figure=figure, axe=axe)
+                         figure=figure, axe=axe, pdf=pdf)
     
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
-            errorBars=False, yerr=[], includeGrid=True, save=True, color=""):
+            errorBars=False, yerr=[], includeGrid=True, save=True, color="", pdf=False):
     """
     Create a xy plot with the given parameters.
     
@@ -447,11 +450,13 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
+        if pdf:
+            figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
     
     
 def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", cmap="Blues", colorbarLabel="",
-            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, weights=None):
+            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, weights=None, pdf=False):
     """
     Create a 2d histogram plot with the given parameters.
     
@@ -506,6 +511,9 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
         if additionalText != "":
             axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
         
+        #include grid
+        axe.grid(True, linestyle='--', alpha=0.6)
+        axe.grid(True, which='minor', linestyle=':', alpha=0.1)
         
         #include colorbar
         cbar = figure.colorbar(im, ax=axe)
@@ -513,10 +521,13 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
+        #increase resolution
+        if pdf:
+            figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
         
 def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
             label="*MC Particle", statusUpdate=False, additionalText="", colorbarLabel="",
-            figure = plt.figure(figsize=(10, 10)), axe = "", save=True, cmap="Blues"):
+            figure = plt.figure(figsize=(10, 10)), axe = "", save=True, cmap="Blues", pdf=False):
     """
     Create a imshow plot with the given parameters.
     
@@ -572,3 +583,10 @@ def heatmap(z, outname, title, xLabel, yLabel, logScale=False,
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")
+        if pdf:
+            figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+
+
+if __name__ == "__main__":
+    #dont do anything
+    pass

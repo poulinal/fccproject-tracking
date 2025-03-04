@@ -12,7 +12,7 @@ import argparse
 This script is used to ...
 """
 
-def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, flexible=True):
+def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepRange=1, edepAtLeast=1, flexible=True):
     print("Calculating occupancy data from files...")
     list_overlay = []
     # numfiles = 500
@@ -24,11 +24,10 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     #setup dictionary
     dic = {}
     #can change dic_file_path to the correct path:
-    # dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
-    # dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/regularDat/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #lxplus
-    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles) + "_v6" + "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #cernbox (to save storage)
-    # output_dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + "_R" + str(radiusR) + "_P" + str(radiusPhi) + ".npy" #lxplus
-    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #cernbox (to save storage)
+    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
+    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
     neighborID_keys = ["byBatchNeighbors", "oneDbyBatchNeighbors", 
                        "oneDneighborPtN1", "oneDneighborPDGN1", "oneDneighborPtN2", "oneDneighborPDGN2", 
                        "oneDneighborPtN3", "oneDneighborPDGN3", "oneDneighborPtN4", "oneDneighborPDGN4", "oneDneighborPtN5", "oneDneighborPDGN5"]
@@ -115,7 +114,8 @@ if __name__ == "__main__":
                         "\n-- radiusR(int): Default(1)" +
                         "\n-- radiusPhi(int): Default(-1)" +
                         "\n-- atLeast(int): Default(1)" +
-                        "\n-- flexible(bool): [True], [False] Default(True)",
+                        "\n-- edepRange(float): Default(0.05)" + 
+                        "\n-- edepAtLeast(int): Default(1)",
                         type=str, default="", nargs='+')
     args = parser.parse_args()
 
@@ -132,8 +132,10 @@ if __name__ == "__main__":
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]))
             elif args.calc[0] in typeFile and len(args.calc) == 5:
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]))
-            elif args.calc[0] in typeFile and len(args.calc) == 6 and type(bool(args.calc[4])) is bool:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), bool(args.calc[5]))
+            elif args.calc[0] in typeFile and len(args.calc) == 6:
+                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]))
+            elif args.calc[0] in typeFile and len(args.calc) == 7:
+                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
             else:
                 parser.error("Invalid fileType")
         except ValueError as e:

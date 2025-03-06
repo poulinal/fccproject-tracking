@@ -101,7 +101,7 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         Return: no return, just updates the global dictionary dic
     """
     if edepRange != -1 and edepAtLeast != -1:
-        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles) + \
+        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/tryMultiProcessing/bkg_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"
         dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(bkgNumFiles) + \
@@ -119,6 +119,7 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/combined_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy"
         signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/signal_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #lxplus
     
+    print(backgroundDataPath)
     if typefile == "Bkg":
         dic = np.load(backgroundDataPath, allow_pickle=True).item()
         print(f"Reading dictionary from: {backgroundDataPath}")

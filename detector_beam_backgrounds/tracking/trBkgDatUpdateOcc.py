@@ -220,10 +220,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     #setup dictionary
     dic = {}
     #can change dic_file_path to the correct path:
-    # dic_file_path = "fccproject-tracking/detector_beam_backgrounds/tracking/data/occupancy_tinker/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #mit-submit
-    # dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/regularDat/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #lxplus
     dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/noOcc/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #cernbox (to save storage)
-    # output_dic_file_path = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/data/lxplusData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + "_R" + str(radiusR) + "_P" + str(radiusPhi) + ".npy" #lxplus
     output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
         "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
     occ_keys = ["list_n_cells_fired_mc", "max_n_cell_per_layer",
@@ -323,6 +320,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     
     cell_to_mcID_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
     cell_to_mcID_neighbors_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+    cell_to_mcID_neighbors_edeps_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
     all_mcID_per_batch = [] #a list of all mcID's which fired cells for each batch
     
     neighborPt = []  #will be a list of lists of tuple of (radiusR, radiusPhi, pt)
@@ -520,6 +518,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 all_mcID_per_batch.append(all_mcID)
                 cell_to_mcID_per_batch.append(cell_to_mcID)
                 cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
+                cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
                 neighborPt.append(batch_pt)
                 neighborPDG.append(batch_pdg)
                 
@@ -557,6 +556,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 all_mcID_per_batch.append(all_mcID)
                 cell_to_mcID_per_batch.append(cell_to_mcID)
                 cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
+                cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
                 neighborPt.append(batch_pt)
                 neighborPDG.append(batch_pdg)
                 
@@ -588,6 +588,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             all_mcID_per_batch.append(all_mcID)
             cell_to_mcID_per_batch.append(cell_to_mcID)
             cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
+            cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
             neighborPt.append(batch_pt)
             neighborPDG.append(batch_pdg)
             
@@ -647,7 +648,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["cell_fired_pos_by_batch"] = cell_fired_pos_per_batch
     
     dic["onlyNeighborMCID_per_batch"] = cell_to_mcID_neighbors_per_batch
-    dic["onlyNeighborOnlyEdepMCID_per_batch"] = cell_to_mcID_neighbors_edeps
+    dic["onlyNeighborOnlyEdepMCID_per_batch"] = cell_to_mcID_neighbors_edeps_per_batch
     dic["cellFiredMCID_per_batch"] = cell_to_mcID_per_batch
     
     dic["neighborPt_by_batch"] = neighborPt

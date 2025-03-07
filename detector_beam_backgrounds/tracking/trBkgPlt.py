@@ -101,9 +101,9 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         Return: no return, just updates the global dictionary dic
     """
     if edepRange != -1 and edepAtLeast != -1:
-        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/tryMultiProcessing/bkg_background_particles_" + str(numfiles) + \
-            "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + ".npy"
+        print("edep")
+        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
         dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(bkgNumFiles) + \
             "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"

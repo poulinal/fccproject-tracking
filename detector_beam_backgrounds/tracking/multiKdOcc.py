@@ -10,7 +10,6 @@ import argparse
 import multiprocessing as mp
 from multiprocessing import Process, Array
 from trBkgDatUpdateOcc import calculateOnlyNeighbors, calcOcc, calculateOccupancy, calculateOccupancyNonNormalized
-import time
 
 """
 This script is used to update the occupancy of the background particles in the dictionary.
@@ -19,9 +18,25 @@ This is meant to be ran after trBkgDat.py (which save a .npy)
 but doesnt have to, it will just create a new .npy.
 """
     
+
+def reset_batch_variables():
+    return {
+        "dict_cellID_nHits": {},
+        "occupancies_a_batch": [],
+        "occupancies_a_batch_only_neighbor": [], # a list of tuples (unique_layer_index, nphi)
+        "occupancies_a_batch_edep": [], # a list of tuples (unique_layer_index, edep)
+        "occupancies_a_batch_edep_per_cell": [], #a list of tuples (unique_layer_index, nphi, edep)
+        "batch_cell_fired_pos_neighbors": [],
+        "batch_cell_fired_pos": [],
+        "cell_to_mcID": [], #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+        "cell_to_mcID_neighbors": [], #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+        "all_mcID": [], #a list of mcID's which fired cells for each batch
+        "batch_pt": [], #will be a list of tuple of (radiusR, radiusPhi, pt)
+        "batch_pdg": [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+    }
+
 def process_file(file_info, data_info):
     # file_info_list, data_list = file_info
-
     batchNum, batchFinished, rootfilesByBatch, eventNumFactor, typeFile, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, max_n_cell_per_layer, \
         n_cell_per_layer, n_layers_per_superlayer, n_superlayers, total_number_of_layers, batches, lock = file_info
     occupancies_per_batch_sum_batch, occupancies_per_batch_sum_batch_only_bkg, occupancies_per_batch_sum_batch_only_signal, \
@@ -37,7 +52,7 @@ def process_file(file_info, data_info):
     #loop over all the files
     for rootfile in rootfilesByBatch: 
         print(f"Running over file: {rootfile}")
-        # print(f"Event num: {eventNumFactor}")
+        print(f"Event num: {eventNumFactor}")
         reader = root_io.Reader(rootfile)
         metadata = reader.get("metadata")[0]
         if typeFile == "":
@@ -53,18 +68,7 @@ def process_file(file_info, data_info):
             if typeFile == "bkg": #want to reset every 20 bkg files
                 # numBatches = 0 #total batches should be numFiles / 20
                 print(f"resetting occupancy for batch, new batch: {batchNum}")
-                dict_cellID_nHits = {} #reset cells for every 20 bkg event
-                occupancies_a_batch = []
-                occupancies_a_batch_only_neighbor = [] # a list of tuples (unique_layer_index, nphi)
-                occupancies_a_batch_edep = [] # a list of tuples (unique_layer_index, edep)
-                occupancies_a_batch_edep_per_cell = [] #a list of tuples (unique_layer_index, nphi, edep)
-                batch_cell_fired_pos_neighbors = []
-                batch_cell_fired_pos = []
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                all_mcID = [] #a list of mcID's which fired cells for each batch
-                batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
-                batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                batchVars = reset_batch_variables()
         
         
         numEvents = 0
@@ -72,47 +76,24 @@ def process_file(file_info, data_info):
             # print(f"Running over event: {numEvents}")
             numEvents += 1
             if numEvents != eventNumFactor:
-                # print(f"skipping event: {numEvents} where eventNumFactor: {eventNumFactor}")
+                print(f"skipping event: {numEvents} where eventNumFactor: {eventNumFactor}")
                 continue #skip over events that are not the correct eventNumFactor
-            # print(f"running over event: {numEvents} where eventNumFactor: {eventNumFactor}")
+            print(f"running over event: {numEvents} where eventNumFactor: {eventNumFactor}")
             occupancies_an_event = []
             
             EventMCParticles = event.get("MCParticles")
             
             if typeFile == "signal": #want to reset every 1 signal event
                 print(f"resetting occupancy for batch, new batch: {batchNum}")
-                dict_cellID_nHits = {} #reset cells for every 1 signal event
-                occupancies_a_batch = []
-                occupancies_a_batch_only_neighbor = [] # a list of tuples (unique_layer_index, nphi)
-                occupancies_a_batch_edep = [] # a list of tuples (unique_layer_index, nphi, edep)
-                occupancies_a_batch_edep_per_cell = []
-                batch_cell_fired_pos_neighbors = []
-                batch_cell_fired_pos = []
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                all_mcID = [] #a list of mcID's which fired cells for each batch
-                batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
-                batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                batchVars = reset_batch_variables()
                 # numBatches = 0 #total batches should be numFiles * 10
                 
             if typeFile == "combined": #want to reset every 1 combined event since for each file, 10 signal events, each with 20 bkg events respectively
                 print(f"resetting occupancy for batch, new batch: {batchNum}")
-                dict_cellID_nHits = {} #reset cells for every 20 bkg event
-                occupancies_a_batch = []
-                occupancies_a_batch_only_neighbor = [] # a list of tuples (unique_layer_index, nphi)
-                occupancies_a_batch_edep = [] # a list of tuples (unique_layer_index, edep)
-                occupancies_a_batch_edep_per_cell = [] #a list of tuples (unique_layer_index, nphi, edep)
+                batchVars = reset_batch_variables()
                 occupancies_a_batch_isBkgOverlay = [] # a list of isBkgOverlay, should be same size as occupancies_a_batch
                 # occupancies_a_batch_only_neighbor_isBkgOverlay = [] # a list of isBkgOverlay, should be same size as occupancies_a_batch_only_neighbor
                 occupancies_a_batch_isSignalOverlay = [] # a list of isSignalOverlay, should be same size as occupancies_a_batch
-                # occupancies_a_batch_only_neighbor_isSignalOverlay = [] # a list of isSignalOverlay, should be same size as occupancies_a_batch_only_neighbor
-                batch_cell_fired_pos_neighbors = []
-                batch_cell_fired_pos = []
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                all_mcID = [] #a list of mcID's which fired cells for each batch
-                batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
-                batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
         
             if typeFile == "combined":
                 dc_hits = event.get("NewCDCHHits")
@@ -127,8 +108,8 @@ def process_file(file_info, data_info):
                 mcParticleHit = dc_hit.getMCParticle()
                 index_mc = mcParticleHit.getObjectID().index
                 
-                if index_mc not in all_mcID:
-                    all_mcID.append(index_mc)
+                if index_mc not in batchVars['all_mcID']:
+                    batchVars['all_mcID'].append(index_mc)
                 
                 if typeFile == "combined":
                     isBkgOverlay = dc_hit.isOverlay()
@@ -148,43 +129,43 @@ def process_file(file_info, data_info):
                 cellID_unique_identifier = "SL_" + str(superlayer)  + "_L_" + str(layer) + "_nphi_" + str(nphi) 
                 
                 # what is the occupancy?
-                if not cellID_unique_identifier in dict_cellID_nHits.keys(): # the cell was not fired yet
+                if not cellID_unique_identifier in batchVars['dict_cellID_nHits'].keys(): # the cell was not fired yet
                     occupancies_an_event.append(unique_layer_index)
-                    occupancies_a_batch.append(unique_layer_index)
-                    occupancies_a_batch_only_neighbor.append((unique_layer_index, nphi)) #we append for now then we can check after all hits, what neighbors are fired
-                    occupancies_a_batch_edep.append((unique_layer_index, nphi, dc_hit.getEDep()))
-                    occupancies_a_batch_edep_per_cell.append((unique_layer_index, nphi, dc_hit.getEDep()))
+                    batchVars['occupancies_a_batch'].append(unique_layer_index)
+                    batchVars['occupancies_a_batch_only_neighbor'].append((unique_layer_index, nphi)) #we append for now then we can check after all hits, what neighbors are fired
+                    batchVars['occupancies_a_batch_edep'].append((unique_layer_index, nphi, dc_hit.getEDep()))
+                    batchVars['occupancies_a_batch_edep_per_cell'].append((unique_layer_index, nphi, dc_hit.getEDep()))
                     cellFiredPos.append((unique_layer_index, nphi))
-                    cell_to_mcID.append((unique_layer_index, nphi, index_mc))
+                    batchVars['cell_to_mcID'].append((unique_layer_index, nphi, index_mc))
                     
                     
                     mcParticle = EventMCParticles[int(index_mc)]
-                    batch_pt.append((radiusR, radiusPhi,  math.sqrt(mcParticle.getMomentum().x**2 + mcParticle.getMomentum().y**2)))
-                    batch_pdg.append((radiusR, radiusPhi, mcParticle.getPDG()))
+                    batchVars['batch_pt'].append((radiusR, radiusPhi,  math.sqrt(mcParticle.getMomentum().x**2 + mcParticle.getMomentum().y**2)))
+                    batchVars['batch_pdg'].append((radiusR, radiusPhi, mcParticle.getPDG()))
                     
                     
-                    batch_cell_fired_pos.append((unique_layer_index, nphi))
-                    dict_cellID_nHits[cellID_unique_identifier] = 1
+                    batchVars['batch_cell_fired_pos'].append((unique_layer_index, nphi))
+                    batchVars['dict_cellID_nHits'][cellID_unique_identifier] = 1
                     if typeFile=="combined" and isBkgOverlay:
                         occupancies_a_batch_isBkgOverlay.append(unique_layer_index)
                     elif typeFile=="combined" and not isBkgOverlay:
                         occupancies_a_batch_isSignalOverlay.append(unique_layer_index)
                 else: # the cell was already fired
-                    dict_cellID_nHits[cellID_unique_identifier] += 1
-                    cell_to_mcID.append((unique_layer_index, nphi, index_mc)) #still consider it
+                    batchVars['dict_cellID_nHits'][cellID_unique_identifier] += 1
+                    batchVars['cell_to_mcID'].append((unique_layer_index, nphi, index_mc)) #still consider it
                     #find where in edep tuple the unique_layer_index is
-                    index = [i for i, tup in enumerate(occupancies_a_batch_edep) if tup[0] == unique_layer_index]
+                    index = [i for i, tup in enumerate(batchVars['occupancies_a_batch_edep']) if tup[0] == unique_layer_index]
                     if len(index) == 0:
                         print("Error: unique_layer_index not found in occupancy_a_batch_edep")
                     else:
-                        occupancies_a_batch_edep[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep[index[0]][1] + dc_hit.getEDep()))
+                        batchVars['occupancies_a_batch_edep'][index[0]] = ((unique_layer_index, nphi, batchVars['occupancies_a_batch_edep'][index[0]][1] + dc_hit.getEDep()))
                     
                     #find where in edep per cell tuple the unique_layer_index is so that we can add the edep
-                    index = [i for i, tup in enumerate(occupancies_a_batch_edep_per_cell) if tup[0] == unique_layer_index]
+                    index = [i for i, tup in enumerate(batchVars['occupancies_a_batch_edep_per_cell']) if tup[0] == unique_layer_index]
                     if len(index) == 0:
                         print("Error: unique_layer_index not found in occupancy_a_batch_edep_per_cell")
                     else:
-                        occupancies_a_batch_edep_per_cell[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep_per_cell[index[0]][2] + dc_hit.getEDep()))
+                        batchVars['occupancies_a_batch_edep_per_cell'][index[0]] = ((unique_layer_index, nphi, batchVars['occupancies_a_batch_edep_per_cell'][index[0]][2] + dc_hit.getEDep()))
                 
                 # deal with the number of cell fired per particle
                 if index_mc not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
@@ -208,27 +189,26 @@ def process_file(file_info, data_info):
                                         edep_only_neighbors, edep_only_neighbors_only_edep, \
                                             cell_to_mcID_neighbors_edeps, \
                                                 NoNeighborsRemoved, NeighborsRemained, \
-                                                    EdepNeighborsRemained, NoEdepNeighborsRemoved = calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, 
-                                                                                    occupancies_a_batch_edep, occupancies_a_batch_edep_per_cell, 
+                                                    EdepNeighborsRemained, NoEdepNeighborsRemoved = calcOcc(batchVars['occupancies_a_batch'], batchVars['occupancies_a_batch_only_neighbor'], 
+                                                                                    batchVars['occupancies_a_batch_edep'], batchVars['occupancies_a_batch_edep_per_cell'], 
                                                                                     dic_occupancies_per_batch_sum_batch_energy_dep_per_cell, 
                                                                                     n_cell_per_layer, total_number_of_layers, 
                                                                                     radiusR, radiusPhi, atLeast, 
-                                                                                    edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved,
-                                                                                    max_n_cell_per_layer)
+                                                                                    edepRange, edepAtLeast, max_n_cell_per_layer, batchVars['cell_to_mcID'],
+                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved, True)
                 with lock:
                     cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
-                    cell_fired_pos_per_batch.append(batch_cell_fired_pos)
+                    cell_fired_pos_per_batch.append(batchVars['batch_cell_fired_pos'])
                     cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
-                    energy_dep_per_cell_per_batch.append(occupancies_a_batch_edep_per_cell) #a tuple of (unique_layer_index, nphi, edep)
+                    energy_dep_per_cell_per_batch.append(batchVars['occupancies_a_batch_edep_per_cell']) #a tuple of (unique_layer_index, nphi, edep)
                     energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
                     energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
-                    all_mcID_per_batch.append(all_mcID)
-                    cell_to_mcID_per_batch.append(cell_to_mcID)
+                    all_mcID_per_batch.append(batchVars['all_mcID'])
+                    cell_to_mcID_per_batch.append(batchVars['cell_to_mcID'])
                     cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
                     cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
-                    neighborPt.append(batch_pt)
-                    neighborPDG.append(batch_pdg)
+                    neighborPt.append(batchVars['batch_pt'])
+                    neighborPDG.append(batchVars['batch_pdg'])
                 
                 # batchNum += 1
                 batchFinished.value += 1
@@ -252,26 +232,26 @@ def process_file(file_info, data_info):
                                         edep_only_neighbors, edep_only_neighbors_only_edep, \
                                             cell_to_mcID_neighbors_edeps, \
                                                 NoNeighborsRemoved, NeighborsRemained, \
-                                                    EdepNeighborsRemained, NoEdepNeighborsRemoved  = calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor,
-                                                                                                occupancies_a_batch_edep, occupancies_a_batch_edep_per_cell,
+                                                    EdepNeighborsRemained, NoEdepNeighborsRemoved  = calcOcc(batchVars['occupancies_a_batch'], batchVars['occupancies_a_batch_only_neighbor'],
+                                                                                                batchVars['occupancies_a_batch_edep'], batchVars['occupancies_a_batch_edep_per_cell'],
                                                                                                 dic_occupancies_per_batch_sum_batch_energy_dep_per_cell,
                                                                                                 n_cell_per_layer, total_number_of_layers,
                                                                                                 radiusR, radiusPhi, atLeast, 
-                                                                                                edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                                NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved)
+                                                                                                edepRange, edepAtLeast, max_n_cell_per_layer, batchVars['cell_to_mcID'],
+                                                                                                NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved, True)
                 with lock:
                     cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
-                    cell_fired_pos_per_batch.append(batch_cell_fired_pos)
+                    cell_fired_pos_per_batch.append(batchVars['batch_cell_fired_pos'])
                     cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
-                    energy_dep_per_cell_per_batch.append(occupancies_a_batch_edep_per_cell) #a tuple of (unique_layer_index, nphi, edep)
+                    energy_dep_per_cell_per_batch.append(batchVars['occupancies_a_batch_edep_per_cell']) #a tuple of (unique_layer_index, nphi, edep)
                     energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
                     energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
-                    all_mcID_per_batch.append(all_mcID)
-                    cell_to_mcID_per_batch.append(cell_to_mcID)
+                    all_mcID_per_batch.append(batchVars['all_mcID'])
+                    cell_to_mcID_per_batch.append(batchVars['cell_to_mcID'])
                     cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
                     cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
-                    neighborPt.append(batch_pt)
-                    neighborPDG.append(batch_pdg)
+                    neighborPt.append(batchVars['batch_pt'])
+                    neighborPDG.append(batchVars['batch_pdg'])
                 
                 # batchNum += 1
                 batchFinished.value += 1
@@ -294,26 +274,26 @@ def process_file(file_info, data_info):
                                     edep_only_neighbors, edep_only_neighbors_only_edep, \
                                         cell_to_mcID_neighbors_edeps, \
                                             NoNeighborsRemoved, NeighborsRemained, \
-                                                EdepNeighborsRemained, NoEdepNeighborsRemoved  = calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor,
-                                                                                            occupancies_a_batch_edep, occupancies_a_batch_edep_per_cell,
+                                                EdepNeighborsRemained, NoEdepNeighborsRemoved  = calcOcc(batchVars['occupancies_a_batch'], batchVars['occupancies_a_batch_only_neighbor'],
+                                                                                            batchVars['occupancies_a_batch_edep'], batchVars['occupancies_a_batch_edep_per_cell'],
                                                                                             dic_occupancies_per_batch_sum_batch_energy_dep_per_cell,
                                                                                             n_cell_per_layer, total_number_of_layers,
-                                                                                            radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                            NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved)
+                                                                                            radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, max_n_cell_per_layer, batchVars['cell_to_mcID'],
+                                                                                            NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved, True)
             with lock:
             # print(f"occupancies_per_batch_sum_batch: {np.array(occupancies_per_batch_sum_batch[batchNum], dtype=object)}")
                 cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
-                cell_fired_pos_per_batch.append(batch_cell_fired_pos)
+                cell_fired_pos_per_batch.append(batchVars['batch_cell_fired_pos'])
                 cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
-                energy_dep_per_cell_per_batch.append(occupancies_a_batch_edep_per_cell) #a tuple of (unique_layer_index, nphi, edep)
+                energy_dep_per_cell_per_batch.append(batchVars['occupancies_a_batch_edep_per_cell']) #a tuple of (unique_layer_index, nphi, edep)
                 energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
                 energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
-                all_mcID_per_batch.append(all_mcID)
-                cell_to_mcID_per_batch.append(cell_to_mcID)
+                all_mcID_per_batch.append(batchVars['all_mcID'])
+                cell_to_mcID_per_batch.append(batchVars['cell_to_mcID'])
                 cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
                 cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
-                neighborPt.append(batch_pt)
-                neighborPDG.append(batch_pdg)
+                neighborPt.append(batchVars['batch_pt'])
+                neighborPDG.append(batchVars['batch_pdg'])
                 
             batchFinished.value += 1
             
@@ -378,7 +358,7 @@ def main(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepR
         np.save(dic_file_path, dic)
         
 
-    # print(f"typeFile: {typeFile}")
+    print(f"typeFile: {typeFile}")
     print(f"output_dic_file_path once finished will be: {output_dic_file_path}")
     bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath = configure_paths(typeFile)
 
@@ -573,41 +553,40 @@ def main(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepR
     #print out the types
     input("Press Enter to continue...")
     print(occupancies_per_batch_sum_batch)
-    # print(f"occupancies_per_batch_sum_batch: {type(occupancies_per_batch_sum_batch)}")
+    print(f"occupancies_per_batch_sum_batch: {type(occupancies_per_batch_sum_batch)}")
     input("Press Enter to continue...")
-    
-    # print(f"occupancies_per_batch_sum_batch_only_bkg: {type(occupancies_per_batch_sum_batch_only_bkg)}")
-    # print(f"occupancies_per_batch_sum_batch_only_signal: {type(occupancies_per_batch_sum_batch_only_signal)}")
-    # print(f"occupancies_per_batch_sum_batch_only_neighbor: {type(occupancies_per_batch_sum_batch_only_neighbor)}")
-    # print(f"occupancies_per_batch_sum_batch_only_neighbors_only_edeps: {type(occupancies_per_batch_sum_batch_only_neighbors_only_edeps)}")
-    # print(f"occupancies_per_batch_sum_batch_energy_dep: {type(occupancies_per_batch_sum_batch_energy_dep)}")
-    # print(f"energy_dep_per_cell_per_batch: {type(energy_dep_per_cell_per_batch)}")
-    # print(f"energy_dep_per_cell_per_batch_only_neighbors: {type(energy_dep_per_cell_per_batch_only_neighbors)}")
-    # print(f"energy_dep_per_cell_per_batch_only_neighbors_only_edeps: {type(energy_dep_per_cell_per_batch_only_neighbors_only_edeps)}")
-    # print(f"cellFiredPos: {type(cellFiredPos)}")
-    # print(f"cellFiredPosNeighbors: {type(cellFiredPosNeighbors)}")
-    # print(f"cell_fired_pos_per_batch: {type(cell_fired_pos_per_batch)}")
-    # print(f"cell_fired_pos_neighbors_per_batch: {type(cell_fired_pos_neighbors_per_batch)}")
-    # print(f"cell_to_mcID_per_batch: {type(cell_to_mcID_per_batch)}")
-    # print(f"cell_to_mcID_neighbors_per_batch: {type(cell_to_mcID_neighbors_per_batch)}")
-    # print(f"cell_to_mcID_neighbors_edeps_per_batch: {type(cell_to_mcID_neighbors_edeps_per_batch)}")
-    # print(f"all_mcID_per_batch: {type(all_mcID_per_batch)}")
-    # print(f"neighborPt: {type(neighborPt)}")
-    # print(f"neighborPDG: {type(neighborPDG)}")
-    # print(f"NoNeighborsRemoved: {type(NoNeighborsRemoved)}")
-    # print(f"NeighborsRemained: {type(NeighborsRemained)}")
-    # print(f"EdepNeighborsRemained: {type(EdepNeighborsRemained)}")
-    # print(f"NoEdepNeighborsRemoved: {type(NoEdepNeighborsRemoved)}")
-    # print(f"dic_occupancies_per_batch_sum_batch_energy_dep_per_cell: {type(dic_occupancies_per_batch_sum_batch_energy_dep_per_cell)}")
+    print(f"occupancies_per_batch_sum_batch_only_bkg: {type(occupancies_per_batch_sum_batch_only_bkg)}")
+    print(f"occupancies_per_batch_sum_batch_only_signal: {type(occupancies_per_batch_sum_batch_only_signal)}")
+    print(f"occupancies_per_batch_sum_batch_only_neighbor: {type(occupancies_per_batch_sum_batch_only_neighbor)}")
+    print(f"occupancies_per_batch_sum_batch_only_neighbors_only_edeps: {type(occupancies_per_batch_sum_batch_only_neighbors_only_edeps)}")
+    print(f"occupancies_per_batch_sum_batch_energy_dep: {type(occupancies_per_batch_sum_batch_energy_dep)}")
+    print(f"energy_dep_per_cell_per_batch: {type(energy_dep_per_cell_per_batch)}")
+    print(f"energy_dep_per_cell_per_batch_only_neighbors: {type(energy_dep_per_cell_per_batch_only_neighbors)}")
+    print(f"energy_dep_per_cell_per_batch_only_neighbors_only_edeps: {type(energy_dep_per_cell_per_batch_only_neighbors_only_edeps)}")
+    print(f"cellFiredPos: {type(cellFiredPos)}")
+    print(f"cellFiredPosNeighbors: {type(cellFiredPosNeighbors)}")
+    print(f"cell_fired_pos_per_batch: {type(cell_fired_pos_per_batch)}")
+    print(f"cell_fired_pos_neighbors_per_batch: {type(cell_fired_pos_neighbors_per_batch)}")
+    print(f"cell_to_mcID_per_batch: {type(cell_to_mcID_per_batch)}")
+    print(f"cell_to_mcID_neighbors_per_batch: {type(cell_to_mcID_neighbors_per_batch)}")
+    print(f"cell_to_mcID_neighbors_edeps_per_batch: {type(cell_to_mcID_neighbors_edeps_per_batch)}")
+    print(f"all_mcID_per_batch: {type(all_mcID_per_batch)}")
+    print(f"neighborPt: {type(neighborPt)}")
+    print(f"neighborPDG: {type(neighborPDG)}")
+    print(f"NoNeighborsRemoved: {type(NoNeighborsRemoved)}")
+    print(f"NeighborsRemained: {type(NeighborsRemained)}")
+    print(f"EdepNeighborsRemained: {type(EdepNeighborsRemained)}")
+    print(f"NoEdepNeighborsRemoved: {type(NoEdepNeighborsRemoved)}")
+    print(f"dic_occupancies_per_batch_sum_batch_energy_dep_per_cell: {type(dic_occupancies_per_batch_sum_batch_energy_dep_per_cell)}")
     
     
     
     
     # print(occupancies_per_batch_sum_batch)
-    # print("no neighbors removed: ", NoNeighborsRemoved)
-    # print("remained neighbors: ", NeighborsRemained)
-    # print("edep neighbors removed: ", NoEdepNeighborsRemoved)
-    # print("edep neighbors remained: ", EdepNeighborsRemained)
+    print("no neighbors removed: ", NoNeighborsRemoved)
+    print("remained neighbors: ", NeighborsRemained)
+    print("edep neighbors removed: ", NoEdepNeighborsRemoved)
+    print("edep neighbors remained: ", EdepNeighborsRemained)
     
     
     
@@ -694,8 +673,6 @@ if __name__ == "__main__":
                         "\n-- edepAtLeast(int): Default(1)",
                         type=str, default="", nargs='+')
     args = parser.parse_args()
-    
-    starttime = time.time()
 
     if args.calc and args.calc != "":
         # try:
@@ -716,9 +693,6 @@ if __name__ == "__main__":
             main(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
         else:
             parser.error("Invalid fileType")
-            
-        endtime = time.time()
-        print(f"Time taken in seconds: {endtime - starttime}")
         # except ValueError as e:
         #     parser.error(str(e))
     #'''

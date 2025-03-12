@@ -102,15 +102,15 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
     """
     if edepRange != -1 and edepAtLeast != -1:
         print("edep")
-        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles)  + "_v6" + \
+        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/bkg_background_particles_" + str(numfiles)  + "_v6" + \
             "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
-        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(bkgNumFiles) + \
+        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/bkg_background_particles_" + str(bkgNumFiles) + \
             "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"
-        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/combined_background_particles_" + str(numfiles) + \
+        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/combined_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"
-        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/signal_background_particles_" + str(numfiles) + \
+        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/signal_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"
     else:
@@ -1105,7 +1105,32 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         eff = calcEfficiency(typeFile, histNeighbor)
         xy_plot(layers, ratioDiff, imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
-                xLabel="Radial Layer Index", yLabel="Percent Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
+                includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError)
+        
+    if args == "occupancy-onlyNeighbors-onlyEdeps-diff" or args == "": #ratio diff
+        histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        ratioDiff = []
+        ratioDiffError = []
+        print(f"len(hist[occupancy_per_batch_sum_batches]): {len(hist['occupancy_per_batch_sum_batches'])}")
+        print(f"len(histNeighbor[occupancy_per_batch_sum_batches_only_neighbor_only_edep]): {len(histNeighbor['occupancy_per_batch_sum_batches_only_neighbor_only_edep'])}")
+        for i in range(0, len(hist["occupancy_per_batch_sum_batches"])):
+            # print(f"layer: {i}")
+            # print(f"histNeighbor[occupancy_per_batch_sum_batches_only_neighbor_only_edep][i]: {histNeighbor['occupancy_per_batch_sum_batches_only_neighbor_only_edep'][i]}")
+            # print(f"hist[occupancy_per_batch_sum_batches][i]: {hist['occupancy_per_batch_sum_batches'][i]}")
+            ratioDiff.append(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] / hist["occupancy_per_batch_sum_batches"][i] * 100)
+            ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"][i] / histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] )**2 
+                                                         + (hist["occupancy_per_batch_sum_batches_error"][i] / hist["occupancy_per_batch_sum_batches"][i])**2))
+            # percentDiff.append(( (abs(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] - hist["occupancy_per_batch_sum_batches"][i])) / (hist["occupancy_per_batch_sum_batches"][i] + histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] / 2) ) * 100)
+        # print(f"remained: {histNeighbor['neighbors_remained']}")
+        # print(f"removed: {histNeighbor['no_neighbors_removed']}")
+        eff = calcEfficiency(typeFile, histNeighbor)
+        xy_plot(layers, ratioDiff, 
+                imageOutputPath + "occupancy" + str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png",
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError)
         
     if args == "occupancy-onlyNeighbors-percdiff" or args == "": #percent diff
@@ -1480,18 +1505,17 @@ def genPlot(inputArgs):
                 radiusPhi=inputArgs[4]
                 if len(inputArgs) > 5 and inputArgs[5].isdigit():
                     atLeast=inputArgs[5]
+                    edepRange=inputArgs[6] if len(inputArgs) > 6 else 0
+                    edepAtLeast=inputArgs[7] if len(inputArgs) > 7 else 0
+                    if len(inputArgs) > 8:
+                        includeBkg = bool(inputArgs[8])
+                        bkgNumFiles = inputArgs[9] if len(inputArgs) > 9 else 500
+                        bkgRadiusR = inputArgs[10] if len(inputArgs) > 10 else 1
+                        bkgRadiusPhi = inputArgs[11] if len(inputArgs) > 11 else 1
+                        bkgAtLeast = inputArgs[12] if len(inputArgs) > 12 else 1
+                        dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast)
                     if len(inputArgs) > 7:
-                        edepRange=inputArgs[6]
-                        edepAtLeast=inputArgs[7]
-                        if len(inputArgs) > 8:
-                            includeBkg = bool(inputArgs[8])
-                            bkgNumFiles = inputArgs[9] if len(inputArgs) > 9 else 500
-                            bkgRadiusR = inputArgs[10] if len(inputArgs) > 10 else 1
-                            bkgRadiusPhi = inputArgs[11] if len(inputArgs) > 11 else 1
-                            bkgAtLeast = inputArgs[12] if len(inputArgs) > 12 else 1
-                            dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast)
-                        else:
-                            dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
+                        dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
                     else: 
                         dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast)
     # Mapping strings to functions
@@ -1535,6 +1559,7 @@ def genPlot(inputArgs):
         "occupancy-onlyNeighbors": plotOccupancy,
         "occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
         "occupancy-onlyNeighbors-diff": plotOccupancy,
+        "occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
         "occupancy-onlyNeighbors-percdiff": plotOccupancy,
         "only-combined-occupancy-BatchedBatch": plotOccupancy,
         "avg-energy-deposit": plotEdep,
@@ -1556,6 +1581,8 @@ def genPlot(inputArgs):
         "hitPosition-PDGneighbors": plotHitPosition,
         "hitPosition-pTneighbors": plotHitPosition
     }
+    
+    print(edepRange)
 
     # Execute the corresponding function if the key exists
     if typePlot in function_map:
@@ -1580,6 +1607,7 @@ typePlots = ["", "all",
                 "occupancy-nCellsPerLayer", "occupancy-onlyNeighbors", "occupancy-onlyNeighbors-onlyEdeps",
                 "avg-energy-deposit",
                 "only-combined-occupancy-BatchedBatch", "occupancy-onlyNeighbors-diff", "occupancy-onlyNeighbors-percdiff",
+                "occupancy-onlyNeighbors-onlyEdeps-diff",
                 "energy-deposit", "energy-deposit-1d", "energy-deposit-one-batch", 
                 "energy-deposit-one-batch-only-neighbors", "energy_dep_per_cell_per_batch_only_neighbors_only_edeps",
                 "wireChamber-all",

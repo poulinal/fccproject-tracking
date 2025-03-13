@@ -24,9 +24,9 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     #setup dictionary
     dic = {}
     #can change dic_file_path to the correct path:
-    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
         "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
-    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
         "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
     neighborID_keys = ["byBatchNeighbors", "oneDbyBatchNeighbors", 
                        "oneDneighborPtN1", "oneDneighborPDGN1", "oneDneighborPtN2", "oneDneighborPDGN2", 
@@ -50,19 +50,56 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
     #we basically want to get a r,phi map where each element is the number of neighbhors (averaged across batches)
     pos_by_batch = dic["cell_fired_pos_by_batch"] #a list of tuples of (r, phi) for each cell_fired/hit
+    edep_by_batch = dic["energy_dep_per_cell_per_batch"] #a list of edep for each cell_fired/hit
     pT_by_batch = dic["neighborPt_by_batch"] #a list of mcParticle indexes for each cell_fired/hit
     pdg_by_batch = dic["neighborPDG_by_batch"] #a list of pdg for each cell_fired/hit
     dic["byBatchNeighbors"] = np.zeros((len(pos_by_batch), dic["total_number_of_layers"], dic["max_n_cell_per_layer"])) 
+    # dic["byBatchNeighborsEdep"] = np.zeros((len(pos_by_batch), dic["total_number_of_layers"], dic["max_n_cell_per_layer"]))
     dic["oneDbyBatchNeighbors"] = []
+    dic["oneDbyBatchNeighborsEdep"] = []
     dic["oneDneighborPtN1"] = []
     dic["oneDneighborPDGN1"] = []
+    
+    neighbor_dic = {} #dictionary to store neighbors
+    neighborEdep_dic = {} #dictionary to store neighborEdep
+    
+    
     #initialize the array of depth(numbatches) by width (nphi) by height (layers)
     maxnphi = dic["max_n_cell_per_layer"]
-    for i, batch in enumerate(pos_by_batch): #i is batch number
+    for i, batch in enumerate(pos_by_batch): #i is batch number; iterate through all batches
         print(f"batchNum: {i}")
         print(f"batch: {len(batch)}")
-        for j, hit in enumerate(batch): #j is hit number
+        
+        #make the batch a set/dict to alow faster lookup
+        set_batch = {}
+        dic_edep_batch = {}
+        for j, hit in enumerate(batch):
+            set_batch[hit] = True
+            # print(f"hit: {hit}")
+            # print(f"eden_by_batch[i]: {edep_by_batch[i][j]}")
+            if hit != (edep_by_batch[i][j][0], edep_by_batch[i][j][1]):
+                #throw error
+                raise ValueError("Error: hit and edep do not match")
+            if hit in dic_edep_batch:
+                #throw error
+                raise ValueError("Error: hit already in dic_edep_batch")
+            dic_edep_batch[hit] = edep_by_batch[i][j][2]
+        # print(set_batch)
+        # print(f"dic_edep_batch: {dic_edep_batch}")
+        # input("press Enter to continue...")
+        
+        
+        for j, hit in enumerate(batch): #j is hit number; iterate through all hits in a batch
             r, phi = hit
+            edep = dic_edep_batch[hit]
+            # print(edep)
+            
+            #if hit is not in neighbor_dic, add it
+            if (r, phi) not in neighbor_dic:
+                neighbor_dic[(r, phi)] = []
+            if (r, phi) not in neighborEdep_dic:
+                neighborEdep_dic[(r, phi)] = []
+            
             #get the number of neighbors
             numNeighbors = 0
             for dx in range(-radiusR, radiusR+1):
@@ -70,12 +107,32 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     if dx == 0 and dy == 0:
                         continue
                     cyclic_phi = (phi + dy) % maxnphi
-                    if (r+dx, cyclic_phi+dy) in batch:
-                        numNeighbors += 1
+                    if (r+dx, cyclic_phi) in neighbor_dic:
+                        continue
+                    
+                    if (r+dx, cyclic_phi+dy) in set_batch and (r+dx, cyclic_phi+dy) not in neighbor_dic:
+                        if (r+dx, cyclic_phi+dy) not in neighbor_dic:
+                            neighbor_dic[(r+dx, cyclic_phi+dy)] = []
+                        neighbor_dic[(r, phi)].append((r+dx, cyclic_phi+dy)) #add the neighbor to the current hit
+                        neighbor_dic[(r+dx, cyclic_phi+dy)].append((r, phi)) #add the current hit to the neighbor
+                        
+                    if (r+dx, cyclic_phi+dy) in dic_edep_batch and (r+dx, cyclic_phi+dy) not in neighborEdep_dic:
+                        if (r+dx, cyclic_phi+dy) not in neighborEdep_dic:
+                            neighborEdep_dic[(r+dx, cyclic_phi+dy)] = []
+                        neighborEdep_dic[(r, phi)].append((r+dx, cyclic_phi+dy, dic_edep_batch[(r+dx, cyclic_phi+dy)])) #add the neighbor to the current hit
+                        neighborEdep_dic[(r+dx, cyclic_phi+dy)].append((r, phi, edep)) #add the current hit to the neighbor
+                #end dy loop
+            #end dx loop
+            #went through all possible neighbors for current hit
+            numNeighbors = len(neighbor_dic[(r, phi)])
+            numEdepNeighbors = len(neighborEdep_dic[(r, phi)])
+                        
+                        
             # print(hist["byBatchNeighbors"][i].shape)
             # input("press Enter to continue...")
             dic["byBatchNeighbors"][i][r, phi] = numNeighbors
             dic["oneDbyBatchNeighbors"].append(numNeighbors) #for every hit we want to get the neighbors of that cell fired
+            dic["oneDbyBatchNeighborsEdep"].append(numEdepNeighbors) #for every hit we want to get the neighbors of that cell fired
             if numNeighbors == 1:
                 dic["oneDneighborPtN1"].append(pT_by_batch[i][j])
                 dic["oneDneighborPDGN1"].append(pdg_by_batch[i][j])

@@ -681,6 +681,7 @@ def hitPosition(dic, args="", radiusR=4, radiusPhi=1):
         pdg_by_batch = dic["neighborPDG_by_batch"] #a list of pdg for each cell_fired/hit
         hist["byBatchNeighbors"] = dic["byBatchNeighbors"]
         hist["oneDbyBatchNeighbors"] = dic["oneDbyBatchNeighbors"]
+        hist["oneDbyBatchNeighborsEdep"] = dic["oneDbyBatchNeighborsEdep"]
         
         hist["oneDneighborPtN1"] = dic["oneDneighborPtN1"]
         hist["oneDneighborPDGN1"] = dic["oneDneighborPDGN1"]
@@ -1401,6 +1402,14 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
                   "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) with R" + str(radiusR) + "P" + str(radiusPhi), 
                   xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0.1, binHigh=max(hist['oneDbyBatchNeighbors']), binSteps=1, binType="lin")
         
+    if args == "hitPosition-NeighborsEdep" or args == "":
+        hist = hitPosition(dic, "byBatchNeighbors", radiusR=int(radiusR), radiusPhi=int(radiusPhi))
+        #plot 1d histogram
+        hist_plot(hist["oneDbyBatchNeighborsEdep"],
+                    imageOutputPath + "hitPositionNeighborsEdep" + str(typeFile) + "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + ".png",
+                    "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) with R" + str(radiusR) + "P" + str(radiusPhi),
+                    xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0.1, binHigh=max(hist['oneDbyBatchNeighborsEdep']), binSteps=1, binType="lin")
+        
     if args == "hitPosition-multiNeighbors" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors", radiusR=int(radiusR), radiusPhi=int(radiusPhi))
         histBkg = hitPosition(dicbkg, "byBatchNeighbors", radiusR=int(radiusR), radiusPhi=int(radiusPhi))
@@ -1577,6 +1586,7 @@ def genPlot(inputArgs):
         "hitPosition-oneBatch": plotHitPosition,
         "hitPosition-avgNeighbors": plotHitPosition,
         "hitPosition-Neighbors": plotHitPosition,
+        "hitPosition-NeighborsEdep": plotHitPosition,
         "hitPosition-multiNeighbors": plotHitPosition,
         "hitPosition-PDGneighbors": plotHitPosition,
         "hitPosition-pTneighbors": plotHitPosition

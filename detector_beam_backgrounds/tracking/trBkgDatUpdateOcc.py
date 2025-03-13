@@ -72,8 +72,8 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
             dicEdep[key] = edep[i][2]
         else:
             dicEdep[key] += edep[i][2]
-    print(f"dicEdep: {dicEdep}")
-    input("Press Enter to continue...")
+    # print(f"dicEdep: {dicEdep}")
+    # input("Press Enter to continue...")
     
     
     if radiusPhi == -1:
@@ -646,6 +646,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     occupancies_a_batch.append(unique_layer_index)
                     occupancies_a_batch_only_neighbor.append((unique_layer_index, nphi)) #we append for now then we can check after all hits, what neighbors are fired
                     occupancies_a_batch_edep.append((unique_layer_index, nphi, dc_hit.getEDep()))
+                    # print(f"unique_layer_index: {unique_layer_index} and nphi: {nphi} where edep: {dc_hit.getEDep()}")
                     # occupancies_a_batch_edep_per_cell.append((unique_layer_index, nphi, dc_hit.getEDep()))
                     cellFiredPos.append((unique_layer_index, nphi))
                     cell_to_mcID.append((unique_layer_index, nphi, index_mc))
@@ -666,7 +667,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     dict_cellID_nHits[cellID_unique_identifier] += 1
                     cell_to_mcID.append((unique_layer_index, nphi, index_mc)) #still consider it
                     # print(f"unique_layer_index: {unique_layer_index} and nphi: {nphi}")
-                    # find where in edep tuple the unique_layer_index is
+                    # find where in edep tuple the pos is of the previously fired cell
                     index = [i for i, tup in enumerate(occupancies_a_batch_edep) if tup[0] == unique_layer_index and tup[1] == nphi] 
                     #above can be otpimized if we use a dictionary but it goes fast as is
                     # print(i)
@@ -674,7 +675,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                         print("Error: unique_layer_index not found in occupancy_a_batch_edep")
                     else:
                         # print(f"occupancies_a_batch_edep[index[0]]: {occupancies_a_batch_edep[index[0]]}")
-                        occupancies_a_batch_edep[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep[index[0]][1] + dc_hit.getEDep()))
+                        occupancies_a_batch_edep[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep[index[0]][2] + dc_hit.getEDep()))
                     
                     # #find where in edep per cell tuple the unique_layer_index is so that we can add the edep
                     # index = [i for i, tup in enumerate(occupancies_a_batch_edep_per_cell) if tup[0] == unique_layer_index]

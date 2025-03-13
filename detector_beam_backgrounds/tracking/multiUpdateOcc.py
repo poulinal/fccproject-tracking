@@ -214,21 +214,21 @@ def process_file(file_info, data_info):
                                                                                     n_cell_per_layer, total_number_of_layers, 
                                                                                     radiusR, radiusPhi, atLeast, 
                                                                                     edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved,
-                                                                                    max_n_cell_per_layer)
-                with lock:
-                    cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
-                    cell_fired_pos_per_batch.append(batch_cell_fired_pos)
-                    cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
-                    energy_dep_per_cell_per_batch.append(occupancies_a_batch_edep_per_cell) #a tuple of (unique_layer_index, nphi, edep)
-                    energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
-                    energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
-                    all_mcID_per_batch.append(all_mcID)
-                    cell_to_mcID_per_batch.append(cell_to_mcID)
-                    cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
-                    cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
-                    neighborPt.append(batch_pt)
-                    neighborPDG.append(batch_pdg)
+                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
+                                                                                    )
+                # with lock:
+                cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
+                cell_fired_pos_per_batch.append(batch_cell_fired_pos)
+                cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
+                energy_dep_per_cell_per_batch.append(occupancies_a_batch_edep_per_cell) #a tuple of (unique_layer_index, nphi, edep)
+                energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
+                energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
+                all_mcID_per_batch.append(all_mcID)
+                cell_to_mcID_per_batch.append(cell_to_mcID)
+                cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
+                cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
+                neighborPt.append(batch_pt)
+                neighborPDG.append(batch_pdg)
                 
                 # batchNum += 1
                 batchFinished.value += 1
@@ -571,10 +571,10 @@ def main(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepR
     
     
     #print out the types
-    input("Press Enter to continue...")
-    print(occupancies_per_batch_sum_batch)
+    # input("Press Enter to continue...")
+    # print(occupancies_per_batch_sum_batch)
     # print(f"occupancies_per_batch_sum_batch: {type(occupancies_per_batch_sum_batch)}")
-    input("Press Enter to continue...")
+    # input("Press Enter to continue...")
     
     # print(f"occupancies_per_batch_sum_batch_only_bkg: {type(occupancies_per_batch_sum_batch_only_bkg)}")
     # print(f"occupancies_per_batch_sum_batch_only_signal: {type(occupancies_per_batch_sum_batch_only_signal)}")

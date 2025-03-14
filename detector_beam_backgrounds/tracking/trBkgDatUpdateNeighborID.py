@@ -110,17 +110,17 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     if (r+dx, cyclic_phi) in neighbor_dic:
                         continue
                     
-                    if (r+dx, cyclic_phi+dy) in set_batch and (r+dx, cyclic_phi+dy) not in neighbor_dic:
-                        if (r+dx, cyclic_phi+dy) not in neighbor_dic:
-                            neighbor_dic[(r+dx, cyclic_phi+dy)] = []
-                        neighbor_dic[(r, phi)].append((r+dx, cyclic_phi+dy)) #add the neighbor to the current hit
-                        neighbor_dic[(r+dx, cyclic_phi+dy)].append((r, phi)) #add the current hit to the neighbor
+                    if (r+dx, cyclic_phi) in set_batch and (r+dx, cyclic_phi) not in neighbor_dic[(r, phi)]:
+                        if (r+dx, cyclic_phi) not in neighbor_dic:
+                            neighbor_dic[(r+dx, cyclic_phi)] = []
+                        neighbor_dic[(r, phi)].append((r+dx, cyclic_phi)) #add the neighbor to the current hit
+                        neighbor_dic[(r+dx, cyclic_phi)].append((r, phi)) #add the current hit to the neighbor
                         
-                    if (r+dx, cyclic_phi+dy) in dic_edep_batch and (r+dx, cyclic_phi+dy) not in neighborEdep_dic:
-                        if (r+dx, cyclic_phi+dy) not in neighborEdep_dic:
-                            neighborEdep_dic[(r+dx, cyclic_phi+dy)] = []
-                        neighborEdep_dic[(r, phi)].append((r+dx, cyclic_phi+dy, dic_edep_batch[(r+dx, cyclic_phi+dy)])) #add the neighbor to the current hit
-                        neighborEdep_dic[(r+dx, cyclic_phi+dy)].append((r, phi, edep)) #add the current hit to the neighbor
+                    if (r+dx, cyclic_phi) in dic_edep_batch and (r+dx, cyclic_phi) not in neighborEdep_dic[(r,phi)] and abs(dic_edep_batch[(r+dx, cyclic_phi)] - dic_edep_batch[(r, phi)]) <= edepRange:
+                        if (r+dx, cyclic_phi) not in neighborEdep_dic:
+                            neighborEdep_dic[(r+dx, cyclic_phi)] = []
+                        neighborEdep_dic[(r, phi)].append((r+dx, cyclic_phi, dic_edep_batch[(r+dx, cyclic_phi)])) #add the neighbor to the current hit
+                        neighborEdep_dic[(r+dx, cyclic_phi)].append((r, phi, edep)) #add the current hit to the neighbor
                 #end dy loop
             #end dx loop
             #went through all possible neighbors for current hit

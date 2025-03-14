@@ -1195,11 +1195,13 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         # print(f"energy1d: {energy1d}")
         energy1d = [i * 1000 for i in energy1d] #convert to mev
         print(f"max energy1d: {max(energy1d)}")
+        high = max(energy1d)
+        # high = 0.3
         hist_plot(energy1d, 
                   imageOutputPath + "energyDeposit1d"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)", 
                   xLabel="Energy Deposited (MeV)", yLabel="Count of Cells",
-                  binType="exp", binLow=0.01, binHigh=max(energy1d), binSteps=0.1)
+                  binType="exp", binLow=0.0001, binHigh=high, binSteps=0.1)
         
     if args == "energy-deposit-one-batch" or args == "":
         hist = occupancy(dic, "energy_deposit_per_batch")
@@ -1405,10 +1407,13 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
     if args == "hitPosition-NeighborsEdep" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors", radiusR=int(radiusR), radiusPhi=int(radiusPhi))
         #plot 1d histogram
+        # high = max(hist['oneDbyBatchNeighborsEdep'])
+        high = 10
         hist_plot(hist["oneDbyBatchNeighborsEdep"],
-                    imageOutputPath + "hitPositionNeighborsEdep" + str(typeFile) + "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + ".png",
-                    "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) with R" + str(radiusR) + "P" + str(radiusPhi),
-                    xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0.1, binHigh=max(hist['oneDbyBatchNeighborsEdep']), binSteps=1, binType="lin")
+                    imageOutputPath + "hitPositionNeighborsEdep" + str(typeFile) + "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "ER" + str(edepRange) + ".png",
+                    "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) \n" + 
+                    "with R" + str(radiusR) + "P" + str(radiusPhi) + "ER" + str(edepRange),
+                    xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0, binHigh=high, binSteps=1, binType="lin")
         
     if args == "hitPosition-multiNeighbors" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors", radiusR=int(radiusR), radiusPhi=int(radiusPhi))

@@ -40,7 +40,8 @@ def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_la
     return layer_count
 
 def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1, radiusPhi=-1, atLeast=1, maxnphi=180, edepRange=0.05, edepAtLeast=1, 
-                           NoNeighborsRemoved=0, NeighborsRemained=0, EdepNeighborsRemained=0, NoEdepNeighborsRemoved=0, maxLayer=112):
+                           NoNeighborsRemoved=0, NeighborsRemained=0, EdepNeighborsRemained=0, NoEdepNeighborsRemoved=0, maxLayer=112, 
+                           edepLoosen=False, n_cell_per_layer=[]):
     #calculate the occupancy of non-neighbor cells
     #we will loop over all the cells and check if they have neighbors
     #a neightbor will be defined if there exists an occupancy index where (unique_layer_index +-0 or 1, nphi +- 0 or 1) exists
@@ -83,6 +84,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
         unique_layer_index = occupancy[i][0]
         nphi = occupancy[i][1]
         currentEdep = dicEdep[(unique_layer_index, nphi)]
+
         # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
         
         neighbors = False
@@ -290,7 +292,8 @@ def calculateOnlyNeighborsKDTree(occupancy :list[tuple], edep :list[tuple], radi
 def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_a_batch_edep, 
             dic_occupancies_per_batch_sum_batch_energy_dep_per_cell, 
             n_cell_per_layer, total_number_of_layers, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast,
-            max_n_cell_per_layer, cell_to_mcID, NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved, useKDTree=False):
+            max_n_cell_per_layer, cell_to_mcID, 
+            NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved, edepLoosen, useKDTree=False):
     """Generates all necessary occupancy data for a batch of events
 
     Args:
@@ -332,7 +335,8 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
                                                                                         radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast, 
                                                                                         maxnphi=max_n_cell_per_layer, edepRange=edepRange, edepAtLeast=edepAtLeast,
                                                                                         NoNeighborsRemoved=NoNeighborsRemoved, NeighborsRemained=NeighborsRemained,
-                                                                                        EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved)
+                                                                                        EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved, 
+                                                                                        edepLoosen=edepLoosen, n_cell_per_layer=n_cell_per_layer)
     else:
         # print("noKDTRee")
         occupancies_a_batch_only_neighbor_remain, only_neighbor_pos, occupancies_a_batch_only_neighbor_only_edep, \
@@ -341,7 +345,8 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
                                                                                         radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast, 
                                                                                         maxnphi=max_n_cell_per_layer, edepRange=edepRange, edepAtLeast=edepAtLeast,
                                                                                         NoNeighborsRemoved=NoNeighborsRemoved, NeighborsRemained=NeighborsRemained,
-                                                                                        EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved) 
+                                                                                        EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved, 
+                                                                                        edepLoosen=edepLoosen, n_cell_per_layer=n_cell_per_layer) 
     #for each batch, occupancies_a_batch_only_neighbor is a list of tuples but we will return a list of unique_layer_index
     for unique_layer_index in range(0, total_number_of_layers):
         batch_occupancy_only_neighbor.append(calculateOccupancy(occupancies_a_batch_only_neighbor_remain, unique_layer_index, n_cell_per_layer))
@@ -399,7 +404,7 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
             batch_occupancy_only_neighbor_only_edep, edep_only_neighbors, edep_only_neighbors_only_edep, cell_to_mcID_neighbors_only_edep, \
                 NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
     
-def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepRange=0.05, edepAtLeast=1, flexible=True):
+def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepRange=0.05, edepAtLeast=1, edepLoosen=False, flexible=True):
     print("Calculating occupancy data from files...")
     list_overlay = []
     # numfiles = 500
@@ -712,7 +717,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                                                                                     n_cell_per_layer, total_number_of_layers, 
                                                                                     radiusR, radiusPhi, atLeast, 
                                                                                     edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
+                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved,
+                                                                                    edepLoosen
                                                                                     )
                 cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
                 cell_fired_pos_per_batch.append(batch_cell_fired_pos)
@@ -754,7 +760,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                                                                                     n_cell_per_layer, total_number_of_layers, 
                                                                                     radiusR, radiusPhi, atLeast, 
                                                                                     edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
+                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved,
+                                                                                    edepLoosen
                                                                                     )
                 cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
                 cell_fired_pos_per_batch.append(batch_cell_fired_pos)
@@ -791,7 +798,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                                                                                     n_cell_per_layer, total_number_of_layers, 
                                                                                     radiusR, radiusPhi, atLeast, 
                                                                                     edepRange, edepAtLeast, max_n_cell_per_layer, cell_to_mcID,
-                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
+                                                                                    NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved,
+                                                                                    edepLoosen
                                                                                     )
             cellFiredPosNeighbors += batch_cell_fired_pos_neighbors
             cell_fired_pos_per_batch.append(batch_cell_fired_pos)
@@ -894,7 +902,8 @@ if __name__ == "__main__":
                         "\n-- radiusPhi(int): Default(-1)" +
                         "\n-- atLeast(int): Default(1)" +
                         "\n-- edepRange(float): Default(0.05)" + 
-                        "\n-- edepAtLeast(int): Default(1)",
+                        "\n-- edepAtLeast(int): Default(1)" +
+                        "\n-- edepLoosen(bool): Default(False)",
                         type=str, default="", nargs='+')
     args = parser.parse_args()
     
@@ -917,6 +926,8 @@ if __name__ == "__main__":
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]))
             elif args.calc[0] in typeFile and len(args.calc) == 7:
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
+            elif args.calc[0] in typeFile and len(args.calc) == 8:
+                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), bool(args.calc[7]))
             else:
                 parser.error("Invalid fileType")
         except ValueError as e:

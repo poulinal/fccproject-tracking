@@ -60,8 +60,18 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["oneDneighborPtN1"] = []
     dic["oneDneighborPDGN1"] = []
     
+    dic["removedNeighborsPt"] = []
+    dic["removedNeighborsPDG"] = []
+    dic["removedNeighborsEdepPt"] = []
+    dic["removedNeighborsEdepPDG"] = []
+    
     neighbor_dic = {} #dictionary to store neighbors
     neighborEdep_dic = {} #dictionary to store neighborEdep
+    
+    totalNeighborsRemoved = 0
+    totalNeighborsRemained = 0
+    totalNeighborsEdepRemoved = 0
+    totalNeighborsEdepRemained = 0
     
     
     #initialize the array of depth(numbatches) by width (nphi) by height (layers)
@@ -102,6 +112,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             
             #get the number of neighbors
             numNeighbors = 0
+            numEdepNeighbors = 0
             for dx in range(-radiusR, radiusR+1):
                 for dy in range(-radiusPhi, radiusPhi+1):
                     if dx == 0 and dy == 0:
@@ -126,6 +137,19 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             #went through all possible neighbors for current hit
             numNeighbors = len(neighbor_dic[(r, phi)])
             numEdepNeighbors = len(neighborEdep_dic[(r, phi)])
+            
+            if numNeighbors == 0:
+                dic["removedNeighborsPt"].append(pT_by_batch[i][j])
+                dic["removedNeighborsPDG"].append(pdg_by_batch[i][j])
+                totalNeighborsRemoved += 1
+            else:
+                totalNeighborsRemained += 1
+            if numEdepNeighbors == 0:
+                dic["removedNeighborsEdepPt"].append(pT_by_batch[i][j])
+                dic["removedNeighborsEdepPDG"].append(pdg_by_batch[i][j])
+                totalNeighborsEdepRemoved += 1
+            else:
+                totalNeighborsEdepRemained += 1
                         
                         
             # print(hist["byBatchNeighbors"][i].shape)
@@ -155,6 +179,11 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
 
     print("finished updating dictionary")
+    
+    print(f"Total neighbors removed: {totalNeighborsRemoved}")
+    print(f"Total neighbors remained: {totalNeighborsRemained}")
+    print(f"Total neighbors edep removed: {totalNeighborsEdepRemoved}")
+    print(f"Total neighbors edep remained: {totalNeighborsEdepRemained}")
 
 
     print(f"Saving dictionary to {output_dic_file_path}")

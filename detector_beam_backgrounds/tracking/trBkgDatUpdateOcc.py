@@ -522,6 +522,9 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     neighborPt = []  #will be a list of lists of tuple of (radiusR, radiusPhi, pt)
     neighborPDG = [] #list of lists of tuple of (radiusR, radiusPhi, pdg)
     
+    lowPt = [] #will be a list of lists of tuple of (radiusR, radiusPhi, pt)
+    highPt = [] #will be a list of lists of tuple of (radiusR, radiusPhi, pt)
+    
     NoNeighborsRemoved = 0
     NeighborsRemained = 0
     EdepNeighborsRemained = 0
@@ -567,6 +570,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                batch_low_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
+                batch_high_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
         
         
         numEvents = 0
@@ -591,6 +596,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                batch_low_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
+                batch_high_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 # numBatches = 0 #total batches should be numFiles * 10
                 
             if typeFile == "combined": #want to reset every 1 combined event since for each file, 10 signal events, each with 20 bkg events respectively
@@ -611,6 +618,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                batch_low_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
+                batch_high_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
         
             if typeFile == "combined":
                 dc_hits = event.get("NewCDCHHits")
@@ -624,6 +633,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 # print(f"Running over hit: {num_hit}")
                 mcParticleHit = dc_hit.getMCParticle()
                 index_mc = mcParticleHit.getObjectID().index
+                
                 
                 if index_mc not in all_mcID:
                     all_mcID.append(index_mc)
@@ -658,8 +668,14 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     
                     
                     mcParticle = EventMCParticles[int(index_mc)]
-                    batch_pt.append((radiusR, radiusPhi,  math.sqrt(mcParticle.getMomentum().x**2 + mcParticle.getMomentum().y**2)))
+                    pt = math.sqrt(mcParticle.getMomentum().x**2 + mcParticle.getMomentum().y**2)
+                    batch_pt.append((radiusR, radiusPhi,  pt))
                     batch_pdg.append((radiusR, radiusPhi, mcParticle.getPDG()))
+                    
+                    # if pt < 0.01:
+                    #     batch_low_pt.append((radiusR, radiusPhi, pt))
+                    # else:
+                    #     batch_high_pt.append((radiusR, radiusPhi, pt))
                     
                     
                     batch_cell_fired_pos.append((unique_layer_index, nphi))
@@ -682,13 +698,6 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                         # print(f"occupancies_a_batch_edep[index[0]]: {occupancies_a_batch_edep[index[0]]}")
                         occupancies_a_batch_edep[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep[index[0]][2] + dc_hit.getEDep()))
                     
-                    # #find where in edep per cell tuple the unique_layer_index is so that we can add the edep
-                    # index = [i for i, tup in enumerate(occupancies_a_batch_edep_per_cell) if tup[0] == unique_layer_index]
-                    # if len(index) == 0:
-                    #     print("Error: unique_layer_index not found in occupancy_a_batch_edep_per_cell")
-                    # else:
-                    #     occupancies_a_batch_edep_per_cell[index[0]] = ((unique_layer_index, nphi, occupancies_a_batch_edep_per_cell[index[0]][2] + dc_hit.getEDep()))
-                
                 # deal with the number of cell fired per particle
                 if index_mc not in dict_particle_n_fired_cell.keys(): # the particle was not seen yet
                     dict_particle_n_fired_cell[index_mc] = 1
@@ -732,6 +741,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
                 neighborPt.append(batch_pt)
                 neighborPDG.append(batch_pdg)
+                # lowPt.append(batch_low_pt)
+                # highPt.append(batch_high_pt)
                 
                 numBatches += 1
                 
@@ -775,6 +786,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
                 neighborPt.append(batch_pt)
                 neighborPDG.append(batch_pdg)
+                # lowPt.append(batch_low_pt)
+                # highPt.append(batch_high_pt)
                 
                 numBatches += 1
         ###end of event loop
@@ -813,6 +826,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
             neighborPt.append(batch_pt)
             neighborPDG.append(batch_pdg)
+            # lowPt.append(batch_low_pt)
+            # highPt.append(batch_high_pt)
             
             numBatches += 1
             
@@ -886,6 +901,11 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["total_number_of_layers"] = total_number_of_layers
     dic["max_n_cell_per_layer"] = max_n_cell_per_layer #this is max phi index!!!
 
+
+    print(f"No neighbors removed: {NoNeighborsRemoved}")
+    print(f"Neighbors remained: {NeighborsRemained}")
+    print(f"No edep neighbors removed: {NoEdepNeighborsRemoved}")
+    print(f"Edep neighbors remained: {EdepNeighborsRemained}")
 
     print(f"Saving dictionary to {output_dic_file_path}")
     np.save(output_dic_file_path, dic)

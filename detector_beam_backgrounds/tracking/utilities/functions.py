@@ -20,9 +20,11 @@ def percent_difference_error(a, b, sigma_a, sigma_b):
     return pd, sigma_pd
 
 def calcEfficiency(typeFile, hist):
-    if typeFile == "Bkg":
+    # if typeFile == "Bkg": #make efficiency same between signal and bkg
+    if typeFile == "":
         efficiency = round(hist["no_neighbors_removed"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
-    elif typeFile == "Signal":
+    # elif typeFile == "Signal":
+    if typeFile == "Signal" or typeFile == "Bkg":
         efficiency = round(hist["neighbors_remained"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
     else:
         efficiency = 0 #placeholder for combined

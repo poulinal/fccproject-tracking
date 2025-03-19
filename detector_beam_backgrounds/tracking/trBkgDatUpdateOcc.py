@@ -76,16 +76,35 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
     # print(f"dicEdep: {dicEdep}")
     # input("Press Enter to continue...")
     
+    # print(occupancy)
+    # input("Press Enter to continue...")
+
+    rangeR = radiusR
+    rangePhi = radiusPhi #copy them as may need to change later on
     
-    if radiusPhi == -1:
-        radiusPhi = radiusR
+    if rangePhi == -1:
+        rangePhi = rangeR
     # print(f"calculateNNOcc: {np.array(occupancy)}")
-    for i in range(0, len(occupancy)):
+    # print(f"rangeR: {rangeR}, rangePhi: {rangePhi}")
+    for i in range(0, len(occupancy)): #where i is the layer number
         unique_layer_index = occupancy[i][0]
         nphi = occupancy[i][1]
         currentEdep = dicEdep[(unique_layer_index, nphi)]
+        # print("batch: ", i)
+        # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
+        
+        superLayerIndex = (unique_layer_index - 1) // 8
 
         # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
+        
+        # print(superLayerIndex)
+        if edepLoosen and superLayerIndex > maxLayer / 8 / 2: #since 8 layers per superlayer
+            # print("edepLoosen")
+            atLeast = int(atLeast * 0.8)
+            rangeR = int(radiusR * 1.15)
+            rangePhi = int(radiusPhi * 1.15) #take into account the superlayer into the adjustment
+            # print(f"atLeast: {atLeast}, radiusR: {radiusR}, radiusPhi: {radiusPhi}")
+            # input("Press Enter to continue...")
         
         neighbors = False
         neighborsEdep = False
@@ -99,28 +118,35 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
             dicEdepNeighbors[(unique_layer_index, nphi)] = [] #setup dictionary for current cell's neighbors edep
         
 
-        
-        for dx in range(-radiusR, radiusR + 1):
+        # print("before dx")
+        for dx in range(-rangeR, rangeR + 1):
             # print(f"len(dicNeighbors): {len(dicNeighbors[(unique_layer_index, nphi)])} where atleast: {atLeast}")
             # print(f"len(dicEdepNeighbors): {len(dicEdepNeighbors[(unique_layer_index, nphi)])} where edepAtLeast: {edepAtLeast}")
-            # input("Press Enter to continue...")
+            # input("Press Enter to continue..."))
             if len(dicNeighbors[(unique_layer_index, nphi)]) >= atLeast and len(dicEdepNeighbors[(unique_layer_index, nphi)]) >= edepAtLeast: #have we already seen enough
                 neighbors = True
                 neighborsEdep = True
                 # print("able to skip")
                 break #skip if we have already seen enough neighbors and break out of dx loop
             
-            for dy in range(-radiusPhi, radiusPhi + 1):
+            for dy in range(-rangePhi, rangePhi + 1):
+                # print(f"dx: {dx}, dy: {dy}")
                 if dx == 0 and dy == 0: # Skip the center point
                     continue
                 if dx == 0:  #skip same layer
                     continue
-                if unique_layer_index + dx < 0 or unique_layer_index + dx >= maxLayer: #check boundaries ###fixx
-                    continue
-                
                 
                 cyclic_nphi = (nphi + dy) % maxnphi  # Wrap around for cyclic nphi #we will assume 180 for now
                 cyclic_unique_layer_index = unique_layer_index + dx
+                
+                if cyclic_unique_layer_index < 0 or cyclic_unique_layer_index >= maxLayer: #check boundaries ###fixx
+                    continue
+                
+                # print(f"cyclic_unique_layer_index: {cyclic_unique_layer_index}, cyclic_nphi: {cyclic_nphi}")
+                # input("Press Enter to continue...")
+                
+                
+                
                 if len(dicNeighbors[(unique_layer_index, nphi)]) < atLeast and (cyclic_unique_layer_index, cyclic_nphi) in setOccupancy and (cyclic_unique_layer_index, cyclic_nphi) not in dicNeighbors[(unique_layer_index, nphi)]: 
                     #not already over nieghbor atleast
                     #nieghbor exists (i.e. has been fired) (then assume also exists in edep)
@@ -182,112 +208,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
     
     #currently not returning NoNeighborsRemoved so its just a copy right now, the final value will not be correct
     return only_neighbors, only_neighbors_pos, only_neighbors_only_edep, only_neighbors_edep, only_neighbors_only_edep_edep, only_neighbors_only_edeps_pos, \
-        NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
-
-
-def build_kdtrees(list_of_A):
-    """Builds a KDTree for each sublist in list_of_A."""
-    return [KDTree(A) for A in list_of_A]
-
-def calculateOnlyNeighborsKDTree(occupancy :list[tuple], edep :list[tuple], radiusR=1, radiusPhi=-1, atLeast=1, maxnphi=180, edepRange=0.05, edepAtLeast=1, 
-                           NoNeighborsRemoved=0, NeighborsRemained=0, EdepNeighborsRemained=0, NoEdepNeighborsRemoved=0):
-    #calculate the occupancy of non-neighbor cells
-    #we will loop over all the cells and check if they have neighbors
-    #a neightbor will be defined if there exists an occupancy index where (unique_layer_index +-0 or 1, nphi +- 0 or 1) exists
-    #if they do, we will remove them from the list
-    #occupancy is a list of tuples (unique_layer_index, nphi)
-    #we will return a list of unique_layer_index
-    # print("calculateOnlyNeighbors")
-    only_neighbors = []
-    only_neighbors_pos = []
-    
-    # print(edep)
-    only_neighbors_edep = [] #edep of only neighbors
-    only_neighbors_only_edep = [] #occ of only neighbors within range of edep
-    only_neighbors_only_edep_edep = [] #edep of only neighbors within range of edep
-    only_neighbors_only_edeps_pos = []
-    # no_neighbors_removed_layers = []
-    # neighbors_remained_layers = []
-    if radiusPhi == -1:
-        radiusPhi = radiusR
-        
-    coords = np.array(occupancy)
-    kdTree = KDTree(coords)
-    energies = np.array([b[2] for b in edep])
-    
-    print(f"calculateNNOcc: {np.array(occupancy)}")
-    for i, (x, y) in enumerate(occupancy):
-        neighbors = False
-        neighborsEdep = False
-        unique_layer_index, nphi = occupancy[i]
-        # Find spatial neighbors within (x_range, y_range)
-        neighbors_idx = kdTree.query_ball_point((x, y), r=max(radiusR, radiusPhi))  # Get candidates
-        
-        # Extract neighbor coordinates
-        neighbor_coords = coords[neighbors_idx]
-        
-        neighbor_count = len(neighbors_idx)
-        
-        # Apply manual bounding box filtering (since KDTree uses a circular search)
-        valid_spatial = [
-            idx for idx, (nx, ny) in zip(neighbors_idx, neighbor_coords)
-            if abs(nx - x) <= radiusR and abs(ny - y) <= radiusPhi
-        ]
-        
-        # Energy filtering
-        valid_neighbors = [
-            idx for idx in valid_spatial
-            if abs(energies[idx] - energies[i]) <= edepRange
-        ]
-        
-        # Store count of valid neighbors
-        edepNeighbor_count = len(valid_neighbors)
-        
-        if neighbor_count >= atLeast:
-            neighbors == True
-            only_neighbors.append(unique_layer_index)
-            only_neighbors_pos.append((unique_layer_index, nphi))
-            only_neighbors_edep.append((unique_layer_index, nphi, edep[i][2])) #also should do edep for only neighbors only edep
-            # neighbors_remained_layers.append(unique_layer_index)
-            # global NeighborsRemained
-            if type(NoNeighborsRemoved) == int:
-                NeighborsRemained += 1
-            else:
-                NeighborsRemained.value += 1
-        else:
-            if type(NoNeighborsRemoved) == int:
-                NoNeighborsRemoved += 1
-            else:
-                NoNeighborsRemoved.value += 1
-            
-            
-        if edepNeighbor_count >= edepAtLeast:
-            neighborsEdep = True
-            only_neighbors_only_edeps_pos.append((unique_layer_index, nphi))
-            only_neighbors_only_edep.append(unique_layer_index)
-            only_neighbors_only_edep_edep.append((unique_layer_index, nphi, edep[i][2]))
-            # global EdepNeighborsRemained
-            if type(EdepNeighborsRemained) == int:
-                # print("int")
-                EdepNeighborsRemained += 1
-            else:
-                # print("manager")
-                EdepNeighborsRemained.value += 1
-        else:
-            # print("edepNoEdepNeighborsRemoved")
-            # global NoEdepNeighborsRemoved
-            if type(NoEdepNeighborsRemoved) == int:
-                # print("int")
-                NoEdepNeighborsRemoved += 1
-            else:
-                # print("manager")
-                NoEdepNeighborsRemoved.value += 1
-    
-    
-    #currently not returning NoNeighborsRemoved so its just a copy right now, the final value will not be correct
-    return only_neighbors, only_neighbors_pos, only_neighbors_only_edep, only_neighbors_edep, only_neighbors_only_edep_edep, only_neighbors_only_edeps_pos, \
-        NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved
-        
+        NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved    
         
 def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_a_batch_edep, 
             dic_occupancies_per_batch_sum_batch_energy_dep_per_cell, 
@@ -327,19 +248,7 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
     #now determine non-neighbor occupancy
     batch_occupancy_only_neighbor = []
     batch_occupancy_only_neighbor_only_edep = []
-    if useKDTree:
-        # print("Using KDTree")
-        occupancies_a_batch_only_neighbor_remain, only_neighbor_pos, occupancies_a_batch_only_neighbor_only_edep, \
-            edep_only_neighbors, edep_only_neighbors_only_edep, only_neighbor_only_edep_pos, \
-                NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved = calculateOnlyNeighborsKDTree(occupancies_a_batch_only_neighbor, occupancies_a_batch_edep, 
-                                                                                        radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast, 
-                                                                                        maxnphi=max_n_cell_per_layer, edepRange=edepRange, edepAtLeast=edepAtLeast,
-                                                                                        NoNeighborsRemoved=NoNeighborsRemoved, NeighborsRemained=NeighborsRemained,
-                                                                                        EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved, 
-                                                                                        edepLoosen=edepLoosen, n_cell_per_layer=n_cell_per_layer)
-    else:
-        # print("noKDTRee")
-        occupancies_a_batch_only_neighbor_remain, only_neighbor_pos, occupancies_a_batch_only_neighbor_only_edep, \
+    occupancies_a_batch_only_neighbor_remain, only_neighbor_pos, occupancies_a_batch_only_neighbor_only_edep, \
             edep_only_neighbors, edep_only_neighbors_only_edep, only_neighbor_only_edep_pos, \
                 NoNeighborsRemoved, NeighborsRemained, EdepNeighborsRemained, NoEdepNeighborsRemoved = calculateOnlyNeighbors(occupancies_a_batch_only_neighbor, occupancies_a_batch_edep,
                                                                                         radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast, 
@@ -417,8 +326,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic = {}
     #can change dic_file_path to the correct path:
     dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/noOcc/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #cernbox (to save storage)
-    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
-        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
+    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy" #cernbox (to save storage)
     occ_keys = ["list_n_cells_fired_mc", "max_n_cell_per_layer",
         "n_cell_per_layer", "total_number_of_cells", "total_number_of_layers", 
         "occupancy_per_batch_sum_batch_non_normalized", "occupancy_per_batch_sum_batch_non_normalized_error"
@@ -452,7 +361,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
         
 
     # print(f"typeFile: {typeFile}")
-    print(f"output_dic_file_path once finished will be: {output_dic_file_path}")
+    print(f"Output_dic_file_path once finished will be: {output_dic_file_path}")
     
     bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath = configure_paths(typeFile)
 
@@ -500,6 +409,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
     occupancies_per_batch_sum_batch_only_neighbor = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers))
     occupancies_per_batch_sum_batch_only_neighbors_only_edeps = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers))
+    
+    print(f"Number of batches: {occupancies_per_batch_sum_batch_only_neighbor.shape[0]} \n") #number of batches
     
     occupancies_per_batch_sum_batch_energy_dep = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers))
     dic_occupancies_per_batch_sum_batch_energy_dep_per_cell = {} #this will be a dictionary of np arrays
@@ -846,13 +757,13 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
     print("updating dictionary")
     #at this point we have filled the occupancy so there are 500 rows and 112 columns
-
+    ddofFactor = 0
     dic["occupancy_per_batch_sum_batches"] = np.mean(occupancies_per_batch_sum_batch, axis=0)
-    dic["occupancy_per_batch_sum_batches_error"] = np.std(occupancies_per_batch_sum_batch, axis=0)
+    dic["occupancy_per_batch_sum_batches_error"] = np.std(occupancies_per_batch_sum_batch, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch.shape[0])
     dic["occupancy_per_batch_sum_batches_non_meaned"] = occupancies_per_batch_sum_batch
 
     dic["occupancy_per_batch_sum_batches_only_neighbor"] = np.mean(occupancies_per_batch_sum_batch_only_neighbor, axis=0)
-    dic["occupancy_per_batch_sum_batches_only_neighbor_error"] = np.std(occupancies_per_batch_sum_batch_only_neighbor, axis=0)
+    dic["occupancy_per_batch_sum_batches_only_neighbor_error"] = np.std(occupancies_per_batch_sum_batch_only_neighbor, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_neighbor.shape[0])
     # print(f"no neighbors removed: {NoNeighborsRemoved}")
     # print(f"remained neighbors: {NeighborsRemained}")
     dic["no_neighbors_removed"] = NoNeighborsRemoved
@@ -863,7 +774,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["edep_neighbors_remained"] = EdepNeighborsRemained
     
     dic["occupancy_per_batch_sum_batches_only_neighbor_only_edep"] = np.mean(occupancies_per_batch_sum_batch_only_neighbors_only_edeps, axis=0)
-    dic["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"] = np.std(occupancies_per_batch_sum_batch_only_neighbors_only_edeps, axis=0)
+    dic["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"] = np.std(occupancies_per_batch_sum_batch_only_neighbors_only_edeps, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_neighbors_only_edeps.shape[0])
 
     #given the dictionary of key to list of edep, we will now mean the list of edep
     dic["dic_occupancy_per_batch_sum_batches_energy_dep"] = {}
@@ -875,12 +786,12 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["energy_dep_per_cell_per_batch_only_neighbors_only_edeps"] = energy_dep_per_cell_per_batch_only_neighbors_only_edeps
         
     dic["occupancy_per_batch_sum_batches_only_bkg"] = np.mean(occupancies_per_batch_sum_batch_only_bkg, axis=0)
-    dic["occupancy_per_batch_sum_batches_only_bkg_error"] = np.std(occupancies_per_batch_sum_batch_only_bkg, axis=0)
+    dic["occupancy_per_batch_sum_batches_only_bkg_error"] = np.std(occupancies_per_batch_sum_batch_only_bkg, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_bkg.shape[0])
     dic["occupancy_per_batch_sum_batches_only_signal"] = np.mean(occupancies_per_batch_sum_batch_only_signal, axis=0)
-    dic["occupancy_per_batch_sum_batches_only_signal_error"] = np.std(occupancies_per_batch_sum_batch_only_signal, axis=0)
+    dic["occupancy_per_batch_sum_batches_only_signal_error"] = np.std(occupancies_per_batch_sum_batch_only_signal, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_signal.shape[0])
 
     dic["occupancy_per_batch_sum_batch_avg_energy_dep"] = np.mean(occupancies_per_batch_sum_batch_energy_dep, axis=0)
-    dic["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = np.std(occupancies_per_batch_sum_batch_energy_dep, axis=0)
+    dic["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = np.std(occupancies_per_batch_sum_batch_energy_dep, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_energy_dep.shape[0])
     dic["cell_fired_pos"] = cellFiredPos
     dic["cell_fired_pos_neighbors"] = cellFiredPosNeighbors
     dic["cell_fired_pos_by_batch"] = cell_fired_pos_per_batch
@@ -947,7 +858,8 @@ if __name__ == "__main__":
             elif args.calc[0] in typeFile and len(args.calc) == 7:
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
             elif args.calc[0] in typeFile and len(args.calc) == 8:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), bool(args.calc[7]))
+                boolArg = True if args.calc[7] == "True" else False
+                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), boolArg)
             else:
                 parser.error("Invalid fileType")
         except ValueError as e:

@@ -29,6 +29,40 @@ def calcEfficiency(typeFile, hist):
     else:
         efficiency = 0 #placeholder for combined
     return efficiency
+
+def calcBinomError(subsetHist, hist, subsetHistError, histError, inPercent=True):
+    #calculate binomial error based off TH1:Divide
+    resultEfficiency = []
+    resultEfficiencyError = []
+    c1 = 1
+    c2 = 1 #placeholder for weights
+    if len(subsetHist) != len(hist):
+        print("Error: subsetHist and hist must be the same length")
+        return None
+    for i in range(len(subsetHist)):
+        b1 = subsetHist[i]
+        b2 = hist[i]
+        if b2: #if b2 is not zero
+            resultEfficiency.append(b1 * c1 / b2 * c2) #use if weights
+        else:
+            resultEfficiency.append(0)
+        
+        #get error
+        if b2 == 0:
+            resultEfficiencyError.append(0)
+            continue
+        b1sq = b1 * b1
+        b2sq = b2 * b2
+        c1sq = c1 * c1
+        c2sq = c2 * c2
+        e1sq = subsetHistError[i] * subsetHistError[i]
+        e2sq = histError[i] * histError[i]
+        if b1 != b2:
+            resultEfficiencyError.append(abs((1 - 2 * b1 / b2) * e1sq + b1sq * e2sq / b2sq) / b2sq)
+        else:
+            resultEfficiencyError.append(0)
+    return resultEfficiency, resultEfficiencyError
+    
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
               xLabel="", yLabel="Events", logY=False, logX=False, 
@@ -95,8 +129,10 @@ def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
         axe.set_xlabel(xLabel)
         axe.set_ylabel(yLabel)
         if includeGrid:
-            axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
-            axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
+            axe.grid(which='both')  # Enable both major and minor grid lines
+            axe.minorticks_on()  # Enable minor ticks
+            axe.grid(which='major', linestyle='--', alpha=0.6)  # Dashed grid with transparency
+            axe.grid(which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
         
         if includeLegend:
             axe.legend(fontsize='x-small')
@@ -412,7 +448,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print("Beginning to xy plot...")
     if scatter:
         if errorBars:
-            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker='_')
+            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker='.', markersize=4)#marker='_')
         else:
             if color == "":
                 axe.scatter(x, y, label=label)
@@ -435,8 +471,11 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         axe.set_ylabel(yLabel)
         
         if includeGrid:
-                axe.grid(True, linestyle='--', alpha=0.6)  # Dashed grid with transparency
-                axe.grid(True, which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
+            # print("including grid")
+            axe.grid(which='both')  # Enable both major and minor grid lines
+            axe.minorticks_on()  # Enable minor ticks
+            axe.grid(which='major', linestyle='--', alpha=0.6)  # Dashed grid with transparency
+            axe.grid(which='minor', linestyle=':', alpha=0.4)  # Minor grid (dotted)
                 
         if logY:
             axe.set_yscale("log")

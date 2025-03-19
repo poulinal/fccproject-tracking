@@ -2,7 +2,7 @@
 import ROOT
 import numpy as np 
 from utilities.functions import hist_plot, multi_hist_plot, \
-    bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot, heatmap, hist2d, percent_difference_error, calcEfficiency
+    bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot, heatmap, hist2d, percent_difference_error, calcEfficiency, calcBinomError
 from utilities.pltWireCh import plot_wire_chamber
 import argparse
 import sys
@@ -53,13 +53,16 @@ dicbkg = {}
 # imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test/" #mit-submit
 imageOutputPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/images/lxplus/" #lxplus
 numFiles = 0
+glBkgNumFiles = 0
+imageOutputCommonEnd = "" #only gets changed in setup
+imageOutputEdepCommonEnd = "" #only gets changed in setup
 
 
 #change to personal directories in here:
 def setup(typefile: str ="Bkg", includeBkg: bool =False, 
           numfiles=500, radiusR=1, radiusPhi=1, atLeast=1,
           edepRange=-1, edepAtLeast=-1,
-          bkgNumFiles=500, bkgRadiusR=1, bkgRadiusPhi=1, bkgAtLeast=1):
+          bkgNumFiles=500, bkgRadiusR=1, bkgRadiusPhi=1, bkgAtLeast=1, edepLoosen = -1, bkgEdepLoosen = -1):
     """
         Setups the file paths and outputs.
         Data paths will lead to either the background or signal data or their combined files (not yet tested).
@@ -101,17 +104,17 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         Return: no return, just updates the global dictionary dic
     """
     if edepRange != -1 and edepAtLeast != -1:
-        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/bkg_background_particles_" + str(numfiles)  + "_v6" + \
-            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
-        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/bkg_background_particles_" + str(bkgNumFiles) + \
+        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy" #cernbox (to save storage)
+        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(bkgNumFiles) + \
             "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + ".npy"
+                "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
         combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/combined_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + ".npy"
-        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/signal_background_particles_" + str(numfiles) + \
+        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/signal_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + ".npy"
+                "_EAL" + str(edepAtLeast)  + "_EL" + str(int(edepLoosen))+ ".npy"
     else:
         backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #lxplus
         dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(bkgNumFiles) + "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + ".npy"
@@ -139,6 +142,13 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
     typeFile = typefile
     global numFiles
     numFiles = numfiles
+    global glBkgNumFiles
+    glBkgNumFiles = bkgNumFiles
+    
+    global imageOutputCommonEnd
+    imageOutputCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png"
+    global imageOutputEdepCommonEnd
+    imageOutputEdepCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + "EL" + str(int(edepLoosen)) + ".png"
     # print(f"Setup complete for {typeFile} data")
     return dic, dicbkg
 
@@ -1160,16 +1170,11 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         layers = [i for i in range(0, hist["total_number_of_layers"])]
         ratioDiff = []
         ratioDiffError = []
-        print(f"len(hist[occupancy_per_batch_sum_batches]): {len(hist['occupancy_per_batch_sum_batches'])}")
-        print(f"len(histNeighbor[occupancy_per_batch_sum_batches_only_neighbor_only_edep]): {len(histNeighbor['occupancy_per_batch_sum_batches_only_neighbor_only_edep'])}")
-        for i in range(0, len(hist["occupancy_per_batch_sum_batches"])):
-            # print(f"layer: {i}")
-            # print(f"histNeighbor[occupancy_per_batch_sum_batches_only_neighbor_only_edep][i]: {histNeighbor['occupancy_per_batch_sum_batches_only_neighbor_only_edep'][i]}")
-            # print(f"hist[occupancy_per_batch_sum_batches][i]: {hist['occupancy_per_batch_sum_batches'][i]}")
-            ratioDiff.append(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] / hist["occupancy_per_batch_sum_batches"][i] * 100)
-            ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"][i] / histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] )**2 
-                                                         + (hist["occupancy_per_batch_sum_batches_error"][i] / hist["occupancy_per_batch_sum_batches"][i])**2))
-            # percentDiff.append(( (abs(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] - hist["occupancy_per_batch_sum_batches"][i])) / (hist["occupancy_per_batch_sum_batches"][i] + histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] / 2) ) * 100)
+        # for i in range(0, len(hist["occupancy_per_batch_sum_batches"])):
+            # ratioDiff.append(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] / hist["occupancy_per_batch_sum_batches"][i] * 100)
+            # ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"][i] / histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] )**2 
+            #                                              + (hist["occupancy_per_batch_sum_batches_error"][i] / hist["occupancy_per_batch_sum_batches"][i])**2))
+        ratioDiff, ratioDiffError = calcBinomError(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], hist["occupancy_per_batch_sum_batches"], histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], hist["occupancy_per_batch_sum_batches_error"])
         # print(f"remained: {histNeighbor['neighbors_remained']}")
         # print(f"removed: {histNeighbor['no_neighbors_removed']}")
         eff = calcEfficiency(typeFile, histNeighbor)
@@ -1177,7 +1182,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                 imageOutputPath + "occupancy" + str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png",
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
-                includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError)
+                includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError, includeGrid=True)
         
     if args == "occupancy-onlyNeighbors-percdiff" or args == "": #percent diff
         histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor")
@@ -1217,6 +1222,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         batch = "20 BKG File Batch"
     elif typeFile == "Signal":
         batch = "1 Signal File Batch"
+        batchBkg = "20 BKG File Batch"
         
     if args == "avg-energy-deposit" or args == "":
         hist = occupancy(dic, "avg_energy_deposit")
@@ -1260,9 +1266,10 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         edepHist = {}
         edepHist["Signal"] = energy1d
         edepHist["Bkg"] = energy1dbkg
+        global glBkgNumFiles
         multi_hist_plot(edepHist, imageOutputPath + "multiEnergyDeposit1dLogY"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
-                        "Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)", 
-                        xLabel="Energy Deposited (MeV)", yLabel="Count of Cells", density=True,
+                        "Energy Deposit Across Each " + batch + " (" + str(numFiles) + " Files) \nand Each " + batchBkg + " (" + str(glBkgNumFiles) + " Files)", 
+                        xLabel="Energy Deposited (MeV)", yLabel="Count of Cells (Density)", density=True,
                         logY=True, binType="exp", binLow=0.0001, binHigh=high, binSteps=0.1)
         
     if args == "energy-deposit-one-batch" or args == "":
@@ -1653,13 +1660,25 @@ def genPlot(inputArgs):
                     atLeast=inputArgs[5]
                     edepRange=inputArgs[6] if len(inputArgs) > 6 else 0
                     edepAtLeast=inputArgs[7] if len(inputArgs) > 7 else 0
-                    if len(inputArgs) > 8:
+                    if len(inputArgs) > 8 and (inputArgs[8] == "True" or inputArgs[8] == "False"):
                         includeBkg = bool(inputArgs[8])
                         bkgNumFiles = inputArgs[9] if len(inputArgs) > 9 else 500
                         bkgRadiusR = inputArgs[10] if len(inputArgs) > 10 else 1
                         bkgRadiusPhi = inputArgs[11] if len(inputArgs) > 11 else 1
                         bkgAtLeast = inputArgs[12] if len(inputArgs) > 12 else 1
                         dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast)
+                    elif len(inputArgs) > 8 and inputArgs[8].isdigit():
+                        edepLoosen = bool(int(inputArgs[8]))
+                        includeBkg = bool(inputArgs[9]) if len(inputArgs) > 9 else False
+                        bkgNumFiles = inputArgs[10] if len(inputArgs) > 10 else 500
+                        # bkgRadiusR = inputArgs[11] if len(inputArgs) > 11 else 1
+                        # bkgRadiusPhi = inputArgs[12] if len(inputArgs) > 12 else 1
+                        # bkgAtLeast = inputArgs[13] if len(inputArgs) > 13 else 1
+                        bkgRadiusR = radiusR
+                        bkgRadiusPhi = radiusPhi
+                        bkgAtLeast = atLeast
+                        bkgEdepLoosen = edepLoosen
+                        dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast, edepLoosen, bkgEdepLoosen)
                     elif len(inputArgs) > 7:
                         dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
                     else: 
@@ -1778,6 +1797,7 @@ parser.add_argument('--plot', help="Inputs... \n-- plotType(str): " +
                     "\n-- atLeast(int): Default(1)" +
                     "\n-- edepRange(int): Default(1)" +
                     "\n-- edepAtLeast(int): Default(1)" +
+                    "\n-- edepLoosen(int): Default(0)" +
                     "\n-- includeBkg(optional: Bool): [True] [False]" +
                     "\n-- includeBkgNumFiles(optional: int): Default(500)" +
                     "\n-- includeBkgRadiusR(optional: int): Default(1)" +

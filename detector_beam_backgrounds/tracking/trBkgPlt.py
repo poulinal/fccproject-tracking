@@ -597,7 +597,7 @@ def occupancy(dic, args = ""):
         #     print(f"edepdic: {edepdic[i]}")
         #     hist["energy_deposit_per_batch"][edepdic[i][0], edepdic[i][1]] = edepdic[i][2]
         # print(f"hist: {hist['energy_deposit_per_batch']}")
-        hist["energy_deposit_per_batch"] = edepdic
+        hist["energy_deposit_one_batch"] = edepdic
         
     if args == "energy_dep_per_cell_per_batch_only_neighbors" or args == "":
         edepdic = dic["energy_dep_per_cell_per_batch_only_neighbors"][0]
@@ -706,25 +706,25 @@ def hitPosition(dic, args=""):
             "All" -- a list of all hit's position \n
     """
     hist = {}
-    hist["All"] = []
-    hist["posByBatch"] = []
-    hist["oneDbyBatchNeighbors"] = []
-    hist["oneDneighborPtN1"] = []
-    hist["oneDneighborPDGN1"] = []
-    hist["byBatchNeighbors"] = []
-    hist["byBatchNeighborsAvg"] = []
-    hist["byBatchNeighborsMedian"] = []
     
     if args == "All" or args == "":
+        hist["All"] = []
         dic_pos = dic["cell_fired_pos"] #a tuple of (r, phi) for each cell_fired/hit
         hist["All"] = dic_pos
         
     if args == "posByBatch" or args == "":
+        hist["posByBatch"] = []
         dic_pos_by_batch = dic["cell_fired_pos_by_batch"]
         hist["posByBatch"] = dic_pos_by_batch[0] #just get the first batch
         
         
     if args == "byBatchNeighbors" or args == "":
+        hist["oneDbyBatchNeighbors"] = []
+        # hist["oneDneighborPtN1"] = []
+        # hist["oneDneighborPDGN1"] = []
+        hist["byBatchNeighbors"] = []
+        hist["byBatchNeighborsAvg"] = []
+        hist["byBatchNeighborsMedian"] = []
         #we basically want to get a r,phi map where each element is the number of neighbhors (averaged across batches)
         pos_by_batch = dic["cell_fired_pos_by_batch"] #a list of tuples of (r, phi) for each cell_fired/hit
         pT_by_batch = dic["neighborPt_by_batch"] #a list of mcParticle indexes for each cell_fired/hit
@@ -733,8 +733,8 @@ def hitPosition(dic, args=""):
         hist["oneDbyBatchNeighbors"] = dic["oneDbyBatchNeighbors"]
         hist["oneDbyBatchNeighborsEdep"] = dic["oneDbyBatchNeighborsEdep"]
         
-        hist["oneDneighborPtN1"] = dic["oneDneighborPtN1"]
-        hist["oneDneighborPDGN1"] = dic["oneDneighborPDGN1"]
+        # hist["oneDneighborPtN1"] = dic["oneDneighborPtN1"]
+        # hist["oneDneighborPDGN1"] = dic["oneDneighborPDGN1"]
         # print(hist["byBatchNeighbors"].shape)
         #average across the depth (aka the batches)
         hist["byBatchNeighborsAvg"] = np.mean(hist["byBatchNeighbors"], axis=0)
@@ -745,10 +745,39 @@ def hitPosition(dic, args=""):
         hist["oneDRemovedNeighborPDG"] = dic["removedNeighborsPDG"]
         hist["oneDRemovedNeighborPt"] = dic["removedNeighborsPt"]
         
-        # print(hist["byBatchNeighbors"].shape)
+    if args == "pdg_low_high_pt" or args == "":
+        pT_by_batch = dic["neighborPt_by_batch"]
+        pdg_by_batch = dic["neighborPDG_by_batch"]
+        hist["dic_pdg_low_pt"] = {}
+        hist["dic_pdg_high_pt"] = {}
+        pt = []
+        # print(len(pT_by_batch))
+        for i in range(0, len(pT_by_batch)):
+            for j in range(0, len(pT_by_batch[i])):
+                pt.append(pT_by_batch[i][j][2])
+        median_pt = np.median(pt, axis=0)
+        for batch in range(0, len(pdg_by_batch)):
+            for hit in range(0, len(pdg_by_batch[batch])):
+                if pT_by_batch[batch][hit][2] < median_pt:
+                    if str(pdg_by_batch[batch][hit][2]) in hist["dic_pdg_low_pt"]:
+                        hist["dic_pdg_low_pt"][str(pdg_by_batch[batch][hit][2])] += 1
+                    else:
+                        hist["dic_pdg_low_pt"][str(pdg_by_batch[batch][hit][2])] = 1
+                else:
+                    if str(pdg_by_batch[batch][hit][2]) in hist["dic_pdg_high_pt"]:
+                        hist["dic_pdg_high_pt"][str(pdg_by_batch[batch][hit][2])] += 1
+                    else:
+                        hist["dic_pdg_high_pt"][str(pdg_by_batch[batch][hit][2])] = 1
+        
+        # print(hist)
+        # #print sum of all pdg's
+        # print(f"sum of low pt pdg: {sum(hist['dic_pdg_low_pt'].values())}")
+        # print(f"sum of high pt pdg: {sum(hist['dic_pdg_high_pt'].values())}")
+        # print(f"sum of all pdg: {sum(hist['dic_pdg_low_pt'].values()) + sum(hist['dic_pdg_high_pt'].values())}")
+
     return hist
 
-def plot3dPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plot3dPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     plt.ion()
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
@@ -854,7 +883,7 @@ def plot3dPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edep
     ax.set_xlim(-3000, 3000)
     # fig.savefig(imageOutputPath + "3D" + str(typeFile) + "MC00TrajSphereE" + str(numEventsCutoff) + "P" + str(numParticlesCutoff), bbox_inches="tight")
 
-def plotMomentum(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotMomentum(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the momentum of all particles.
     
@@ -939,7 +968,7 @@ def plotMomentum(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist = momPerMC(dic, "multiHits")
         multi_hist_plot(hist, imageOutputPath + "momentum" + str(typeFile) + "MC" + str(numFiles) + "MultiHitsLoggedx.png", "Momentum of " + str(typeFile) + " MC particles with hits (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
     
-def plotPDG(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotPDG(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the PDG of all particles.
     
@@ -966,9 +995,10 @@ def plotPDG(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0
     if args == "pdg-gen" or args == "":
         hist = PDGPerMC(dic, "gen")
         bar_plot("MC Particles", hist["all"], imageOutputPath + "pdgGeneratorStatus" + str(typeFile) + "MC" + str(numFiles) + ".png", "Primary or Secondary " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles", rotation=80, save=False, label="All Particles")
-        multi_bar_plot("MC Particles", hist, imageOutputPath + "pdgElectronGeneratorStatus" + str(typeFile) + "MC" + str(numFiles) + ".png", "Primary or Secondary for Electron " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles")
+        print("This function needs to be updated...")
+        # multi_bar_plot("MC Particles", hist, imageOutputPath + "pdgElectronGeneratorStatus" + str(typeFile) + "MC" + str(numFiles) + ".png", "Primary or Secondary for Electron " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles")
 
-def plotHits(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotHits(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the number of hits of all particles.
     
@@ -1001,7 +1031,7 @@ def plotHits(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         multi_hist_plot(hist, imageOutputPath + "hitsElectron" + str(typeFile) + "MC" + str(numFiles) + ".png", "Hits of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True, contrast=True)
         multi_hist_plot(hist, imageOutputPath + "hitsElectronZoomed" + str(typeFile) + "MC" + str(numFiles) + ".png", "Hits of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", logY=True)
 
-def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the overlay of the background and signal hits.
     
@@ -1036,7 +1066,7 @@ def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
         histBkg["Photon Particles Signal"] = histSignal["Only Photons"]
         multi_hist_plot(histBkg, imageOutputPath + "hitsPhotonDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
 
-def plotMomOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotMomOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the overlay of the background and signal momentum.
     
@@ -1061,7 +1091,7 @@ def plotMomOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edep
         histBkg["All Particles Signal"] = histSignal["all"]
         multi_hist_plot(histBkg, imageOutputPath + "ptmomSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "pT of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="pT (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
 
-def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the occupancy of the detector.
     
@@ -1216,7 +1246,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_signal_error"])
         
       
-def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     batch = ""
     if typeFile == "Bkg":
         batch = "20 BKG File Batch"
@@ -1282,8 +1312,25 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatch"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
-                  binSize=100, cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8)), pdf=True)
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                #   binSize=100,
+                  binSizeX=812, binSizeY=112,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(58, 8)), pdf=False)
+        
+    if args == "energy-deposit-one-batch-squished" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch")
+        #get all the first values in the tuple:
+        r = [v[0] for v in hist["energy_deposit_one_batch"]]
+        phi = [v[1] for v in hist["energy_deposit_one_batch"]]
+        edep = [v[2] for v in hist["energy_deposit_one_batch"]] #in gev
+        edep = [i * 1000 for i in edep] #convert to mev
+        hist2d(phi, r,
+                  imageOutputPath + "energyDepositOneBatch"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  binSize=100,
+                #   binSizeX=812, binSizeY=112,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(58, 8)), pdf=False)
         
     if args == "energy-deposit-one-batch-only-neighbors" or args == "":
         hist = occupancy(dic, "energy_dep_per_cell_per_batch_only_neighbors")
@@ -1371,7 +1418,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8), dpi=100))
         
         
-def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the wire chamber.
     
@@ -1384,7 +1431,7 @@ def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
         hist = occupancy(dic, "cells_per_layer")
         plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamberFirstQuad" + ".png", title="", firstQuadrant=True)
     
-def plotHitRadius(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0):
+def plotHitRadius(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the hit radius of all particles.
 
@@ -1465,13 +1512,20 @@ def plotHitRadius(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                         "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
                         xLabel="Radius (mm)", yLabel="Count MC particles", includeLegend=False, label="", scatter=False, figure=fig, axe=ax, save=save, color="yellow")
   
-def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0): 
+def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0): 
     """Plot the hit position of all particles in terms of R and Phi
     
     Keyword arguments:
     argument -- description
     Return: return_description
     """
+    batch = ""
+    if typeFile == "Bkg":
+        batch = "20 BKG File Batch"
+    elif typeFile == "Signal":
+        batch = "1 Signal File Batch"
+        batchBkg = "20 BKG File Batch"
+        
     if args == "hitPosition-all" or args == "":
         hist = hitPosition(dic, "All") #a tuple of (R, Phi)
         #plot 2d histogram
@@ -1487,8 +1541,8 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
         radiusPhi = [Phi[1] for lst in hist.values() for Phi in lst]
         print(hist)
         hist2d(radiusPhi, radiusR, imageOutputPath + "hitPosition" + str(typeFile) + "MC" + str(numFiles) + "OneBatch.png",
-                "Hit Position of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)",
-                yLabel="Cell Layer Index", xLabel="Phi Index", colorbarLabel="Number of Hits", binSize=100, figure=plt.figure(figsize=(10, 8)), cmap="viridis")
+                "Hit Position of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", pdf=False,
+                yLabel="Cell Layer Index", xLabel="Phi Index", colorbarLabel="Number of Hits", binSize=200, figure=plt.figure(figsize=(10, 8)), cmap="viridis")
         
     if args == "hitPosition-avgNeighbors" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors") #a tuple of (R, Phi, numNeighbors)
@@ -1511,16 +1565,18 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
     if args == "hitPosition-Neighbors" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors")
         #plot 1d histogram
+        high = max(hist['oneDbyBatchNeighbors'])
+        # high = 20
         hist_plot(hist["oneDbyBatchNeighbors"], 
                   imageOutputPath + "hitPositionNeighbors" + str(typeFile) + "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + ".png",
                   "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) with R" + str(radiusR) + "P" + str(radiusPhi), 
-                  xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0.1, binHigh=max(hist['oneDbyBatchNeighbors']), binSteps=1, binType="lin")
+                  xLabel="Number of Neighbors", yLabel="Count Cells Fired", binLow=0.1, binHigh=high, binSteps=1, binType="lin")
         
     if args == "hitPosition-NeighborsEdep" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors")
         #plot 1d histogram
-        # high = max(hist['oneDbyBatchNeighborsEdep'])
-        high = 10
+        high = max(hist['oneDbyBatchNeighborsEdep'])
+        high = 50
         hist_plot(hist["oneDbyBatchNeighborsEdep"],
                     imageOutputPath + "hitPositionNeighborsEdep" + str(typeFile) + "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "ER" + str(edepRange) + ".png",
                     "Number of Neighbors for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) \n" + 
@@ -1595,6 +1651,19 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
                     "pT Given only 1 Neighbor for " + str(typeFile) + " MC particles (" + str(numFiles) + " Files) with R" + str(radiusR) + "P" + str(radiusPhi)+ "AL" + str(atLeast) ,
                     xLabel="pT (GeV)", yLabel="Count Cells Fired", binLow=0.00000001, binHigh=max(pt), binSteps=0.3, binType="exp")
      
+    if args == "multi-hitPosition-lowHighPtPDG" or args == "":
+        hist = hitPosition(dic, "pdg_low_high_pt")
+        #get the all the third values in the tuple:
+        # pdgLow = hist["dic_pdg_low_pt"] #in gev
+        # pdgHigh = [v[2] for v in hist["pdg_high_pt"]]
+        # hist = {k: v for k, v in hist.items() if v}
+        # histPDG["Low Pt"] = hist["dic_pdg_low_pt"]
+        # histPDG["High Pt"] = hist["dic_pdg_high_pt"]
+        
+        multi_bar_plot(hist,
+                    imageOutputPath + "PDGforLowHighPt"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
+                    "PDG for pT \nEach " + batch + " (" + str(numFiles) + " Files)", rotation=90, includeLegend=True, filled=False,
+                    xLabel="PDG", yLabel="Count of Cells", logY=True)
     
 def plotAll(dic, dicbkg, args=""):
     """
@@ -1731,6 +1800,7 @@ def genPlot(inputArgs):
         "energy-deposit": plotEdep,
         "energy-deposit-1d": plotEdep,
         "energy-deposit-one-batch": plotEdep,
+        "energy-deposit-one-batch-squished": plotEdep,
         "energy-deposit-one-batch-only-neighbors": plotEdep,
         "energy-deposit-one-batch-only-neighbors-only-edep": plotEdep,
         "energy-deposit-one-batch-high-pt": plotEdep,
@@ -1751,13 +1821,14 @@ def genPlot(inputArgs):
         "hitPosition-PDGneighbors": plotHitPosition,
         "hitPosition-pTneighbors": plotHitPosition,
         "hitPosition-removedPdgNeighborsEdep": plotHitPosition,
-        "hitPosition-removedPtNeighborsEdep": plotHitPosition
+        "hitPosition-removedPtNeighborsEdep": plotHitPosition,
+        "multi-hitPosition-lowHighPtPDG": plotHitPosition
     }
     
 
     # Execute the corresponding function if the key exists
     if typePlot in function_map:
-        function_map[typePlot](dic, dicbkg, typePlot, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)  # Calls func_b()
+        function_map[typePlot](dic, dicbkg, typePlot, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, edepLoosen)  # Calls func_b()
         print(f"Saving to: {imageOutputPath}")
     else:
         print("No match found")
@@ -1779,7 +1850,7 @@ typePlots = ["", "all",
                 "avg-energy-deposit",
                 "only-combined-occupancy-BatchedBatch", "occupancy-onlyNeighbors-diff", "occupancy-onlyNeighbors-percdiff",
                 "occupancy-onlyNeighbors-onlyEdeps-diff",
-                "energy-deposit", "energy-deposit-1d", "energy-deposit-one-batch", 
+                "energy-deposit", "energy-deposit-1d", "energy-deposit-one-batch", "energy-deposit-one-batch-squished",
                 "energy-deposit-one-batch-only-neighbors", "energy_dep_per_cell_per_batch_only_neighbors_only_edeps",
                 "energy-deposit-one-batch-high-pt", "energy-deposit-one-batch-low-pt", "energy-deposit-1d-low-high-pt",
                 "multi-energy-deposit-1d",

@@ -79,11 +79,11 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
     # print(occupancy)
     # input("Press Enter to continue...")
 
-    rangeR = radiusR
-    rangePhi = radiusPhi #copy them as may need to change later on
+    # rangeR = radiusR
+    # rangePhi = radiusPhi #copy them as may need to change later on
     
-    if rangePhi == -1:
-        rangePhi = rangeR
+    if radiusPhi == -1:
+        radiusPhi = radiusR
     # print(f"calculateNNOcc: {np.array(occupancy)}")
     # print(f"rangeR: {rangeR}, rangePhi: {rangePhi}")
     for i in range(0, len(occupancy)): #where i is the layer number
@@ -98,13 +98,26 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
         # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
         
         # print(superLayerIndex)
-        if edepLoosen and superLayerIndex > maxLayer / 8 / 2: #since 8 layers per superlayer
+        neighborAtLeast = atLeast
+        edepNeighborAtLeast = edepAtLeast
+        rangeR = radiusR
+        rangePhi = radiusPhi
+        if edepLoosen and superLayerIndex > maxLayer / 8 / 2: #since 8 layers per superlayer; start loosening after half
+            layerSinceHalf = superLayerIndex - maxLayer / 8 / 2
             # print("edepLoosen")
-            atLeast = int(atLeast * 0.8)
-            rangeR = int(radiusR * 1.15)
-            rangePhi = int(radiusPhi * 1.15) #take into account the superlayer into the adjustment
+            neighborAtLeast = int(atLeast * pow(0.99, layerSinceHalf))
+            edepNeighborAtLeast = int(edepAtLeast * pow(0.99, layerSinceHalf))
+            # edepNeighborAtLeast = edepAtLeast
+            # rangeR = int(radiusR * pow(1.15, layerSinceHalf))
+            rangePhi = int(radiusPhi * pow(1.05, layerSinceHalf)) #take into account the superlayer into the adjustment
+            
             # print(f"atLeast: {atLeast}, radiusR: {radiusR}, radiusPhi: {radiusPhi}")
             # input("Press Enter to continue...")
+        # else:
+        #     neighborAtLeast = atLeast
+        #     edepNeighborAtLeast = edepAtLeast
+        #     rangeR = radiusR
+        #     rangePhi = radiusPhi
         
         neighbors = False
         neighborsEdep = False
@@ -123,7 +136,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
             # print(f"len(dicNeighbors): {len(dicNeighbors[(unique_layer_index, nphi)])} where atleast: {atLeast}")
             # print(f"len(dicEdepNeighbors): {len(dicEdepNeighbors[(unique_layer_index, nphi)])} where edepAtLeast: {edepAtLeast}")
             # input("Press Enter to continue..."))
-            if len(dicNeighbors[(unique_layer_index, nphi)]) >= atLeast and len(dicEdepNeighbors[(unique_layer_index, nphi)]) >= edepAtLeast: #have we already seen enough
+            if len(dicNeighbors[(unique_layer_index, nphi)]) >= neighborAtLeast and len(dicEdepNeighbors[(unique_layer_index, nphi)]) >= edepNeighborAtLeast: #have we already seen enough
                 neighbors = True
                 neighborsEdep = True
                 # print("able to skip")
@@ -147,7 +160,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
                 
                 
                 
-                if len(dicNeighbors[(unique_layer_index, nphi)]) < atLeast and (cyclic_unique_layer_index, cyclic_nphi) in setOccupancy and (cyclic_unique_layer_index, cyclic_nphi) not in dicNeighbors[(unique_layer_index, nphi)]: 
+                if len(dicNeighbors[(unique_layer_index, nphi)]) < neighborAtLeast and (cyclic_unique_layer_index, cyclic_nphi) in setOccupancy and (cyclic_unique_layer_index, cyclic_nphi) not in dicNeighbors[(unique_layer_index, nphi)]: 
                     #not already over nieghbor atleast
                     #nieghbor exists (i.e. has been fired) (then assume also exists in edep)
                     #and it hasnt already been counted in dicNeighbors
@@ -158,7 +171,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
                         dicNeighbors[(cyclic_unique_layer_index, cyclic_nphi)] = []
                     dicNeighbors[(cyclic_unique_layer_index, cyclic_nphi)].append((unique_layer_index, nphi)) #add cell to neighbor (reduce double counting)
                     
-                if len(dicEdepNeighbors[(unique_layer_index, nphi)]) < edepAtLeast and (cyclic_unique_layer_index, cyclic_nphi) in dicEdep and (cyclic_unique_layer_index, cyclic_nphi) not in dicEdepNeighbors[(unique_layer_index, nphi)]:
+                if len(dicEdepNeighbors[(unique_layer_index, nphi)]) < edepNeighborAtLeast and (cyclic_unique_layer_index, cyclic_nphi) in dicEdep and (cyclic_unique_layer_index, cyclic_nphi) not in dicEdepNeighbors[(unique_layer_index, nphi)]:
                     neighborEdep = dicEdep[(cyclic_unique_layer_index, cyclic_nphi)]
                     if abs(currentEdep - neighborEdep) <= edepRange: #if neighbor within range of edep
                         numEdepNeighbors += 1
@@ -167,9 +180,9 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
                             dicEdepNeighbors[(cyclic_unique_layer_index, cyclic_nphi)] = []
                         dicEdepNeighbors[(cyclic_unique_layer_index, cyclic_nphi)].append((unique_layer_index, nphi)) #add cell to neighbor (reduce double counting)
                         
-                if numNeighbors >= atLeast:
+                if numNeighbors >= neighborAtLeast:
                     neighbors = True
-                if numEdepNeighbors >= edepAtLeast:
+                if numEdepNeighbors >= edepNeighborAtLeast:
                     neighborsEdep = True
                 if neighborsEdep and neighbors: #this may be redundant due to first check
                     # print("break early")

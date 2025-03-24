@@ -291,7 +291,7 @@ def bar_step_multi_hist_plot(h1, hr, outname, title, xMin=-1, xMax=-1, yMin=-1, 
 def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel, 
              width=0.8, logY=True, save=True, rotation=0, 
              label="*MC Particle", statusUpdate=False, additionalText="", 
-             includeLegend = False,
+             includeLegend = False, tickrange=[], sort=True,
              figure = plt.figure(), axe = "", fontSize=20, pdf=False):
     """
     Create a bar plot with the given parameters.
@@ -324,13 +324,20 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
     if statusUpdate:
         print("Beginning to bar plot...")
         
-    tickrange = range(len(hkeys))
-    #increase distance between them by 2:
-    if rotation > 60:
-        tickrange = [x*1.5 for x in tickrange]
-        
+    if len(tickrange) == 0:
+        tickrange = range(len(hkeys))
+        #increase distance between them by 2:
+        if rotation > 60:
+            tickrange = [x*1.5 for x in tickrange]
+    
+    if sort:
+        sortedValues = sorted(hvalues, reverse=True)
+        sortedKeys = [x for _, x in sorted(zip(hvalues, hkeys), reverse=True)]
+    else:
+        sortedValues = hvalues
+        sortedKeys = hkeys
     # print(f"hvalues: {hvalues}")
-    axe.bar(tickrange, sorted(hvalues), width=width, label=label)
+    axe.bar(tickrange, sortedValues, width=width, label=label)
     
     if statusUpdate:
         print("Finished plotting, updating plot parameters...")
@@ -360,15 +367,15 @@ def bar_plot(hkeys, hvalues, outname, title, xLabel, yLabel,
         if pdf:
             figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
         
-def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel, 
-             width=0.8, logY=False, rotation=0, 
+def multi_bar_plot(d_dict, outname, title, xLabel, yLabel, 
+             width=0.8, logY=False, rotation=0, includeLegend=False, filled=True,
              label=[], statusUpdate=False, additionalText="", sort=True, pdf=False):
     """
-    Create a multi-bar plot with the given parameters.
+    Create a multi-bar plot with d_dict, where it is a dictionary of dictionaries.
+    Each parent dictionary will be a different label. The child dictionary will be the keys and values.
     
     Inputs:
-        hStacked: keys for the histogram
-        h: values for the histogram
+        d_dict: dictionary of dictionaries
         outname: output file name
         title: plot title
         xLabel: x-axis label
@@ -383,35 +390,77 @@ def multi_bar_plot(hStacked, h, outname, title, xLabel, yLabel,
     Return: None, save the plot
     """
     
+    #maybe add remove any empty lists from d_dict
     
     figure = plt.figure()
     axe = figure.subplots()
+    bars = []
     
-    #make sure to plot the keys with higher values first
-    sortedKeys = h.keys()
-    if sort:
-        values = h.values()
-        sortedValues = sorted(values, reverse=True)
-        sortedKeys = []
-        for val in sortedValues:
-            for key in h.keys():
-                if h[key] == val:
-                    sortedKeys.append(key)
-        print(sortedKeys)
-        print(sortedValues)
-    for key in sortedKeys:
-        #if hStakced is a string
-        if type(hStacked) == str:
-            if key == list(sortedKeys)[-1]:
-                bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, 
-                         logY, save=True, rotation=rotation, label=key, 
-                         statusUpdate=statusUpdate, additionalText=additionalText, 
-                         figure=figure, axe=axe, pdf=pdf)
-            else:
-                bar_plot(hStacked, h[key], outname, title, xLabel, yLabel, width, 
-                         logY, save=False, rotation=rotation, label=key, 
-                         statusUpdate=statusUpdate, additionalText=additionalText, 
-                         figure=figure, axe=axe, pdf=pdf)
+    if statusUpdate:
+        print("Beginning to multi-bar plot...")
+    
+    for i, key in enumerate(d_dict.keys()):
+        if sort:
+            sortedValues = sorted(d_dict[key].values(), reverse=True)
+            sortedKeys = sorted(d_dict[key], key=d_dict[key].get, reverse=True)
+        else:
+            sortedValues = d_dict[key].values()
+            sortedKeys = d_dict[key].keys()
+        tickrange = range(len(sortedKeys))
+        #increase distance between them by 2:
+        if rotation > 60:
+            tickrange = [x*1.5 for x in tickrange]
+        
+        # offsets = np.linspace(-width, width, sortedKeys)
+        
+        #include offeset
+        
+        if filled:
+            axe.bar(tickrange, sortedValues, width=width, label=key, alpha=0.8)
+        else:
+            #plot as bar plot that is just the outline of bar with edgecolor as bar color
+            bar = axe.bar(tickrange, sortedValues, width=width, label=key)
+            bars.append(bar)
+        
+    if not filled:
+        for i,barCont in enumerate(bars):
+            for bar in barCont:
+                color = bar.get_facecolor()  # Get assigned color
+                bar.set_edgecolor(color)  # Set edge color
+                bar.set_facecolor('none')  # Now remove fill
+            
+    if statusUpdate:
+        print("Finished plotting, updating plot parameters...")
+        
+    #fix when h.keys() is long and overlaps with neighboring labels:
+    axe.set_xticks(tickrange)
+    axe.set_xticklabels(sortedKeys, rotation = rotation)
+    
+    axe.set_title(title)
+    axe.set_xlabel(xLabel)
+    axe.set_ylabel(yLabel)
+    
+    if logY:
+        axe.set_yscale("log")
+        
+    # print(axe.get_legend_handles_labels()[1])
+        
+    # Legend to the side if includeLegend
+    if includeLegend:
+        if len(axe.get_legend_handles_labels()[1]) > 6:
+            axe.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        else:
+            axe.legend()
+    
+    if additionalText != "":
+        axe.text(1.05, 0.7, additionalText, transform=axe.transAxes, fontsize=13, va='top')
+        
+    if statusUpdate:
+        print("Saving plot...")
+    figure.savefig(outname, bbox_inches="tight")
+    if pdf:
+        figure.savefig(outname.replace(".png", ".pdf"), bbox_inches="tight")
+    
     
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
@@ -497,7 +546,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     
 def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", cmap="Blues", colorbarLabel="",
-            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, weights=None, pdf=False):
+            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, binSizeX=-1, binSizeY=-1, weights=None, pdf=False):
     """
     Create a 2d histogram plot with the given parameters.
     
@@ -523,16 +572,20 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
         axe = figure.subplots()
     if statusUpdate:
         print("Beginning to 2dhist plot...")
+    if binSizeX == -1 or binSizeY == -1:
+        binSizeX = binSize
+        binSizeY = binSize
+        
     if weights is not None:
         if logScale:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights, norm=mcolors.LogNorm())
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, weights=weights, norm=mcolors.LogNorm())
         else:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, weights=weights)
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, weights=weights)
     else:
         if logScale:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap, norm=mcolors.LogNorm())
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, norm=mcolors.LogNorm())
         else:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSize, binSize), cmap=cmap)
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap)
         
     if save:
         if statusUpdate:

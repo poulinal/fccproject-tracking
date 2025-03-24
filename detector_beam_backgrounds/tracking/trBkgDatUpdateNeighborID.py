@@ -7,12 +7,13 @@ from ROOT import dd4hep
 import sys
 from trBkgDat import configure_paths, setUpFiles
 import argparse
+import time
 
 """
 This script is used to ...
 """
 
-def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepRange=1, edepAtLeast=1, flexible=True):
+def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, edepRange=1, edepAtLeast=1, edepLoosen=-1, flexible=True):
     print("Calculating occupancy data from files...")
     list_overlay = []
     # numfiles = 500
@@ -24,13 +25,19 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     #setup dictionary
     dic = {}
     #can change dic_file_path to the correct path:
-    dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
-        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
-    output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
-        "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
-    neighborID_keys = ["byBatchNeighbors", "oneDbyBatchNeighbors", 
-                       "oneDneighborPtN1", "oneDneighborPDGN1", "oneDneighborPtN2", "oneDneighborPDGN2", 
-                       "oneDneighborPtN3", "oneDneighborPDGN3", "oneDneighborPtN4", "oneDneighborPDGN4", "oneDneighborPtN5", "oneDneighborPDGN5"]
+    if edepLoosen == -1:
+        dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
+        output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + ".npy" #cernbox (to save storage)
+    else:
+        dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(edepLoosen) + ".npy"
+        output_dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/" + str(typeFile) + "_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(edepLoosen) + ".npy"
+    neighborID_keys = ["byBatchNeighbors", "oneDbyBatchNeighbors", ]
+                    #    "oneDneighborPtN1", "oneDneighborPDGN1", "oneDneighborPtN2", "oneDneighborPDGN2", 
+                    #    "oneDneighborPtN3", "oneDneighborPDGN3", "oneDneighborPtN4", "oneDneighborPDGN4", "oneDneighborPtN5", "oneDneighborPDGN5"]
     #check if dic_file_path exists:
     try:
         dic = np.load(dic_file_path, allow_pickle=True).item()
@@ -57,16 +64,16 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     # dic["byBatchNeighborsEdep"] = np.zeros((len(pos_by_batch), dic["total_number_of_layers"], dic["max_n_cell_per_layer"]))
     dic["oneDbyBatchNeighbors"] = []
     dic["oneDbyBatchNeighborsEdep"] = []
-    dic["oneDneighborPtN1"] = []
-    dic["oneDneighborPDGN1"] = []
+    # dic["oneDneighborPtN1"] = []
+    # dic["oneDneighborPDGN1"] = []
     
     dic["removedNeighborsPt"] = []
     dic["removedNeighborsPDG"] = []
     dic["removedNeighborsEdepPt"] = []
     dic["removedNeighborsEdepPDG"] = []
     
-    neighbor_dic = {} #dictionary to store neighbors
-    neighborEdep_dic = {} #dictionary to store neighborEdep
+    neighbor_batch_list_of_dicts = [] #list of batches; in each batch, dictionary of neighbors
+    neighborEdep_batch_list_of_dicts = []
     
     totalNeighborsRemoved = 0
     totalNeighborsRemained = 0
@@ -74,11 +81,16 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     totalNeighborsEdepRemained = 0
     
     
+    print(f"radiusR: {radiusR}, radiusPhi: {radiusPhi}, atLeast: {atLeast}, edepRange: {edepRange}, edepAtLeast: {edepAtLeast}, edepLoosen: {edepLoosen}")
+    
     #initialize the array of depth(numbatches) by width (nphi) by height (layers)
     maxnphi = dic["max_n_cell_per_layer"]
     for i, batch in enumerate(pos_by_batch): #i is batch number; iterate through all batches
         print(f"batchNum: {i}")
         print(f"batch: {len(batch)}")
+        
+        neighbor_dic = {} #dictionary to store neighbors
+        neighborEdep_dic = {} #dictionary to store neighborEdep
         
         #make the batch a set/dict to alow faster lookup
         set_batch = {}
@@ -118,10 +130,10 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     if dx == 0 and dy == 0:
                         continue
                     cyclic_phi = (phi + dy) % maxnphi
-                    if (r+dx, cyclic_phi) in neighbor_dic:
-                        continue
+                    if (r+dx, cyclic_phi) in neighbor_dic and (r+dx, cyclic_phi) in neighborEdep_dic[(r, phi)]:
+                        continue #in both skip
                     
-                    if (r+dx, cyclic_phi) in set_batch and (r+dx, cyclic_phi) not in neighbor_dic[(r, phi)]:
+                    if (r+dx, cyclic_phi) in set_batch and (r+dx, cyclic_phi) not in neighbor_dic[(r, phi)]: #fired and not already accounted for
                         if (r+dx, cyclic_phi) not in neighbor_dic:
                             neighbor_dic[(r+dx, cyclic_phi)] = []
                         neighbor_dic[(r, phi)].append((r+dx, cyclic_phi)) #add the neighbor to the current hit
@@ -135,8 +147,10 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 #end dy loop
             #end dx loop
             #went through all possible neighbors for current hit
+            # print(f"num neighbors for hit {hit}: {len(neighbor_dic[(r, phi)])}")
             numNeighbors = len(neighbor_dic[(r, phi)])
             numEdepNeighbors = len(neighborEdep_dic[(r, phi)])
+            
             
             if numNeighbors == 0:
                 dic["removedNeighborsPt"].append(pT_by_batch[i][j])
@@ -157,25 +171,36 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             dic["byBatchNeighbors"][i][r, phi] = numNeighbors
             dic["oneDbyBatchNeighbors"].append(numNeighbors) #for every hit we want to get the neighbors of that cell fired
             dic["oneDbyBatchNeighborsEdep"].append(numEdepNeighbors) #for every hit we want to get the neighbors of that cell fired
-            if numNeighbors == 1:
-                dic["oneDneighborPtN1"].append(pT_by_batch[i][j])
-                dic["oneDneighborPDGN1"].append(pdg_by_batch[i][j])
-            if numNeighbors == 2:
-                dic["oneDneighborPtN2"].append(pT_by_batch[i][j])
-                dic["oneDneighborPDGN2"].append(pdg_by_batch[i][j])
-            if numNeighbors == 3:
-                dic["oneDneighborPtN3"].append(pT_by_batch[i][j])
-                dic["oneDneighborPDGN3"].append(pdg_by_batch[i][j])
-            if numNeighbors == 4:
-                dic["oneDneighborPtN4"].append(pT_by_batch[i][j])
-                dic["oneDneighborPDGN4"].append(pdg_by_batch[i][j])
-            if numNeighbors == 5:
-                dic["oneDneighborPtN5"].append(pT_by_batch[i][j])
-                dic["oneDneighborPDGN5"].append(pdg_by_batch[i][j])
+            # if numNeighbors == 1:
+            #     dic["oneDneighborPtN1"].append(pT_by_batch[i][j])
+            #     dic["oneDneighborPDGN1"].append(pdg_by_batch[i][j])
+            # if numNeighbors == 2:
+            #     dic["oneDneighborPtN2"].append(pT_by_batch[i][j])
+            #     dic["oneDneighborPDGN2"].append(pdg_by_batch[i][j])
+            # if numNeighbors == 3:
+            #     dic["oneDneighborPtN3"].append(pT_by_batch[i][j])
+            #     dic["oneDneighborPDGN3"].append(pdg_by_batch[i][j])
+            # if numNeighbors == 4:
+            #     dic["oneDneighborPtN4"].append(pT_by_batch[i][j])
+            #     dic["oneDneighborPDGN4"].append(pdg_by_batch[i][j])
+            # if numNeighbors == 5:
+            #     dic["oneDneighborPtN5"].append(pT_by_batch[i][j])
+            #     dic["oneDneighborPDGN5"].append(pdg_by_batch[i][j])
+                
+        #end of all hits in a batch
+        
+        # neighbor_batch_list_of_dicts.append(neighbor_dic)
+        # neighborEdep_batch_list_of_dicts.append(neighborEdep_dic)
+    #end of all batches
+    
+    
     # print(hist["byBatchNeighbors"].shape)
     #average across the depth (aka the batches)
-    dic["byBatchNeighborsAvg"] = np.mean(dic["byBatchNeighbors"], axis=0)
-    dic["byBatchNeighborsMedian"] = np.median(dic["byBatchNeighbors"], axis=0)
+    # dic["byBatchNeighborsAvg"] = np.mean(dic["byBatchNeighbors"], axis=0)
+    # dic["byBatchNeighborsMedian"] = np.median(dic["byBatchNeighbors"], axis=0)
+    
+    # dic["neighbor_batch_list_of_dicts"] = neighbor_batch_list_of_dicts
+    # dic["neighborEdep_batch_list_of_dicts"] = neighborEdep_batch_list_of_dicts
 
 
     print("finished updating dictionary")
@@ -205,6 +230,8 @@ if __name__ == "__main__":
                         type=str, default="", nargs='+')
     args = parser.parse_args()
 
+    starttime = time.time()
+    
     if args.calc and args.calc != "":
         try:
             print(f"Parsed --calc arguments: {args.calc}")
@@ -222,8 +249,14 @@ if __name__ == "__main__":
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]))
             elif args.calc[0] in typeFile and len(args.calc) == 7:
                 updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
+            elif args.calc[0] in typeFile and len(args.calc) == 8:
+                boolArg = 1 if args.calc[7] == "True" else 0
+                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), boolArg)
             else:
                 parser.error("Invalid fileType")
         except ValueError as e:
             parser.error(str(e))
+            
+    endtime = time.time()
+    print(f"Time taken: {endtime - starttime} seconds")
     #'''

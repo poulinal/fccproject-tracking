@@ -109,9 +109,9 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(bkgNumFiles) + \
             "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
-        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdep/combined_background_particles_" + str(numfiles) + \
+        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/combined_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + ".npy"
+                "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
         signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/signal_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast)  + "_EL" + str(int(edepLoosen))+ ".npy"
@@ -598,6 +598,29 @@ def occupancy(dic, args = ""):
         #     hist["energy_deposit_per_batch"][edepdic[i][0], edepdic[i][1]] = edepdic[i][2]
         # print(f"hist: {hist['energy_deposit_per_batch']}")
         hist["energy_deposit_one_batch"] = edepdic
+        
+    if args == "combined_energy_deposit_one_batch" or args == "":
+        # edepdic = dic["energy_dep_per_cell_per_batch"][0]
+        edepBkgdic = dic["energy_dep_per_cell_per_batch_bkg"][0]
+        edepSignaldic = dic["energy_dep_per_cell_per_batch_signal"][0]
+        edepBothdic = []
+        
+        posBkg = []
+        posSignal = []
+        for i in range(0, len(edepBkgdic)):
+            posBkg.append((edepBkgdic[i][0], edepBkgdic[i][1]))
+        for i in range(0, len(edepSignaldic)):
+            posSignal.append((edepSignaldic[i][0], edepSignaldic[i][1]))
+        
+        #go through bkg and check if the pos also exists in signal add the pos to edepBothdic
+        for i in range(0, len(edepBkgdic)):
+            if posBkg[i] in posSignal:
+                edepBothdic.append((edepBkgdic[i][0], edepBkgdic[i][1], edepBkgdic[i][2] + edepSignaldic[posSignal.index((edepBkgdic[i][0], edepBkgdic[i][1]))][2]))
+        
+        print(len(edepBothdic))
+        hist["combined_energy_one_batch"] = edepBothdic
+        hist["combined_energy_one_batch_bkg"] = edepBkgdic
+        hist["combined_energy_one_batch_signal"] = edepSignaldic
         
     if args == "energy_dep_per_cell_per_batch_only_neighbors" or args == "":
         edepdic = dic["energy_dep_per_cell_per_batch_only_neighbors"][0]
@@ -1170,8 +1193,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         numOnlyNeighborMCID = len(np.unique(np.array(onlyNeighborMCID)))
         numAllMCID = len(np.unique(np.array(allMCID)))
         mcDiff = round(numOnlyNeighborMCID / numAllMCID, 2)
-        xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepR" + 
-                str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png",
+        xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdep" + imageOutputEdepCommonEnd,
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
                 additionalText=str(typeFile) + " Efficiency: " + str(eff) + "\nMC Difference: " + str(numOnlyNeighborMCID) + "/" + str(numAllMCID) + "=" + str(mcDiff),
@@ -1200,6 +1222,8 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         layers = [i for i in range(0, hist["total_number_of_layers"])]
         ratioDiff = []
         ratioDiffError = []
+        
+        
         # for i in range(0, len(hist["occupancy_per_batch_sum_batches"])):
             # ratioDiff.append(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] / hist["occupancy_per_batch_sum_batches"][i] * 100)
             # ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"][i] / histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"][i] )**2 
@@ -1208,8 +1232,13 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         # print(f"remained: {histNeighbor['neighbors_remained']}")
         # print(f"removed: {histNeighbor['no_neighbors_removed']}")
         eff = calcEfficiency(typeFile, histNeighbor)
+        
+        #save histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"] to text file for excel
+        np.savetxt(imageOutputPath + "occupancy_per_batch_sum_batches_only_neighbor_only_edep_diff.txt", ratioDiff, delimiter=",", fmt="%.6f")  # Adjust precision as needed
+        
+        # global imageOutputEdepCommonEnd
         xy_plot(layers, ratioDiff, 
-                imageOutputPath + "occupancy" + str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png",
+                imageOutputPath + "occupancy" + str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepDiff" + imageOutputEdepCommonEnd,
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError, includeGrid=True)
@@ -1309,13 +1338,62 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         phi = [v[1] for v in hist["energy_deposit_one_batch"]]
         edep = [v[2] for v in hist["energy_deposit_one_batch"]] #in gev
         edep = [i * 1000 for i in edep] #convert to mev
+        
+        # save numpy of energy deposit one batch:
+        np.save(imageOutputPath + "energy_deposit_one_batch.npy", hist["energy_deposit_one_batch"])
+        
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatch"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                 #   binSize=100,
-                  binSizeX=812, binSizeY=112,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(58, 8)), pdf=False)
+                  binSizeX=896, binSizeY=112,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)
+        
+    if args == "combined-deposit-one-batch" or args == "":
+        hist = occupancy(dic, "combined_energy_deposit_one_batch")
+        
+        rBkg = [v[0] for v in hist["combined_energy_one_batch_bkg"]]
+        phiBkg = [v[1] for v in hist["combined_energy_one_batch_bkg"]]
+        edepBkg = [v[2] for v in hist["combined_energy_one_batch_bkg"]] #in gev
+        edepBkg = [i * 1000 for i in edepBkg] #convert to mev
+        
+        rSignal = [v[0] for v in hist["combined_energy_one_batch_signal"]]
+        phiSignal = [v[1] for v in hist["combined_energy_one_batch_signal"]]
+        edepSignal = [v[2] for v in hist["combined_energy_one_batch_signal"]] #in gev
+        edepSignal = [i * 1000 for i in edepSignal] #convert to mev
+        
+        rBoth = [v[0] for v in hist["combined_energy_one_batch"]]
+        phiBoth = [v[1] for v in hist["combined_energy_one_batch"]]
+        edepBoth = [v[2] for v in hist["combined_energy_one_batch"]]
+        edepBoth = [i * 1000 for i in edepBoth]
+        
+        fig = plt.figure(figsize=(64, 8))
+        axes = fig.add_subplot(111)
+        
+        # print(len(edepBkg))
+        
+        hist2d(phiBkg, rBkg,
+                    "PathPlaceholder", 
+                    "TitlePlaceholder", weights = edepBkg, 
+                    cmap="winter", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                    binSizeX=896, binSizeY=112,
+                    save=False, label="Bkg Overlay",
+                    xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
+        hist2d(phiSignal, rSignal,
+                    "PathPlaceholder", 
+                    "TitlePlaceholder", weights = edepSignal, 
+                    cmap="autumn", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                    binSizeX=896, binSizeY=112,
+                    save=False, label="Signal Overlay", includeColorbar=False,
+                    xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
+        hist2d(phiBoth, rBoth,
+                    imageOutputPath + "energyDepositOneBatchBoth"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
+                    "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edepBoth, 
+                    cmap="summer", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                    binSizeX=896, binSizeY=112, 
+                    save=True, label="Both Signal and Bkg Hit", includeColorbar=False,
+                    xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         
     if args == "energy-deposit-one-batch-squished" or args == "":
         hist = occupancy(dic, "energy_deposit_one_batch")
@@ -1330,7 +1408,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   binSize=100,
                 #   binSizeX=812, binSizeY=112,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(58, 8)), pdf=False)
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8)), pdf=False)
         
     if args == "energy-deposit-one-batch-only-neighbors" or args == "":
         hist = occupancy(dic, "energy_dep_per_cell_per_batch_only_neighbors")
@@ -1358,8 +1436,10 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                   imageOutputPath + "energyDepositOneBatchOnlyNeighborsOnlyEdep"+str(typeFile)+"MC" + str(numFiles) + 
                   "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSize=100, cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8)), pdf=True)     
+                #   binSize=100,
+                  binSizeX=896, binSizeY=112, 
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)     
         
     if args == "energy-deposit-only-selected" or args == "":
         hist = occupancy(dic, "energy_deposit_only_selected")
@@ -1801,6 +1881,7 @@ def genPlot(inputArgs):
         "energy-deposit-1d": plotEdep,
         "energy-deposit-one-batch": plotEdep,
         "energy-deposit-one-batch-squished": plotEdep,
+        "combined-deposit-one-batch": plotEdep,
         "energy-deposit-one-batch-only-neighbors": plotEdep,
         "energy-deposit-one-batch-only-neighbors-only-edep": plotEdep,
         "energy-deposit-one-batch-high-pt": plotEdep,
@@ -1851,6 +1932,7 @@ typePlots = ["", "all",
                 "only-combined-occupancy-BatchedBatch", "occupancy-onlyNeighbors-diff", "occupancy-onlyNeighbors-percdiff",
                 "occupancy-onlyNeighbors-onlyEdeps-diff",
                 "energy-deposit", "energy-deposit-1d", "energy-deposit-one-batch", "energy-deposit-one-batch-squished",
+                "combined-deposit-one-batch",
                 "energy-deposit-one-batch-only-neighbors", "energy_dep_per_cell_per_batch_only_neighbors_only_edeps",
                 "energy-deposit-one-batch-high-pt", "energy-deposit-one-batch-low-pt", "energy-deposit-1d-low-high-pt",
                 "multi-energy-deposit-1d",

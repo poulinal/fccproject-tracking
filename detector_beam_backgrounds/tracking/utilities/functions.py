@@ -465,7 +465,8 @@ def multi_bar_plot(d_dict, outname, title, xLabel, yLabel,
 def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
-            errorBars=False, yerr=[], includeGrid=True, save=True, color="", pdf=False):
+            errorBars=False, yerr=[], includeGrid=True, save=True, color="", pdf=False,
+            weights=False, cmap='viridis', mark='.'):
     """
     Create a xy plot with the given parameters.
     
@@ -497,7 +498,9 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print("Beginning to xy plot...")
     if scatter:
         if errorBars:
-            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker='.', markersize=4)#marker='_')
+            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker=mark, markersize=4)
+        elif weights:
+            axe.scatter(x, y, label=label, c=cmap, cmap=cmap)
         else:
             if color == "":
                 axe.scatter(x, y, label=label)
@@ -546,7 +549,8 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
     
 def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", cmap="Blues", colorbarLabel="",
-            figure = plt.figure(), axe = "", includeLegend = False, save=True, binSize=100, binSizeX=-1, binSizeY=-1, weights=None, pdf=False):
+            figure = plt.figure(), axe = "", includeLegend = False, includeColorbar=True,
+            save=True, binSize=100, binSizeX=-1, binSizeY=-1, weights=None, pdf=False):
     """
     Create a 2d histogram plot with the given parameters.
     
@@ -610,8 +614,9 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
         axe.grid(True, which='minor', linestyle=':', alpha=0.1)
         
         #include colorbar
-        cbar = figure.colorbar(im, ax=axe)
-        cbar.set_label(colorbarLabel, rotation=-90, labelpad=15)
+        if includeColorbar:
+            cbar = figure.colorbar(im, ax=axe)
+            cbar.set_label(colorbarLabel, rotation=-90, labelpad=15)
         
         print(f"outname: {outname}")
         figure.savefig(outname, bbox_inches="tight")

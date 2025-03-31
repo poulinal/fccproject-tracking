@@ -19,15 +19,13 @@ def percent_difference_error(a, b, sigma_a, sigma_b):
     sigma_pd = factor * (abs(a - b) * sigma_a + abs(b - a) * sigma_b)
     return pd, sigma_pd
 
-def calcEfficiency(typeFile, hist):
+def calcEfficiency(typeFile, num_removed, num_remained):
     # if typeFile == "Bkg": #make efficiency same between signal and bkg
     if typeFile == "":
-        efficiency = round(hist["no_neighbors_removed"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
+        rejection = round(num_removed / (num_remained + num_removed), 2)
     # elif typeFile == "Signal":
-    if typeFile == "Signal" or typeFile == "Bkg":
-        efficiency = round(hist["neighbors_remained"] / (hist["neighbors_remained"] + hist["no_neighbors_removed"]), 2)
-    else:
-        efficiency = 0 #placeholder for combined
+    # if typeFile == "Signal" or typeFile == "Bkg":
+    efficiency = round(num_remained / (num_remained + num_removed), 2)
     return efficiency
 
 def calcBinomError(subsetHist, hist, subsetHistError, histError, inPercent=True):
@@ -466,7 +464,8 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
             label="*MC Particle", statusUpdate=False, additionalText="", 
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
             errorBars=False, yerr=[], includeGrid=True, save=True, color="", pdf=False,
-            weights=False, cmap='viridis', mark='.'):
+            weights=False, cmap='viridis', includeColorbar=False, colorbarLabel="", logWeights=False,
+            mark='.', markSize=4, xLim=[], yLim=[]):
     """
     Create a xy plot with the given parameters.
     
@@ -498,9 +497,12 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print("Beginning to xy plot...")
     if scatter:
         if errorBars:
-            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker=mark, markersize=4)
-        elif weights:
-            axe.scatter(x, y, label=label, c=cmap, cmap=cmap)
+            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker=mark, markersize=markSize)
+        elif weights != False:
+            if logWeights:
+                sc = axe.scatter(x, y, c=weights, label=label, cmap=cmap, marker=mark, s=markSize, norm=LogNorm())
+            else:
+                sc = axe.scatter(x, y, c=weights, label=label, cmap=cmap, marker=mark, s=markSize)
         else:
             if color == "":
                 axe.scatter(x, y, label=label)
@@ -511,7 +513,11 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
             axe.step(x, y, label=label)
         else:
             axe.step(x, y, label=label, color=color)
-        
+    
+    if includeColorbar and weights != False:
+        # Add colorbar
+        cbar = figure.colorbar(sc, ax=axe)
+        cbar.set_label(colorbarLabel, rotation=-90, labelpad=15)
         
     if save:
         if statusUpdate:
@@ -521,6 +527,11 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         axe.set_title(title)
         axe.set_xlabel(xLabel)
         axe.set_ylabel(yLabel)
+        
+        if xLim != []:
+            axe.set_xlim(xLim)
+        if yLim != []:
+            axe.set_ylim(yLim)
         
         if includeGrid:
             # print("including grid")
@@ -550,7 +561,10 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
 def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False, 
             label="*MC Particle", statusUpdate=False, additionalText="", cmap="Blues", colorbarLabel="",
             figure = plt.figure(), axe = "", includeLegend = False, includeColorbar=True,
-            save=True, binSize=100, binSizeX=-1, binSizeY=-1, weights=None, pdf=False):
+            save=True, binSize=100, binSizeX=-1, binSizeY=-1, 
+            binLowX=None, binHighX=None, 
+            binLowY=None, binHighY=None,
+            weights=None, pdf=False):
     """
     Create a 2d histogram plot with the given parameters.
     
@@ -579,17 +593,44 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
     if binSizeX == -1 or binSizeY == -1:
         binSizeX = binSize
         binSizeY = binSize
+    
+    if binLowX == None or binHighX == None:
+        binlowX = min(x)
+        binhighX = max(x)
+        binstepX = (binhighX - binlowX) / binSizeX
+    else:
+        binlowX = binLowX
+        binhighX = binHighX
+        print(binSizeX)
+        binstepX = (binhighX - binlowX) / binSizeX
+        print(binstepX)
+        print(binHighX)
+        
+    if binLowY == None or binHighY == None:
+        binlowY = min(y)
+        binhighY = max(y)
+        binstepY = (binhighY - binlowY) / binSizeY
+    else:
+        binlowY = binLowY
+        binhighY = binHighY
+        binstepY = (binhighY - binlowY) / binSizeY
+
+    # Create the bin edges
+    x_bins = np.arange(binlowX, binhighX, binstepX)
+    y_bins = np.arange(binlowY, binhighY, binstepY)
+    print(f"x_bins: {x_bins}")
+    print(f"y_bins: {y_bins}")
         
     if weights is not None:
         if logScale:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, weights=weights, norm=mcolors.LogNorm())
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=[x_bins, y_bins], cmap=cmap, weights=weights, norm=mcolors.LogNorm())
         else:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, weights=weights)
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=[x_bins, y_bins], cmap=cmap, weights=weights)
     else:
         if logScale:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap, norm=mcolors.LogNorm())
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=[x_bins, y_bins], cmap=cmap, norm=mcolors.LogNorm())
         else:
-            hist, xedges, yedges, im = axe.hist2d(x, y, bins=(binSizeX, binSizeY), cmap=cmap)
+            hist, xedges, yedges, im = axe.hist2d(x, y, bins=[x_bins, y_bins], cmap=cmap)
         
     if save:
         if statusUpdate:

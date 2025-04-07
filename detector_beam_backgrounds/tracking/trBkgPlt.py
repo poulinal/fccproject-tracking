@@ -832,6 +832,46 @@ def occupancy(dic, args = ""):
         np.save(npyOutputPath + "combined_edep_signal.npy", listDicsEdepSignal)
         np.save(npyOutputPath + "combined_edep_bkg.npy", listDicsEdepBkg)
         
+    if args == "energy_deposit_one_batch_only_prod_sec" or args == "":
+        edep = dic["energy_dep_per_cell_per_batch"][0]
+        prod_sec = dic["list_prod_sec_by_batch"][0] #result will be a dictionary key is pos, value is list of tuples (layer, nphi, prod_sec, mcID)
+        hist["energy-deposit-one-batch-prod-sec"] = []
+        hist["energy-deposit-one-batch-non-prod-sec"] = []
+        
+        #turn edep into a dictionary where key is (layer, nphi) and value is energy deposit
+        edepdic = {}
+        for i in range(0, len(edep)):
+            edepdic[(edep[i][0], edep[i][1])] = (edep[i][0], edep[i][1], edep[i][2]) #note edep is currently cummulative energy deposit already...
+        
+        # print(prod_sec)
+        for pos in prod_sec.keys():
+            for hit in prod_sec[pos]:
+                # print(f"prod_sec: {hit}")
+                if hit[2] == 1:
+                    hist["energy-deposit-one-batch-prod-sec"].append(edepdic[(hit[0], hit[1])]) 
+                else:
+                    hist["energy-deposit-one-batch-non-prod-sec"].append(edepdic[(hit[0], hit[1])])
+                    
+    if args == "energy_deposit_one_batch_only_par_photon" or args == "":
+        edep = dic["energy_dep_per_cell_per_batch"][0]
+        par_photon = dic["list_dic_photon_par_by_batch"][0]
+        hist["energy-deposit-one-batch-has-par-photon"] = []
+        hist["energy-deposit-one-batch-no-par-photon"] = []
+        
+        #turn edep into a dictionary where key is (layer, nphi) and value is energy deposit
+        edepdic = {}
+        for i in range(0, len(edep)):
+            edepdic[(edep[i][0], edep[i][1])] = (edep[i][0], edep[i][1], edep[i][2])
+        
+        for pos in par_photon.keys():
+            for hit in par_photon[pos]:
+                # print(f"par_photon: {hit}")
+                if hit[2] == 1:
+                    hist["energy-deposit-one-batch-has-par-photon"].append(edepdic[(hit[0], hit[1])])
+                else:
+                    hist["energy-deposit-one-batch-no-par-photon"].append(edepdic[(hit[0], hit[1])])
+                    
+            
         
     if args == "energy_deposit_one_batch_low_high_pt" or args == "":
         edepdicOneBatch = dic["energy_dep_per_cell_per_batch"][0]
@@ -934,7 +974,7 @@ def hitPosition(dic, args=""):
         #we basically want to get a r,phi map where each element is the number of neighbhors (averaged across batches)
         pos_by_batch = dic["cell_fired_pos_by_batch"] #a list of tuples of (r, phi) for each cell_fired/hit
         pT_by_batch = dic["neighborPt_by_batch"] #a list of mcParticle indexes for each cell_fired/hit
-        pdg_by_batch = dic["neighborPDG_by_batch"] #a list of pdg for each cell_fired/hit
+        pdg_by_batch = dic["list_dic_PDG_by_batch"] #a list of pdg for each cell_fired/hit
         hist["byBatchNeighbors"] = dic["byBatchNeighbors"]
         hist["oneDbyBatchNeighbors"] = dic["oneDbyBatchNeighbors"]
         hist["oneDbyBatchNeighborsEdep"] = dic["oneDbyBatchNeighborsEdep"]
@@ -953,7 +993,7 @@ def hitPosition(dic, args=""):
         
     if args == "pdg_low_high_pt" or args == "":
         pT_by_batch = dic["neighborPt_by_batch"]
-        pdg_by_batch = dic["neighborPDG_by_batch"]
+        pdg_by_batch = dic["list_dic_PDG_by_batch"]
         hist["dic_pdg_low_pt"] = {}
         hist["dic_pdg_high_pt"] = {}
         pt = []
@@ -1852,10 +1892,10 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                 #   binSize=100,
-                  binSizeX=896, binSizeY=112,
+                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)
         
-    if args == "combined-deposit-one-batch" or args == "":
+    if args == "combined-energy-deposit-one-batch" or args == "":
         hist = occupancy(dic, "combined_energy_deposit_one_batch")
         
         rBkg = [v[0] for v in hist["combined_energy_one_batch_bkg"]]
@@ -2002,6 +2042,63 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                     binSize=100, cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8), dpi=100))
         
+    if args == "energy-deposit-one-batch-only-par-photon" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_only_par_photon")
+        #get all the first values in the tuple:
+        r = [v[0] for v in hist["energy-deposit-one-batch-has-par-photon"]]
+        phi = [v[1] for v in hist["energy-deposit-one-batch-has-par-photon"]]
+        edep = [v[2] for v in hist["energy-deposit-one-batch-has-par-photon"]]
+        edep = [i * 1000 for i in edep] #convert to mev
+        
+        non_r = [v[0] for v in hist["energy-deposit-one-batch-no-par-photon"]]
+        non_phi = [v[1] for v in hist["energy-deposit-one-batch-no-par-photon"]]
+        non_edep = [v[2] for v in hist["energy-deposit-one-batch-no-par-photon"]]
+        non_edep = [i * 1000 for i in non_edep] #convert to mev
+        figure = plt.figure(figsize=(64, 8))
+        axes = figure.add_subplot(111)
+        hist2d(non_phi, non_r,
+                  "PlaceholderPath", 
+                  "PlaceholderTitle", weights = non_edep, 
+                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="Reds", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes, 
+                  save=False, label="No Parent Photon", includeLegend=True)
+        hist2d(phi, r,
+                  imageOutputPath + "energyDepositOneBatchOnlyParPhoton"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
+                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes,
+                  label="Has Parent Photon", save=True, includeLegend=True)
+        
+    if args == "energy-deposit-one-batch-only-prod-sec" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_only_prod_sec")
+        #get all the first values in the tuple:
+        r = [v[0] for v in hist["energy-deposit-one-batch-prod-sec"]]
+        phi = [v[1] for v in hist["energy-deposit-one-batch-prod-sec"]]
+        edep = [v[2] for v in hist["energy-deposit-one-batch-prod-sec"]]
+        edep = [i * 1000 for i in edep]
+        
+        non_r = [v[0] for v in hist["energy-deposit-one-batch-non-prod-sec"]]
+        non_phi = [v[1] for v in hist["energy-deposit-one-batch-non-prod-sec"]]
+        non_edep = [v[2] for v in hist["energy-deposit-one-batch-non-prod-sec"]]
+        non_edep = [i * 1000 for i in non_edep] #convert to mev
+        figure = plt.figure(figsize=(64, 8))
+        axes = figure.add_subplot(111)
+        hist2d(non_phi, non_r,
+                  "PlaceholderPath", 
+                  "PlaceholderTitle", weights = non_edep, 
+                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="Reds", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes, 
+                  save=False, label="Non Produced Secondary", includeLegend=True)
+        hist2d(phi, r,
+                  imageOutputPath + "energyDepositOneBatchOnlyProdSec"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
+                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes,
+                  label="Is Produced Secondary", save=True, includeLegend=True)
         
 def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
@@ -2391,11 +2488,13 @@ def genPlot(inputArgs):
         "energy-deposit-1d": plotEdep,
         "energy-deposit-one-batch": plotEdep,
         "energy-deposit-one-batch-squished": plotEdep,
-        "combined-deposit-one-batch": plotEdep,
+        "combined-energy-deposit-one-batch": plotEdep,
         "energy-deposit-one-batch-only-neighbors": plotEdep,
         "energy-deposit-one-batch-only-neighbors-only-edep": plotEdep,
         "energy-deposit-one-batch-high-pt": plotEdep,
         "energy-deposit-one-batch-low-pt": plotEdep,
+        "energy-deposit-one-batch-only-par-photon": plotEdep,
+        "energy-deposit-one-batch-only-prod-sec": plotEdep,
         "multi-energy-deposit-1d-low-high-pt": plotEdep,
         "multi-energy-deposit-1d": plotEdep,
         "wireChamber-all": plotWireChamber,
@@ -2439,6 +2538,7 @@ typePlots = ["", "all",
                 "occupancy-nCellsFired", "occupancy-BatchedBatch", "occupancy-BatchedBatchNN",
                 "occupancy-nCellsPerLayer", "occupancy-onlyNeighbors", "occupancy-onlyNeighbors-onlyEdeps",
                 "avg-energy-deposit",
+                "energy-deposit-one-batch-only-par-photon", "energy-deposit-one-batch-only-prod-sec",
                 "only-combined-occupancy-BatchedBatch", "occupancy-onlyNeighbors-diff", "occupancy-onlyNeighbors-percdiff",
                 "occupancy-onlyNeighbors-onlyEdeps-diff",
                 "combined-separated-occupancy-onlyNeighbors-onlyEdeps-diff", "combined-separated-occupancy-onlyNeighbors-onlyEdeps",

@@ -609,10 +609,8 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
     else:
         binlowX = binLowX
         binhighX = binHighX
-        print(binSizeX)
         binstepX = (binhighX - binlowX) / binSizeX
-        print(binstepX)
-        print(binHighX)
+
         
     if binLowY == None or binHighY == None:
         binlowY = min(y)
@@ -626,8 +624,8 @@ def hist2d(x, y, outname, title, xLabel, yLabel, logScale=False,
     # Create the bin edges
     x_bins = np.arange(binlowX, binhighX, binstepX)
     y_bins = np.arange(binlowY, binhighY, binstepY)
-    print(f"x_bins: {x_bins}")
-    print(f"y_bins: {y_bins}")
+    # print(f"x_bins: {x_bins}")
+    # print(f"y_bins: {y_bins}")
         
     if weights is not None:
         if logScale:

@@ -199,6 +199,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
                 for parent in mcParticle.getParents():
                     if parent.getPDG() == 22:
                         has_photon_parent = 1
+                        break
                 list_par_photon.append(has_photon_parent) 
             
 

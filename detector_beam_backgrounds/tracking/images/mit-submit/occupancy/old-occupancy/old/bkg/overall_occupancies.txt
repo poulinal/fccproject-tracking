@@ -1,5 +1,0 @@
-BX batch iteration 0, integrating over 1 BXs
-	Total number of bkg hit in the DC accumulating BXs of one batch: 493
-	Number of fired cells: 180
-	Percentage of fired cells: 0.0031887755102040817
-Overall occupancies for each iteration: [0.31887755102040816]

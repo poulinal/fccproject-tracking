@@ -3,6 +3,7 @@ import ROOT
 import numpy as np 
 from utilities.functions import hist_plot, multi_hist_plot, \
     bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot, heatmap, hist2d, percent_difference_error, calcEfficiency, calcBinomError
+from trBkgDatUpdateOcc import calculateOccupancy
 from utilities.pltWireCh import plot_wire_chamber
 import argparse
 import sys
@@ -52,6 +53,7 @@ dic = {}
 dicbkg = {}
 # imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test/" #mit-submit
 imageOutputPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/images/lxplus/" #lxplus
+npyOutputPath = "/eos/user/a/alpoulin/npySaves/" #cernbox
 numFiles = 0
 glBkgNumFiles = 0
 imageOutputCommonEnd = "" #only gets changed in setup
@@ -495,31 +497,6 @@ def occupancy(dic, args = ""):
         "only_combined_occupancy_per_batch_sum_batches" -- only for combined filetypes, occupancy per batch separated into bkg and signal along with signal efficiency\n
     """
     hist = {}
-    hist["n_cells"]= []
-    hist["percentage_fired"] = []
-    hist["n_cells_per_layer"] = []
-    hist["total_number_of_cells"] = []
-    hist["total_number_of_layers"] = []
-    
-    hist["occupancy_per_batch_sum_batches"] = []
-    hist["occupancy_per_batch_sum_batches_error"] = []
-    
-    hist["occupancy_per_batch_sum_batches_only_neighbor"] = []
-    hist["occupancy_per_batch_sum_batches_only_neighbor_error"] = []
-    
-    hist["occupancy_per_batch_sum_batches_energy_dep"] = []
-    hist["occupancy_per_batch_sum_batch_avg_energy_dep"] = []
-    hist["occupancy_per_batch_sum_batch_avg_energy_dep_error"] = []
-    
-    hist["energy_deposit_1d"] = []
-    hist["energy_dep_per_batch"] = []
-    
-    hist["only_bkg_occupancy_per_batch_sum_batches"] = []
-    hist["only_bkg_occupancy_per_batch_sum_batches_error"] = []
-    hist["only_signal_occupancy_per_batch_sum_batches"] = []
-    hist["only_signal_occupancy_per_batch_sum_batches_error"] = []
-    hist["neighbors_remained"] = []
-    hist["neighbors_remained"] = []
     
     
     if args == "n_cells" or args == "":
@@ -617,7 +594,6 @@ def occupancy(dic, args = ""):
             if posBkg[i] in posSignal:
                 edepBothdic.append((edepBkgdic[i][0], edepBkgdic[i][1], edepBkgdic[i][2] + edepSignaldic[posSignal.index((edepBkgdic[i][0], edepBkgdic[i][1]))][2]))
         
-        print(len(edepBothdic))
         hist["combined_energy_one_batch"] = edepBothdic
         hist["combined_energy_one_batch_bkg"] = edepBkgdic
         hist["combined_energy_one_batch_signal"] = edepSignaldic
@@ -647,7 +623,214 @@ def occupancy(dic, args = ""):
                     hist["energy-deposit-1d-low-pt"].append(edep_per_batch[batch][hit])
                 else:
                     hist["energy-deposit-1d-high-pt"].append(edep_per_batch[batch][hit])
+
+    if args == "combined_onlyNeighbors_onlyEdeps_edep" or args == "":
+        allEdep = dic["energy_dep_per_cell_per_batch"]
+        edepBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        edepSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        edepOnlyNeighborsOnlyEdeps = dic["energy_dep_per_cell_per_batch_only_neighbors_only_edeps"]
         
+        onlyNeighborOnlyEdepMCID = dic["onlyNeighborOnlyEdepMCID_per_batch"] 
+        allMCID = dic["cellFiredMCID_per_batch"]
+        
+        onlyNeighborOnlyEdepSignalMCID_unique = []
+        onlyNeighborOnlyEdepBkgMCID_unique = [] #flatten list of all MCID by hits
+        onlyNeighborOnlyEdepSignalMCID = [] #list of batch dictionaries where key is mcID and value is list of pos hits
+        onlyNeighborOnlyEdepBkgMCID = []
+        
+        allSignalMCID = []
+        allBkgMCID = [] #flatten list of all MCID by hits
+        allSignalMCID_unique = [] #list of batch dictionaries where key is mcID and value is list of pos hits
+        allBkgMCID_unique = []
+            
+            
+        listDicsEdepSignal = []
+        listDicsEdepBkg = []
+        for batch in range(0, len(edepOnlyNeighborsOnlyEdeps)):
+            #turn edepSignal and edepBkg into a dictionary
+            dicEdepSignal = {}
+            dicEdepBkg = {}
+            for hit in range(0, len(edepSignal[batch])):
+                    if (edepSignal[batch][hit][0], edepSignal[batch][hit][1]) not in dicEdepSignal:
+                        dicEdepSignal[(edepSignal[batch][hit][0], edepSignal[batch][hit][1])] = [edepSignal[batch][hit]]
+                    else:
+                        dicEdepSignal[(edepSignal[batch][hit][0], edepSignal[batch][hit][1])].append(edepSignal[batch][hit])
+                        
+            for hit in range(0, len(edepBkg[batch])):
+                if (edepBkg[batch][hit][0], edepBkg[batch][hit][1]) not in dicEdepBkg:
+                    dicEdepBkg[(edepBkg[batch][hit][0], edepBkg[batch][hit][1])] = [edepBkg[batch][hit]]
+                else:
+                    dicEdepBkg[(edepBkg[batch][hit][0], edepBkg[batch][hit][1])].append(edepBkg[batch][hit])
+            listDicsEdepSignal.append(dicEdepSignal)
+            listDicsEdepBkg.append(dicEdepBkg)
+            
+        
+        edepSignalOnlyNeighborsOnlyEdeps = []
+        edepBkgOnlyNeighborsOnlyEdeps = []
+        #basically want to check if the signal remains in the only neighbors only edeps same with bkg
+        for batch in range(0, len(edepOnlyNeighborsOnlyEdeps)):
+            onlyNeighborOnlyEdepSignalMCID_byBatch = {}
+            onlyNeighborOnlyEdepBkgMCID_byBatch = {}
+            allSignalMCID_byBatch = {} #dictionary where key is mcID and value is list of tuples (layer, nphi, mcID)
+            allBkgMCID_byBatch = {}
+
+
+            for hit in range(0, len(edepOnlyNeighborsOnlyEdeps[batch])):
+                if (edepOnlyNeighborsOnlyEdeps[batch][hit][0], edepOnlyNeighborsOnlyEdeps[batch][hit][1]) in listDicsEdepSignal[batch]:
+                    edepSignalOnlyNeighborsOnlyEdeps.append(edepOnlyNeighborsOnlyEdeps[batch][hit])
+                if (edepOnlyNeighborsOnlyEdeps[batch][hit][0], edepOnlyNeighborsOnlyEdeps[batch][hit][1]) in listDicsEdepBkg[batch]:
+                    edepBkgOnlyNeighborsOnlyEdeps.append(edepOnlyNeighborsOnlyEdeps[batch][hit])
+                #need to double chreck if this is slightly wrong as it will double count the signal and bkg if they are in the same cell
+                
+            #get allMCID separated into signal and bkg
+            for key in allMCID[batch].keys(): #key is essentially the pos of the cell #tuple [3] is 0 if signal, 1 if bkg
+                # print(f"allmcID key: {allMCID[batch][key]}")
+                for hit in range(0, len(allMCID[batch][key])):
+                    # print(f"allMCID hit: {allMCID[batch][key][hit]}")
+                    if allMCID[batch][key][hit][3] == 0:
+                        # print("was signal")
+                        #this hit was by signal
+                        if allMCID[batch][key][hit][2] not in allSignalMCID_byBatch:
+                            #this is the first time we have seen this mcID
+                            allSignalMCID_byBatch[allMCID[batch][key][hit][2]] = [allMCID[batch][key][hit]]
+                        else:
+                            allSignalMCID_byBatch[allMCID[batch][key][hit][2]].append(allMCID[batch][key][hit])
+                        allSignalMCID.append(allMCID[batch][key][hit])
+        
+                    if allMCID[batch][key][hit][3]:
+                        # print("was bkg")
+                        #the mcID was hit by bkg
+                        if allMCID[batch][key][hit][2] not in allBkgMCID_byBatch:
+                            allBkgMCID_byBatch[allMCID[batch][key][hit][2]] = [allMCID[batch][key][hit]]
+                        else:
+                            allBkgMCID_byBatch[allMCID[batch][key][hit][2]].append(allMCID[batch][key][hit])
+                        allBkgMCID.append(allMCID[batch][key][hit])
+                    #note we allow for both signal and bkg to be allowed to remain even if they hit the same cell
+                # input("Press enter to continue")
+                
+                
+            for key in onlyNeighborOnlyEdepMCID[batch].keys():
+                for hit in range(0, len(onlyNeighborOnlyEdepMCID[batch][key])):
+                    #get onlyNeighborOnlyEdepMCID separated into signal and bkg
+                    #the mcID only neighbor only edep was hit by signal
+                    if onlyNeighborOnlyEdepMCID[batch][key][hit][3] == 0:
+                        #was signal hit
+                        if onlyNeighborOnlyEdepMCID[batch][key][hit][2] not in onlyNeighborOnlyEdepSignalMCID_byBatch:
+                            onlyNeighborOnlyEdepSignalMCID_byBatch[onlyNeighborOnlyEdepMCID[batch][key][hit][2]] = [onlyNeighborOnlyEdepMCID[batch][key][hit]]
+                        else:
+                            onlyNeighborOnlyEdepSignalMCID_byBatch[onlyNeighborOnlyEdepMCID[batch][key][hit][2]].append(onlyNeighborOnlyEdepMCID[batch][key][hit])
+                        onlyNeighborOnlyEdepSignalMCID.append(onlyNeighborOnlyEdepMCID[batch][key][hit])
+                        
+                    if onlyNeighborOnlyEdepMCID[batch][key][hit][3]:
+                        #was background
+                        #the mcID only neighbor only edep was hit by bkg
+                        if onlyNeighborOnlyEdepMCID[batch][key][hit][2] not in onlyNeighborOnlyEdepBkgMCID_byBatch:
+                            onlyNeighborOnlyEdepBkgMCID_byBatch[onlyNeighborOnlyEdepMCID[batch][key][hit][2]] = [onlyNeighborOnlyEdepMCID[batch][key][hit]]
+                        else:
+                            onlyNeighborOnlyEdepBkgMCID_byBatch[onlyNeighborOnlyEdepMCID[batch][key][hit][2]].append(onlyNeighborOnlyEdepMCID[batch][key][hit])
+                        onlyNeighborOnlyEdepBkgMCID.append(onlyNeighborOnlyEdepMCID[batch][key][hit])
+
+            #end of hits
+            onlyNeighborOnlyEdepSignalMCID_unique.append(onlyNeighborOnlyEdepSignalMCID_byBatch)
+            onlyNeighborOnlyEdepBkgMCID_unique.append(onlyNeighborOnlyEdepBkgMCID_byBatch)
+            allSignalMCID_unique.append(allSignalMCID_byBatch)
+            allBkgMCID_unique.append(allBkgMCID_byBatch)
+                
+        #get the only_neighbor_only_edep occupancy for bkg and signal
+        #get all the first in the tuple for onlyNeighborOnlyEdepSignalMCID_byBatch
+        # [item for sublist in hist["onlyNeighborMCID_per_batch"] for item in sublist]
+        onlyNeighborOnlyEdepSignalLayerIndexes = []
+        onlyNeighborOnlyEdepBkgLayerIndexes = []
+        for batch in range(0, len(onlyNeighborOnlyEdepBkgMCID_byBatch)):
+            batchSignalLayerIndexes = {}
+            batchBkgLayerIndexes = {}
+            # print(onlyNeighborOnlyEdepSignalMCID_unique[batch])
+            for key in onlyNeighborOnlyEdepSignalMCID_unique[batch].keys(): #key is mcID, value is list of hits
+                for hit in range(0, len(onlyNeighborOnlyEdepSignalMCID_unique[batch][key])):
+                    if (onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][1]) not in batchSignalLayerIndexes:
+                        batchSignalLayerIndexes[(onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][1])] = (onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepSignalMCID_unique[batch][key][hit][1])
+
+            for key in onlyNeighborOnlyEdepBkgMCID_unique[batch].keys():
+                for hit in range(0, len(onlyNeighborOnlyEdepBkgMCID_unique[batch][key])):
+                    if (onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][1]) not in batchBkgLayerIndexes:
+                        batchBkgLayerIndexes[(onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][1])] = (onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][0], onlyNeighborOnlyEdepBkgMCID_unique[batch][key][hit][1])
+            
+            # print(batchSignalLayerIndexes.values())
+            # input("press Enter to continue...")
+            onlyNeighborOnlyEdepSignalLayerIndexes.append(list(batchSignalLayerIndexes.values()))
+            onlyNeighborOnlyEdepBkgLayerIndexes.append(list(batchBkgLayerIndexes.values()))
+        #end of reconstructing onlyNeighborsONlyEdeps layer indexes
+            
+        SignalLayerIndexes = []
+        BkgLayerIndexes = []
+        for batch in range(0, len(allSignalMCID_unique)):
+            batchSignalLayerIndexes = {}
+            batchBkgLayerIndexes = {}
+            for key in allSignalMCID_unique[batch].keys():
+                for hit in range(0, len(allSignalMCID_unique[batch][key])):
+                    if (allSignalMCID_unique[batch][key][hit][0], allSignalMCID_unique[batch][key][hit][1]) not in batchSignalLayerIndexes:
+                        batchSignalLayerIndexes[(allSignalMCID_unique[batch][key][hit][0], allSignalMCID_unique[batch][key][hit][1])] = (allSignalMCID_unique[batch][key][hit][0], allSignalMCID_unique[batch][key][hit][1])
+            for key in allBkgMCID_unique[batch].keys():
+                for hit in range(0, len(allBkgMCID_unique[batch][key])):
+                    if (allBkgMCID_unique[batch][key][hit][0], allBkgMCID_unique[batch][key][hit][1]) not in batchBkgLayerIndexes:
+                        batchBkgLayerIndexes[(allBkgMCID_unique[batch][key][hit][0], allBkgMCID_unique[batch][key][hit][1])] = (allBkgMCID_unique[batch][key][hit][0], allBkgMCID_unique[batch][key][hit][1])
+            SignalLayerIndexes.append(list(batchSignalLayerIndexes.values()))
+            BkgLayerIndexes.append(list(batchBkgLayerIndexes.values()))
+        
+        combinedSignalOccOnlyNeighborOnlyEdeps = []
+        combinedBkgOccOnlyNeighborOnlyEdeps = []
+        combinedSignalOcc = []
+        combinedBkgOcc = []
+        for batches in range(0, len(onlyNeighborOnlyEdepSignalLayerIndexes)):
+            batchSignalNeighborEdepOcc = []
+            batchBkgNeighborEdepOcc = []
+            batchSignalOcc = []
+            batchBkgOcc = []
+            for unique_layer_index in range(0, dic["total_number_of_layers"]):
+                # print(f"onlyNeighborOnlyEdepSignalLayerIndexes: {onlyNeighborOnlyEdepSignalLayerIndexes[batches]}")
+                batchSignalNeighborEdepOcc.append(calculateOccupancy(onlyNeighborOnlyEdepSignalLayerIndexes[batches], unique_layer_index, dic["n_cell_per_layer"]))
+                batchBkgNeighborEdepOcc.append(calculateOccupancy(onlyNeighborOnlyEdepBkgLayerIndexes[batches], unique_layer_index, dic["n_cell_per_layer"]))
+                batchSignalOcc.append(calculateOccupancy(SignalLayerIndexes[batches], unique_layer_index, dic["n_cell_per_layer"]))
+                batchBkgOcc.append(calculateOccupancy(BkgLayerIndexes[batches], unique_layer_index, dic["n_cell_per_layer"]))
+                # print(f"batchSignalNeighborEdepOcc: {batchSignalNeighborEdepOcc}")
+                # print(f"batchSignalOcc: {batchSignalOcc}")
+                # input("Press enter to continue")
+            combinedSignalOcc.append(batchSignalOcc)
+            combinedBkgOcc.append(batchBkgOcc)
+            combinedSignalOccOnlyNeighborOnlyEdeps.append(batchSignalNeighborEdepOcc)
+            combinedBkgOccOnlyNeighborOnlyEdeps.append(batchBkgNeighborEdepOcc)
+        hist["combined_occupancy_onlyNeighbors_onlyEdeps_signal"] = np.mean(combinedSignalOccOnlyNeighborOnlyEdeps, axis=0)
+        hist["combined_occupancy_onlyNeighbors_onlyEdeps_bkg"] = np.mean(combinedBkgOccOnlyNeighborOnlyEdeps, axis=0)
+        hist["combined_occupancy_onlyNeighbors_onlyEdeps_signal_error"] = np.std(combinedSignalOccOnlyNeighborOnlyEdeps, axis=0) / np.sqrt(len(onlyNeighborOnlyEdepSignalLayerIndexes))
+        hist["combined_occupancy_onlyNeighbors_onlyEdeps_bkg_error"] = np.std(combinedBkgOccOnlyNeighborOnlyEdeps, axis=0) / np.sqrt(len(onlyNeighborOnlyEdepSignalLayerIndexes))
+        hist["combined_occupancy_signal"] = np.mean(combinedSignalOcc, axis=0)
+        hist["combined_occupancy_bkg"] = np.mean(combinedBkgOcc, axis=0)
+        hist["combined_occupancy_signal_error"] = np.std(combinedSignalOcc, axis=0) / np.sqrt(len(onlyNeighborOnlyEdepSignalLayerIndexes))
+        hist["combined_occupancy_bkg_error"] = np.std(combinedBkgOcc, axis=0) / np.sqrt(len(onlyNeighborOnlyEdepSignalLayerIndexes))
+        
+        hist["combined_onlyNeighbors_onlyEdeps_edep"] = edepOnlyNeighborsOnlyEdeps
+        hist["combined_onlyNeighbors_onlyEdeps_edep_signal"] = edepSignalOnlyNeighborsOnlyEdeps
+        hist["combined_onlyNeighbors_onlyEdeps_edep_bkg"] = edepBkgOnlyNeighborsOnlyEdeps
+        
+        hist["combined_allMCID"] = allMCID
+        hist["combined_onlyNeighborMCID"] = onlyNeighborOnlyEdepMCID
+        
+        hist["combined_onlyNeighborOnlyEdepSignalMCID"] = onlyNeighborOnlyEdepSignalMCID
+        hist["combined_onlyNeighborOnlyEdepBkgMCID"] = onlyNeighborOnlyEdepBkgMCID
+        
+        hist["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] = onlyNeighborOnlyEdepSignalMCID_unique
+        hist["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"] = onlyNeighborOnlyEdepBkgMCID_unique
+        
+        hist["combined_allSignalMCID_byBatch_unique"] = allSignalMCID_unique
+        hist["combined_allBkgMCID_byBatch_unique"] = allBkgMCID_unique
+        
+        hist["combined_allSignalMCID"] = allSignalMCID
+        hist["combined_allBkgMCID"] = allBkgMCID
+        
+        # np.save(npyOutputPath + "combined_onlyNeighbors_onlyEdeps_edep_signal.npy", edepSignalOnlyNeighborsOnlyEdeps)
+        # np.save(npyOutputPath + "combined_onlyNeighbors_onlyEdeps_edep_bkg.npy", edepBkgOnlyNeighborsOnlyEdeps)
+        np.save(npyOutputPath + "combined_edep_signal.npy", listDicsEdepSignal)
+        np.save(npyOutputPath + "combined_edep_bkg.npy", listDicsEdepBkg)
         
         
     if args == "energy_deposit_one_batch_low_high_pt" or args == "":
@@ -1145,10 +1328,11 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
     if args == "occupancy-BatchedBatch" or args == "":
         hist = occupancy(dic, "occupancy_per_batch_sum_batches")
         #save numpy of occupancy per batch sum batches:
-        # np.save("occupancy_per_batch_sum_batches_nonmean.npy", hist["occupancy_per_batch_sum_batches_non_meaned"])
-        np.savetxt("occupancy_per_batch_sum_batches_nonmean.csv",  hist["occupancy_per_batch_sum_batches_non_meaned"], delimiter=",", fmt="%.6f")  # Adjust precision as needed
+        # np.save(npyOutputPath + "occupancy_per_batch_sum_batches_nonmean.npy", hist["occupancy_per_batch_sum_batches_non_meaned"])
+        np.savetxt(npyOutputPath + "occupancy_per_batch_sum_batches_nonmean.csv",  hist["occupancy_per_batch_sum_batches_non_meaned"], delimiter=",", fmt="%.6f")  # Adjust precision as needed
         layers = [i for i in range(0, hist["total_number_of_layers"])]
         eff = 1.00
+
         xy_plot(layers, hist["occupancy_per_batch_sum_batches"], imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + ".png",
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", additionalText=str(typeFile) + " Efficiency: " + str(eff),
@@ -1187,17 +1371,338 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
     if args == "occupancy-onlyNeighbors-onlyEdeps" or args == "":
         hist = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
         layers = [i for i in range(0, hist["total_number_of_layers"])]
-        eff = calcEfficiency(typeFile, hist)
+        eff = calcEfficiency(typeFile, hist["no_neighbors_removed"], hist["neighbors_remained"])
+        
+        print(f"total via neighbors removed, remained: {hist['neighbors_remained'] + hist['no_neighbors_removed']}")
+        total_points = sum(len(batch) for batch in dic['energy_dep_per_cell_per_batch'])
+        print(f"total via edep pos: {total_points}")
+        
+        
         onlyNeighborMCID = [item for sublist in hist["onlyNeighborMCID_per_batch"] for item in sublist] #flatten
         allMCID = [item for sublist in hist["cellFiredMCID_per_batch"] for item in sublist] #flatten
         numOnlyNeighborMCID = len(np.unique(np.array(onlyNeighborMCID)))
         numAllMCID = len(np.unique(np.array(allMCID)))
-        mcDiff = round(numOnlyNeighborMCID / numAllMCID, 2)
+        # mcDiff = round(numOnlyNeighborMCID / numAllMCID, 2)
+        mcEff = calcEfficiency(typeFile, numAllMCID - numOnlyNeighborMCID, numOnlyNeighborMCID)
         xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdep" + imageOutputEdepCommonEnd,
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
-                additionalText=str(typeFile) + " Efficiency: " + str(eff) + "\nMC Difference: " + str(numOnlyNeighborMCID) + "/" + str(numAllMCID) + "=" + str(mcDiff),
+                additionalText=str(typeFile) + 
+                " Efficiency: " + str(eff) + "\n" + 
+                "MC Effiency: " + str(numOnlyNeighborMCID) + "/" + str(numAllMCID) + "=" + str(mcEff),
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"])
+    
+    if args == "combined-occupancy-onlyNeighbors-onlyEdeps" or args == "":
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+        
+        allEdepsSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        allEdepsBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        
+        #get length of each 2d array
+        allEdepsSignalLength = sum(len(batch) for batch in allEdepsSignal)
+        allEdepsBkgLength = sum(len(batch) for batch in allEdepsBkg)
+        
+        onlyNeighborsOnlyEdepsSignalEdepLength = len(onlyNeighborsOnlyEdepsSignalEdep) #its flatten now, not by batch, so just grab len
+        onlyNeighborsOnlyEdepsBkgEdepLength = len(onlyNeighborsOnlyEdepsBkgEdep)
+        
+        allMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allMCID"] #dictionary of mcID, where keys are mcID, values are list of pos hits
+        lenAllMCID = sum(len(batch.keys()) for batch in allMCID)
+        print(f"len all MCID: {lenAllMCID}")
+
+        
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        signalEff = calcEfficiency(typeFile, allEdepsSignalLength - onlyNeighborsOnlyEdepsSignalEdepLength, onlyNeighborsOnlyEdepsSignalEdepLength)
+        bkgEff = calcEfficiency(typeFile, allEdepsBkgLength - onlyNeighborsOnlyEdepsBkgEdepLength, onlyNeighborsOnlyEdepsBkgEdepLength)
+        
+        onlyNeighborOnlyEdepSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        allSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        
+        numOnlyNeighborOnlyEdepSignalMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepSignalMCID)#since dictionary of mcID, unique list is just the keys
+        numAllSignalMCID = sum(len(batch.keys()) for batch in allSignalMCID)
+        # signalMCDiff = round(numOnlyNeighborOnlyEdepSignalMCID / numAllSignalMCID, 2)
+        signalMCEff = calcEfficiency(typeFile, numAllSignalMCID - numOnlyNeighborOnlyEdepSignalMCID, numOnlyNeighborOnlyEdepSignalMCID)
+        
+        onlyNeighborOnlyEdepBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"]
+        allBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allBkgMCID_byBatch_unique"]
+        numOnlyNeighborOnlyEdepBkgMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepBkgMCID)
+        numAllBkgMCID = sum(len(batch.keys()) for batch in allBkgMCID)
+        # bkgMCDiff = round(numOnlyNeighborOnlyEdepBkgMCID / numAllBkgMCID, 2)
+        BkgMCEff = calcEfficiency(typeFile, numAllBkgMCID - numOnlyNeighborOnlyEdepBkgMCID, numOnlyNeighborOnlyEdepBkgMCID)
+        
+        print(f"numOnlyNeighborOnlyEdepSignalMCID: {numOnlyNeighborOnlyEdepSignalMCID}")
+        print(f"numAllSignalMCID: {numAllSignalMCID} \n")
+        
+        print(f"numOnlyNeighborOnlyEdepBkgMCID: {numOnlyNeighborOnlyEdepBkgMCID}")
+        print(f"numAllBkgMCID: {numAllBkgMCID} \n")
+        # input("press enter to continue")
+        
+        xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], 
+                imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdep" + imageOutputEdepCommonEnd,
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                additionalText=str(typeFile) + 
+                " Signal Efficiency: " + str(signalEff) + "," +
+                " Bkg Efficiency: " + str(bkgEff) + "\n" +
+                # "Signal MC Difference: " + str(signalMCDiff) + "," + 
+                # " Bkg MC Difference: " + str(bkgMCDiff),
+                "Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepSignalMCID) + "/" + str(numAllSignalMCID) + "=" + str(signalMCEff) + "," +
+                " Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepBkgMCID) + "/" + str(numAllBkgMCID) + "=" + str(BkgMCEff),
+                includeLegend=False, scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"])
+        
+    if args == "combined-separated-occupancy" or args == "":
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        
+        combinedSignalOcc = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal"]
+        combinedSignalOccError = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal_error"]
+        combinedBkgOcc = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg"]
+        combinedBkgOccError = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg_error"]
+        
+        fig, axe = plt.subplots()
+        xy_plot(layers, combinedSignalOcc, 
+                "PlaceholderPath",
+                "PlaceholderTitle",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                figure=fig, axe=axe, save=False, label = "Combined Only Signal",
+                includeLegend=False, scatter=True, errorBars=True, yerr = combinedSignalOccError)
+        xy_plot(layers, combinedBkgOcc, 
+                "PlaceholderPath",
+                "PlaceholderTitle",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                figure=fig, axe=axe, save=False, label = "Combined Only Bkg",
+                includeLegend=False, scatter=True, errorBars=True, yerr = combinedBkgOccError)
+        xy_plot(layers, hist["occupancy_per_batch_sum_batches"], 
+                imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "Separated" + imageOutputEdepCommonEnd,
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                label = "Combined", figure=fig, axe=axe, save=True,
+                includeLegend=True, scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_error"])
+        
+    if args == "combined-separated-occupancy-onlyNeighbors-onlyEdeps" or args == "":
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+        
+        allEdepsSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        allEdepsBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        
+        #get length of each 2d array
+        allEdepsSignalLength = sum(len(batch) for batch in allEdepsSignal)
+        allEdepsBkgLength = sum(len(batch) for batch in allEdepsBkg)
+        
+        onlyNeighborsOnlyEdepsSignalEdepLength = len(onlyNeighborsOnlyEdepsSignalEdep) #its flatten now, not by batch, so just grab len
+        onlyNeighborsOnlyEdepsBkgEdepLength = len(onlyNeighborsOnlyEdepsBkgEdep)
+        
+        allMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allMCID"] #dictionary of mcID, where keys are mcID, values are list of pos hits
+        lenAllMCID = sum(len(batch.keys()) for batch in allMCID)
+        print(f"len all MCID: {lenAllMCID}")
+
+        
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        signalEff = calcEfficiency(typeFile, allEdepsSignalLength - onlyNeighborsOnlyEdepsSignalEdepLength, onlyNeighborsOnlyEdepsSignalEdepLength)
+        bkgEff = calcEfficiency(typeFile, allEdepsBkgLength - onlyNeighborsOnlyEdepsBkgEdepLength, onlyNeighborsOnlyEdepsBkgEdepLength)
+        
+        onlyNeighborOnlyEdepSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        allSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        
+        numOnlyNeighborOnlyEdepSignalMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepSignalMCID)#since dictionary of mcID, unique list is just the keys
+        numAllSignalMCID = sum(len(batch.keys()) for batch in allSignalMCID)
+        # signalMCDiff = round(numOnlyNeighborOnlyEdepSignalMCID / numAllSignalMCID, 2)
+        signalMCEff = calcEfficiency(typeFile, numAllSignalMCID - numOnlyNeighborOnlyEdepSignalMCID, numOnlyNeighborOnlyEdepSignalMCID)
+        
+        onlyNeighborOnlyEdepBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"]
+        allBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allBkgMCID_byBatch_unique"]
+        numOnlyNeighborOnlyEdepBkgMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepBkgMCID)
+        numAllBkgMCID = sum(len(batch.keys()) for batch in allBkgMCID)
+        # bkgMCDiff = round(numOnlyNeighborOnlyEdepBkgMCID / numAllBkgMCID, 2)
+        BkgMCEff = calcEfficiency(typeFile, numAllBkgMCID - numOnlyNeighborOnlyEdepBkgMCID, numOnlyNeighborOnlyEdepBkgMCID)
+        
+        print(f"numOnlyNeighborOnlyEdepSignalMCID: {numOnlyNeighborOnlyEdepSignalMCID}")
+        print(f"numAllSignalMCID: {numAllSignalMCID} \n")
+        
+        print(f"numOnlyNeighborOnlyEdepBkgMCID: {numOnlyNeighborOnlyEdepBkgMCID}")
+        print(f"numAllBkgMCID: {numAllBkgMCID} \n")
+        # input("press enter to continue")
+        
+        combinedSignalOcc = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal"]
+        combinedSignalOccError = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal_error"]
+        combinedBkgOcc = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg"]
+        combinedBkgOccError = combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg_error"]
+        
+        fig, axe = plt.subplots()
+        xy_plot(layers, combinedSignalOcc, 
+                "PlaceholderPath",
+                "PlaceholderTitle",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                figure=fig, axe=axe, save=False, label = "Combined Only Signal", 
+                includeLegend=False, scatter=True, errorBars=True, yerr = combinedSignalOccError)
+        xy_plot(layers, combinedBkgOcc, 
+                "PlaceholderPath",
+                "PlaceholderTitle",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                figure=fig, axe=axe, save=False, label = "Combined Only Bkg",
+                includeLegend=False, scatter=True, errorBars=True, yerr = combinedBkgOccError)
+        xy_plot(layers, hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], 
+                imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "SeparatedOnlyNeighborsOnlyEdep" + imageOutputEdepCommonEnd,
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]", 
+                additionalText=str(typeFile) + 
+                " Signal Efficiency: " + str(signalEff) + "," +
+                " Bkg Efficiency: " + str(bkgEff) + "\n" +
+                # "Signal MC Difference: " + str(signalMCDiff) + "," + 
+                # " Bkg MC Difference: " + str(bkgMCDiff),
+                "Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepSignalMCID) + "/" + str(numAllSignalMCID) + "=" + str(signalMCEff) + "," +
+                " Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepBkgMCID) + "/" + str(numAllBkgMCID) + "=" + str(BkgMCEff),
+                label = "Combined", figure=fig, axe=axe, save=True,
+                includeLegend=True, scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"])
+        
+    if args == "combined-occupancy-onlyNeighbors-onlyEdeps-diff" or args == "":
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+        
+        allEdepsSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        allEdepsBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        
+        #get length of each 2d array
+        allEdepsSignalLength = sum(len(batch) for batch in allEdepsSignal)
+        allEdepsBkgLength = sum(len(batch) for batch in allEdepsBkg)
+        
+        onlyNeighborsOnlyEdepsSignalEdepLength = len(onlyNeighborsOnlyEdepsSignalEdep) #its flatten now, not by batch, so just grab len
+        onlyNeighborsOnlyEdepsBkgEdepLength = len(onlyNeighborsOnlyEdepsBkgEdep)
+        
+        allMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allMCID"] #dictionary of mcID, where keys are mcID, values are list of pos hits
+        lenAllMCID = sum(len(batch.keys()) for batch in allMCID)
+
+        
+        onlyNeighborOnlyEdepSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        allSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        
+        numOnlyNeighborOnlyEdepSignalMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepSignalMCID)#since dictionary of mcID, unique list is just the keys
+        numAllSignalMCID = sum(len(batch.keys()) for batch in allSignalMCID)
+        # signalMCDiff = round(numOnlyNeighborOnlyEdepSignalMCID / numAllSignalMCID, 2)
+        signalMCEff = calcEfficiency(typeFile, numAllSignalMCID - numOnlyNeighborOnlyEdepSignalMCID, numOnlyNeighborOnlyEdepSignalMCID)
+        
+        onlyNeighborOnlyEdepBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"]
+        allBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allBkgMCID_byBatch_unique"]
+        numOnlyNeighborOnlyEdepBkgMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepBkgMCID)
+        numAllBkgMCID = sum(len(batch.keys()) for batch in allBkgMCID)
+        # bkgMCDiff = round(numOnlyNeighborOnlyEdepBkgMCID / numAllBkgMCID, 2)
+        BkgMCEff = calcEfficiency(typeFile, numAllBkgMCID - numOnlyNeighborOnlyEdepBkgMCID, numOnlyNeighborOnlyEdepBkgMCID)
+        
+        histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        signalEff = calcEfficiency(typeFile, allEdepsSignalLength - onlyNeighborsOnlyEdepsSignalEdepLength, onlyNeighborsOnlyEdepsSignalEdepLength)
+        bkgEff = calcEfficiency(typeFile, allEdepsBkgLength - onlyNeighborsOnlyEdepsBkgEdepLength, onlyNeighborsOnlyEdepsBkgEdepLength)
+
+        ratioDiff, ratioDiffError = calcBinomError(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], hist["occupancy_per_batch_sum_batches"], histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], hist["occupancy_per_batch_sum_batches_error"])
+
+
+        xy_plot(layers, ratioDiff, 
+                imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsOnlyEdepDiff" + imageOutputEdepCommonEnd,
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                additionalText=str(typeFile) +
+                " Signal Efficiency: " + str(signalEff) + "," +
+                " Bkg Efficiency: " + str(bkgEff) + "\n" +
+                "Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepSignalMCID) + "/" + str(numAllSignalMCID) + "=" + str(signalMCEff) + "," +
+                " Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepBkgMCID) + "/" + str(numAllBkgMCID) + "=" + str(BkgMCEff),
+                includeLegend=False, scatter=True, errorBars=True, yerr = ratioDiffError)
+      
+    if args == "combined-separated-occupancy-onlyNeighbors-onlyEdeps-diff" or args == "":
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+        
+        allEdepsSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        allEdepsBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        
+        #get length of each 2d array
+        allEdepsSignalLength = sum(len(batch) for batch in allEdepsSignal)
+        allEdepsBkgLength = sum(len(batch) for batch in allEdepsBkg)
+        
+        onlyNeighborsOnlyEdepsSignalEdepLength = len(onlyNeighborsOnlyEdepsSignalEdep) #its flatten now, not by batch, so just grab len
+        onlyNeighborsOnlyEdepsBkgEdepLength = len(onlyNeighborsOnlyEdepsBkgEdep)
+        
+        allMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allMCID"] #dictionary of mcID, where keys are mcID, values are list of pos hits
+        lenAllMCID = sum(len(batch.keys()) for batch in allMCID)
+
+        
+        onlyNeighborOnlyEdepSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        allSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        
+        numOnlyNeighborOnlyEdepSignalMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepSignalMCID)#since dictionary of mcID, unique list is just the keys
+        numAllSignalMCID = sum(len(batch.keys()) for batch in allSignalMCID)
+        # signalMCDiff = round(numOnlyNeighborOnlyEdepSignalMCID / numAllSignalMCID, 2)
+        signalMCEff = calcEfficiency(typeFile, numAllSignalMCID - numOnlyNeighborOnlyEdepSignalMCID, numOnlyNeighborOnlyEdepSignalMCID)
+        
+        onlyNeighborOnlyEdepBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"]
+        allBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allBkgMCID_byBatch_unique"]
+        numOnlyNeighborOnlyEdepBkgMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepBkgMCID)
+        numAllBkgMCID = sum(len(batch.keys()) for batch in allBkgMCID)
+        # bkgMCDiff = round(numOnlyNeighborOnlyEdepBkgMCID / numAllBkgMCID, 2)
+        BkgMCEff = calcEfficiency(typeFile, numAllBkgMCID - numOnlyNeighborOnlyEdepBkgMCID, numOnlyNeighborOnlyEdepBkgMCID)
+        
+        histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        signalEff = calcEfficiency(typeFile, allEdepsSignalLength - onlyNeighborsOnlyEdepsSignalEdepLength, onlyNeighborsOnlyEdepsSignalEdepLength)
+        bkgEff = calcEfficiency(typeFile, allEdepsBkgLength - onlyNeighborsOnlyEdepsBkgEdepLength, onlyNeighborsOnlyEdepsBkgEdepLength)
+
+        ratioDiffSignal, ratioDiffErrorSignal = calcBinomError(combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal"], 
+                                                               combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal"], 
+                                                               combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal_error"], 
+                                                               combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal_error"])
+        ratioDiffBkg, ratioDiffErrorBkg = calcBinomError(combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg"],
+                                                         combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg"], 
+                                                         combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg_error"], 
+                                                         combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg_error"])
+        
+        ratioDiff, ratioDiffError = calcBinomError(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], 
+                                                   hist["occupancy_per_batch_sum_batches"], 
+                                                   histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], 
+                                                   hist["occupancy_per_batch_sum_batches_error"])
+
+        
+        fig, axe = plt.subplots()
+        xy_plot(layers, ratioDiffSignal,
+                "PlaceHolderPath",
+                "PlaceHolderTitle",
+                label="Combined Only Signal",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                figure=fig, axe=axe,
+                save=False, scatter=True, errorBars=True, yerr=ratioDiffErrorSignal,
+                )
+        xy_plot(layers, ratioDiffBkg,
+                "PlaceHolderPath",
+                "PlaceHolderTitle",
+                label="Combined Only Bkg",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                figure=fig, axe=axe,
+                save=False, scatter=True, errorBars=True, yerr=ratioDiffErrorBkg,
+                )
+
+        xy_plot(layers, ratioDiff, 
+                imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "SeparatedOnlyNeighborsOnlyEdepDiff" + imageOutputEdepCommonEnd,
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                label = "Combined",
+                additionalText=str(typeFile) +
+                " Signal Efficiency: " + str(signalEff) + "," +
+                " Bkg Efficiency: " + str(bkgEff) + "\n" +
+                "Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepSignalMCID) + "/" + str(numAllSignalMCID) + "=" + str(signalMCEff) + "," +
+                " Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepBkgMCID) + "/" + str(numAllBkgMCID) + "=" + str(BkgMCEff),
+                figure=fig, axe=axe,
+                includeLegend=True, scatter=True, errorBars=True, yerr = ratioDiffError)
         
     if args == "occupancy-onlyNeighbors-diff" or args == "": #ratio diff
         histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor")
@@ -1210,7 +1715,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
             ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_error"][i] / histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] )**2 
                                                          + (hist["occupancy_per_batch_sum_batches_error"][i] / hist["occupancy_per_batch_sum_batches"][i])**2))
             # percentDiff.append(( (abs(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] - hist["occupancy_per_batch_sum_batches"][i])) / (hist["occupancy_per_batch_sum_batches"][i] + histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] / 2) ) * 100)
-        eff = calcEfficiency(typeFile, histNeighbor)
+        eff = calcEfficiency(typeFile, histNeighbor["no_neighbors_removed"], histNeighbor["neighbors_remained"])
         xy_plot(layers, ratioDiff, imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
@@ -1231,10 +1736,10 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         ratioDiff, ratioDiffError = calcBinomError(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], hist["occupancy_per_batch_sum_batches"], histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], hist["occupancy_per_batch_sum_batches_error"])
         # print(f"remained: {histNeighbor['neighbors_remained']}")
         # print(f"removed: {histNeighbor['no_neighbors_removed']}")
-        eff = calcEfficiency(typeFile, histNeighbor)
+        eff = calcEfficiency(typeFile, histNeighbor["no_neighbors_removed"], histNeighbor["neighbors_remained"])
         
         #save histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"] to text file for excel
-        np.savetxt(imageOutputPath + "occupancy_per_batch_sum_batches_only_neighbor_only_edep_diff.txt", ratioDiff, delimiter=",", fmt="%.6f")  # Adjust precision as needed
+        np.savetxt(npyOutputPath + "occupancy_per_batch_sum_batches_only_neighbor_only_edep_diff.txt", ratioDiff, delimiter=",", fmt="%.6f")  # Adjust precision as needed
         
         # global imageOutputEdepCommonEnd
         xy_plot(layers, ratioDiff, 
@@ -1256,7 +1761,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
             percentDiff.append(pd)
             percentDiffError.append(error)
             # percentDiff.append(( (abs(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] - hist["occupancy_per_batch_sum_batches"][i])) / (hist["occupancy_per_batch_sum_batches"][i] + histNeighbor["occupancy_per_batch_sum_batches_only_neighbor"][i] / 2) ) * 100)
-        eff = calcEfficiency(typeFile, histNeighbor)
+        eff = calcEfficiency(typeFile, histNeighbor["no_neighbors_removed"], histNeighbor["neighbors_remained"])
         xy_plot(layers, percentDiff, imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsPercDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
                 "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
                 xLabel="Radial Layer Index", yLabel="Percent Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
@@ -1340,7 +1845,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         edep = [i * 1000 for i in edep] #convert to mev
         
         # save numpy of energy deposit one batch:
-        np.save(imageOutputPath + "energy_deposit_one_batch.npy", hist["energy_deposit_one_batch"])
+        # np.save(npyOutputPath + "energy_deposit_one_batch.npy", hist["energy_deposit_one_batch"])
         
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatch"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
@@ -1377,21 +1882,21 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                     "PathPlaceholder", 
                     "TitlePlaceholder", weights = edepBkg, 
                     cmap="winter", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112,
+                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
                     save=False, label="Bkg Overlay",
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         hist2d(phiSignal, rSignal,
                     "PathPlaceholder", 
                     "TitlePlaceholder", weights = edepSignal, 
                     cmap="autumn", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112,
+                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
                     save=False, label="Signal Overlay", includeColorbar=False,
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         hist2d(phiBoth, rBoth,
                     imageOutputPath + "energyDepositOneBatchBoth"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                     "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edepBoth, 
                     cmap="summer", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112, 
+                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
                     save=True, label="Both Signal and Bkg Hit", includeColorbar=False,
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         
@@ -1876,6 +2381,11 @@ def genPlot(inputArgs):
         "occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
         "occupancy-onlyNeighbors-percdiff": plotOccupancy,
         "only-combined-occupancy-BatchedBatch": plotOccupancy,
+        "combined-occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
+        "combined-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
+        "combined-separated-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
+        "combined-separated-occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
+        "combined-separated-occupancy": plotOccupancy,
         "avg-energy-deposit": plotEdep,
         "energy-deposit": plotEdep,
         "energy-deposit-1d": plotEdep,
@@ -1931,6 +2441,7 @@ typePlots = ["", "all",
                 "avg-energy-deposit",
                 "only-combined-occupancy-BatchedBatch", "occupancy-onlyNeighbors-diff", "occupancy-onlyNeighbors-percdiff",
                 "occupancy-onlyNeighbors-onlyEdeps-diff",
+                "combined-separated-occupancy-onlyNeighbors-onlyEdeps-diff", "combined-separated-occupancy-onlyNeighbors-onlyEdeps",
                 "energy-deposit", "energy-deposit-1d", "energy-deposit-one-batch", "energy-deposit-one-batch-squished",
                 "combined-deposit-one-batch",
                 "energy-deposit-one-batch-only-neighbors", "energy_dep_per_cell_per_batch_only_neighbors_only_edeps",

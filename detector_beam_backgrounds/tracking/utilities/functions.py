@@ -61,6 +61,14 @@ def calcBinomError(subsetHist, hist, subsetHistError, histError, inPercent=True)
             resultEfficiencyError.append(0)
     return resultEfficiency, resultEfficiencyError
     
+def calcDirectionVector(p1, p2):
+    xVector = p2[0] - p1[0]
+    yVector = p2[1] - p1[1]
+    if len(p1) == 3:
+        zVector = p2[2] - p1[2]
+        return np.array([xVector, yVector, zVector])
+    else:
+        return np.array([xVector, yVector])
     
 def hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1, 
               xLabel="", yLabel="Events", logY=False, logX=False, 
@@ -465,7 +473,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
             figure = plt.figure(), axe = "", includeLegend = True, scatter=True, 
             errorBars=False, yerr=[], includeGrid=True, save=True, color="", pdf=False,
             weights=False, cmap='viridis', includeColorbar=False, colorbarLabel="", logWeights=False,
-            mark='.', markSize=4, xLim=[], yLim=[]):
+            mark='.', markSize=4, xLim=[], yLim=[], yerrAlpha=1):
     """
     Create a xy plot with the given parameters.
     
@@ -497,7 +505,7 @@ def xy_plot(x, y, outname, title, xLabel, yLabel, logY=False, logX=False,
         print("Beginning to xy plot...")
     if scatter:
         if errorBars:
-            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker=mark, markersize=markSize)
+            axe.errorbar(x, y, yerr, label=label, linestyle='none', marker=mark, markersize=markSize, alpha=yerrAlpha)
         elif weights != False:
             if logWeights:
                 sc = axe.scatter(x, y, c=weights, label=label, cmap=cmap, marker=mark, s=markSize, norm=LogNorm())

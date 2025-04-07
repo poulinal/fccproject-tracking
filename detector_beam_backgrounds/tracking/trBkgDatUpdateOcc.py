@@ -24,13 +24,18 @@ but doesnt have to, it will just create a new .npy.
 # EdepNeighborsRemained = 0
 # NoEdepNeighborsRemoved = 0
 
-def calculateOccupancy(occupancy, unique_layer_index, n_cell_per_layer):
+def calculateOccupancy(occupancy :list[tuple], unique_layer_index, n_cell_per_layer):
     #basicaly, we are calculating the occupancy of each layer
     #so for each layer, we get the number of cells that were fired and divide by the total number of cells in that layer
-    filtered_occupancies = [x for x in occupancy if x == unique_layer_index]
+    #occupancy is a list of tuples (unique_layer_index, nphi)
+    onlyLayers = [x[0] for x in occupancy]
+    # print(f"onlyLayers: {onlyLayers}")
+    filtered_occupancies = [x for x in onlyLayers if x == unique_layer_index]
+    # print(f"filtered_occupancies: {filtered_occupancies}")
     layer_count = len(filtered_occupancies)
     total_cells_in_layer = float(n_cell_per_layer[str(unique_layer_index)])
     percentage_occupancy = 100 * layer_count / total_cells_in_layer
+    # input("Press Enter to continue...")
     return percentage_occupancy
 
 def calculateOccupancyNonNormalized(occupancy, unique_layer_index, n_cell_per_layer):
@@ -93,23 +98,24 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
         # print("batch: ", i)
         # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
         
-        superLayerIndex = (unique_layer_index - 1) // 8
+        superLayerIndex = (unique_layer_index) // 8 #indexes at 0
 
         # print(f"unique_layer_index: {unique_layer_index}, nphi: {nphi}, currentEdeppos: {edep[i][0]}, {edep[i][1]}, currentEdep: {currentEdep}")
         
-        # print(superLayerIndex)
+        # print(superLayerIndex, unique_layer_index)
         neighborAtLeast = atLeast
         edepNeighborAtLeast = edepAtLeast
         rangeR = radiusR
         rangePhi = radiusPhi
-        if edepLoosen and superLayerIndex > maxLayer / 8 / 8: #since 8 layers per superlayer; start loosening after half
-            layerSinceHalf = superLayerIndex - maxLayer / 8 / 8
-            # print("edepLoosen")
+        if edepLoosen and superLayerIndex > 11: # maxLayer / 8 / 8: #since 8 layers per superlayer; start loosening after second to last superlayer
+            layerSinceHalf = max(0, (unique_layer_index - (11 * 8)))
+            # print(f"layerSinceHalf: {layerSinceHalf}, superLayerIndex: {superLayerIndex}, unique_layer_index: {unique_layer_index}")
+            #superLayerSinceHalf = superLayerIndex - maxLayer / 8 / 8
             # neighborAtLeast = int(atLeast * pow(0.99, layerSinceHalf))
             # edepNeighborAtLeast = int(edepAtLeast * pow(1.05, layerSinceHalf))
             # edepNeighborAtLeast = edepAtLeast
-            rangeR = int(radiusR * pow(1.05, layerSinceHalf))
-            rangePhi = int(radiusPhi * pow(1.05, layerSinceHalf)) #take into account the superlayer into the adjustment
+            rangeR = int(radiusR * pow(1.025, layerSinceHalf))
+            rangePhi = int(radiusPhi * pow(1.025, layerSinceHalf)) #take into account the superlayer into the adjustment
             
             # print(f"layernum: {unique_layer_index}, neighborAtLeast: {neighborAtLeast}, rangeR: {rangeR}, rangePhi: {rangePhi}, edepNeighborAtLeast: {edepNeighborAtLeast}")
             # input("Press Enter to continue...")
@@ -192,7 +198,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
 
         #determine outcome of cell:
         if neighbors: #if neighbors, add to only_neighbors
-            only_neighbors.append(unique_layer_index)
+            only_neighbors.append((unique_layer_index, nphi))
             only_neighbors_pos.append((unique_layer_index, nphi))
             only_neighbors_edep.append((unique_layer_index, nphi, currentEdep)) #also should do edep for only neighbors only edep
             if type(NoNeighborsRemoved) == int:
@@ -206,7 +212,7 @@ def calculateOnlyNeighbors(occupancy :list[tuple], edep :list[tuple], radiusR=1,
                 NoNeighborsRemoved.value += 1
         if neighborsEdep:
             only_neighbors_only_edeps_pos.append((unique_layer_index, nphi))
-            only_neighbors_only_edep.append(unique_layer_index)
+            only_neighbors_only_edep.append((unique_layer_index, nphi))
             only_neighbors_only_edep_edep.append((unique_layer_index, nphi, currentEdep))
             if type(EdepNeighborsRemained) == int:
                 EdepNeighborsRemained += 1
@@ -300,24 +306,26 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
     # print(cell_to_mcID)
     # input("Press Enter to continue...")
     
+    dic_cell_to_mcID = cell_to_mcID
     #turn cell_to_mcID into a dictionary
-    dic_cell_to_mcID = {}
-    for i in range(0, len(cell_to_mcID)):
-        key = (cell_to_mcID[i][0], cell_to_mcID[i][1])
-        if key not in dic_cell_to_mcID.keys():
-            dic_cell_to_mcID[key] = [cell_to_mcID[i]]
-        else:
-            # print(f"Warning: duplicate key in cell_to_mcID: {key}")
-            if cell_to_mcID[i] not in dic_cell_to_mcID[key]:
-                dic_cell_to_mcID[key].append(cell_to_mcID[i]) #dont put exact duplicates in there
-                #note im not sure why cell_to_mcID has exact duplicates
+    # dic_cell_to_mcID = {} #a dictionary where key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+    # for key in cell_to_mcID.keys():
+    #     print(key)
+    #     print(f"cell_i: {cell_to_mcID[key]}")
+    #     if key not in dic_cell_to_mcID.keys():
+    #         dic_cell_to_mcID[key] = [cell_to_mcID[key]]
+    #     else:
+    #         # print(f"Warning: duplicate key in cell_to_mcID: {key}")
+    #         if cell_to_mcID[i] not in dic_cell_to_mcID[key]:
+    #             dic_cell_to_mcID[key].append(cell_to_mcID[key]) #dont put exact duplicates in there
+    #             #note im not sure why cell_to_mcID has exact duplicates
             
     # print(f"dic_cell_to_mcID: {dic_cell_to_mcID}")
     # input("Press Enter to continue...")
     
     
     #given only_neighbor_pos, we will now calculate the mcID of the cells that were fired
-    cell_to_mcID_neighbors = []
+    cell_to_mcID_neighbors = {}
     for i in range(0, len(only_neighbor_pos)):
         unique_layer_index = only_neighbor_pos[i][0]
         nphi = only_neighbor_pos[i][1]
@@ -327,9 +335,15 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
             print(f"Error: unique_layer_index not found in cell_to_mcID: {unique_layer_index}, {nphi}")
             input("Press Enter to continue...")
         else:
-            cell_to_mcID_neighbors.append(dic_cell_to_mcID[(unique_layer_index, nphi)]) #append the mcID's of the cell to the list 
+            if (unique_layer_index, nphi) not in cell_to_mcID_neighbors:
+                cell_to_mcID_neighbors[(unique_layer_index, nphi)] = dic_cell_to_mcID[(unique_layer_index, nphi)] #setup dictionary for current cell's neighbors
+            else:
+                if type(dic_cell_to_mcID[(unique_layer_index, nphi)]) is not list:
+                    print(f"Warning: cell_to_mcID_neighbors is not a list: {dic_cell_to_mcID[(unique_layer_index, nphi)]}")
+                    input("Press Enter to continue...")
+                cell_to_mcID_neighbors[(unique_layer_index, nphi)] += (dic_cell_to_mcID[(unique_layer_index, nphi)]) #append the mcID's of the cell to the list 
             
-    cell_to_mcID_neighbors_only_edep = []
+    cell_to_mcID_neighbors_only_edep = {}
     for i in range(0, len(only_neighbor_only_edep_pos)):
         unique_layer_index = only_neighbor_only_edep_pos[i][0]
         nphi = only_neighbor_only_edep_pos[i][1]
@@ -339,15 +353,18 @@ def calcOcc(occupancies_a_batch, occupancies_a_batch_only_neighbor, occupancies_
             print(f"Error: unique_layer_index not found in cell_to_mcID: {unique_layer_index}, {nphi}")
             input("Press Enter to continue...")
         else:
-            if dic_cell_to_mcID[(unique_layer_index, nphi)] in cell_to_mcID_neighbors_only_edep:
-                print(f"\n \n \n Warning: duplicate key in cell_to_mcID_neighbors_only_edep: {unique_layer_index}, {nphi} \n \n \n")
-                input("Press Enter to continue...")
-            cell_to_mcID_neighbors_only_edep.append(dic_cell_to_mcID[(unique_layer_index, nphi)])
+            # if dic_cell_to_mcID[(unique_layer_index, nphi)] in cell_to_mcID_neighbors_only_edep:
+            #     print(f"\n \n \n Warning: duplicate key in cell_to_mcID_neighbors_only_edep: {unique_layer_index}, {nphi} \n \n \n")
+            #     input("Press Enter to continue...")
+            if (unique_layer_index, nphi) not in cell_to_mcID_neighbors_only_edep:
+                cell_to_mcID_neighbors_only_edep[(unique_layer_index, nphi)] = dic_cell_to_mcID[(unique_layer_index, nphi)]
+            else:
+                cell_to_mcID_neighbors_only_edep[(unique_layer_index, nphi)] += (dic_cell_to_mcID[(unique_layer_index, nphi)])
             
     # print(f"cell_to_mcID_neighbors_only_edep: {cell_to_mcID_neighbors_only_edep}")
     #flatten
-    cell_to_mcID_neighbors = [item for sublist in cell_to_mcID_neighbors for item in sublist]
-    cell_to_mcID_neighbors_only_edep = [item for sublist in cell_to_mcID_neighbors_only_edep for item in sublist]
+    # cell_to_mcID_neighbors = [item for sublist in cell_to_mcID_neighbors for item in sublist]
+    # cell_to_mcID_neighbors_only_edep = [item for sublist in cell_to_mcID_neighbors_only_edep for item in sublist]
     # print(f"cell_to_mcID_neighbors: {cell_to_mcID_neighbors_only_edep}")
     # input("Press Enter to continue...")
     
@@ -451,6 +468,9 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     
     occupancies_per_batch_sum_batch_only_bkg = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers)) #only used for combined
     occupancies_per_batch_sum_batch_only_signal = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers)) #only used for combined
+    
+    occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers)) #only used for combined
+    occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers)) #only used for combined
 
     occupancies_per_batch_sum_batch_only_neighbor = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers))
     occupancies_per_batch_sum_batch_only_neighbors_only_edeps = np.zeros((int(eventFactor*numfiles/batches), total_number_of_layers))
@@ -479,9 +499,9 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     cellFiredPos = []
     cellFiredPosNeighbors = []
     
-    cell_to_mcID_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-    cell_to_mcID_neighbors_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-    cell_to_mcID_neighbors_edeps_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+    cell_to_mcID_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID, particleType) for each cell fired for each batch particleType is 1 for bkg, 0 for signal
+    cell_to_mcID_neighbors_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID, particleType) for each cell fired for each batch
+    cell_to_mcID_neighbors_edeps_per_batch = [] #a list of tuples (unique_layer_index, nphi, mcID, particleType) for each cell fired for each batch
     all_mcID_per_batch = [] #a list of all mcID's which fired cells for each batch
     
     neighborPt = []  #will be a list of lists of tuple of (radiusR, radiusPhi, pt)
@@ -529,11 +549,12 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 batch_cell_fired_pos_neighbors = []
                 batch_cell_fired_pos = []
                 
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID_neighbors = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
+                particleType = 1 #1 for bkg
         
         numEvents = 0
         for event in reader.get("events"):
@@ -552,12 +573,13 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 # occupancies_a_batch_edep_per_cell = []
                 batch_cell_fired_pos_neighbors = []
                 batch_cell_fired_pos = []
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID_neighbors = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
                 # numBatches = 0 #total batches should be numFiles * 10
+                particleType = 0 #0 for signal
                 
             if typeFile == "combined": #want to reset every 1 combined event since for each file, 10 signal events, each with 20 bkg events respectively
                 print(f"resetting occupancy for batch, new batch: {numBatches}")
@@ -572,8 +594,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 # occupancies_a_batch_only_neighbor_isSignalOverlay = [] # a list of isSignalOverlay, should be same size as occupancies_a_batch_only_neighbor
                 batch_cell_fired_pos_neighbors = []
                 batch_cell_fired_pos = []
-                cell_to_mcID = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
-                cell_to_mcID_neighbors = [] #a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
+                cell_to_mcID_neighbors = {} #a dic key is layer,phi value is a list of tuples (unique_layer_index, nphi, mcID) for each cell fired for each batch
                 all_mcID = [] #a list of mcID's which fired cells for each batch
                 batch_pt = [] #will be a list of tuple of (radiusR, radiusPhi, pt)
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
@@ -602,6 +624,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 
                 if typeFile == "combined":
                     isBkgOverlay = dc_hit.isOverlay()
+                    particleType = 1 if isBkgOverlay else 0
                     # print(isBkgOverlay)
                 
                 cellID = dc_hit.getCellID()
@@ -631,14 +654,17 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 
                 # get occupancy cell fired?
                 if not cellID_unique_identifier in dict_cellID_nHits.keys(): # the cell was not fired yet
-                    occupancies_an_event.append(unique_layer_index)
-                    occupancies_a_batch.append(unique_layer_index)
+                    occupancies_an_event.append((unique_layer_index, nphi))
+                    occupancies_a_batch.append((unique_layer_index, nphi))
                     occupancies_a_batch_only_neighbor.append((unique_layer_index, nphi)) #we append for now then we can check after all hits, what neighbors are fired
                     occupancies_a_batch_edep.append((unique_layer_index, nphi, dc_hit.getEDep()))
                     # print(f"unique_layer_index: {unique_layer_index} and nphi: {nphi} where edep: {dc_hit.getEDep()}")
                     # occupancies_a_batch_edep_per_cell.append((unique_layer_index, nphi, dc_hit.getEDep()))
                     cellFiredPos.append((unique_layer_index, nphi))
-                    cell_to_mcID.append((unique_layer_index, nphi, index_mc))
+                    if (unique_layer_index, nphi) not in cell_to_mcID:
+                        cell_to_mcID[(unique_layer_index, nphi)] = [(unique_layer_index, nphi, index_mc, particleType)]
+                    else:
+                        cell_to_mcID[(unique_layer_index, nphi)].append((unique_layer_index, nphi, index_mc, particleType))
                     
                     if typeFile=="combined":
                         mcParticle = mcParticleHit
@@ -651,14 +677,14 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     batch_cell_fired_pos.append((unique_layer_index, nphi))
                     dict_cellID_nHits[cellID_unique_identifier] = 1
                     if typeFile=="combined" and isBkgOverlay:
-                        occupancies_a_batch_isBkgOverlay.append(unique_layer_index)
+                        occupancies_a_batch_isBkgOverlay.append((unique_layer_index, nphi))
                         batch_pos_bkgOverlay[(unique_layer_index, nphi)] = (unique_layer_index, nphi, isBkgOverlay)
                     elif typeFile=="combined" and not isBkgOverlay:
-                        occupancies_a_batch_isSignalOverlay.append(unique_layer_index)
+                        occupancies_a_batch_isSignalOverlay.append((unique_layer_index, nphi))
                         batch_pos_bkgOverlay[(unique_layer_index, nphi)] = (unique_layer_index, nphi, isBkgOverlay)
                 else: # the cell was already fired
                     dict_cellID_nHits[cellID_unique_identifier] += 1
-                    cell_to_mcID.append((unique_layer_index, nphi, index_mc)) #still consider it
+                    cell_to_mcID[(unique_layer_index, nphi)].append((unique_layer_index, nphi, index_mc, particleType)) #still consider it
                     # print(f"unique_layer_index: {unique_layer_index} and nphi: {nphi}")
                     # find where in edep tuple the pos is of the previously fired cell
                     index = [i for i, tup in enumerate(occupancies_a_batch_edep) if tup[0] == unique_layer_index and tup[1] == nphi] 
@@ -679,6 +705,9 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                         dict_particle_n_fired_cell[index_mc] += 1
                         dict_particle_fired_cell_id[index_mc].append(cellID_unique_identifier)
             ###end of hit loop
+            
+            # print(f"cell_to_mcID: {cell_to_mcID}")
+            # input("Press Enter to continue...")
             
             
             ##signal files we want to reset every event
@@ -723,11 +752,29 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 print(f"setting occupancy for batch: {numBatches}")
                 batch_occupancy_only_bkg = []
                 batch_occupancy_only_signal = []
+                batch_occupancy_only_bkg_only_neighbor_only_edeps = []
+                batch_occupancy_only_signal_only_neighbor_only_edeps = []
                 for unique_layer_index in range(0, total_number_of_layers):
                     batch_occupancy_only_bkg.append(calculateOccupancy(occupancies_a_batch_isBkgOverlay, unique_layer_index, n_cell_per_layer))
                     batch_occupancy_only_signal.append(calculateOccupancy(occupancies_a_batch_isSignalOverlay, unique_layer_index, n_cell_per_layer))
+                    # results = calculateOnlyNeighbors(occupancies_a_batch_isBkgOverlay, list(batch_edep_pos_bkg.values()),
+                    #                                                                     radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast,
+                    #                                                                     maxnphi=max_n_cell_per_layer, edepRange=edepRange, edepAtLeast=edepAtLeast,
+                    #                                                                     NoNeighborsRemoved=NoNeighborsRemoved, NeighborsRemained=NeighborsRemained,
+                    #                                                                     EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved,
+                    #                                                                     edepLoosen=edepLoosen, n_cell_per_layer=n_cell_per_layer)
+                    # batch_occupancy_only_bkg_only_neighbor_only_edeps.append(results[2])
+                    # results = calculateOnlyNeighbors(occupancies_a_batch_isSignalOverlay, list(batch_edep_pos_signal.values()),
+                    #                                                                     radiusR=radiusR, radiusPhi=radiusPhi, atLeast=atLeast,
+                    #                                                                     maxnphi=max_n_cell_per_layer, edepRange=edepRange, edepAtLeast=edepAtLeast,
+                    #                                                                     NoNeighborsRemoved=NoNeighborsRemoved, NeighborsRemained=NeighborsRemained,
+                    #                                                                     EdepNeighborsRemained=EdepNeighborsRemained, NoEdepNeighborsRemoved=NoEdepNeighborsRemoved,
+                    #                                                                     edepLoosen=edepLoosen, n_cell_per_layer=n_cell_per_layer)
+                    # batch_occupancy_only_signal_only_neighbor_only_edeps.append(results[2])
                 occupancies_per_batch_sum_batch_only_bkg[numBatches] = batch_occupancy_only_bkg
                 occupancies_per_batch_sum_batch_only_signal[numBatches] = batch_occupancy_only_signal
+                # occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps[numBatches] = batch_occupancy_only_bkg_only_neighbor_only_edeps
+                # occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps[numBatches] = batch_occupancy_only_signal_only_neighbor_only_edeps
                 
                 occupancies_per_batch_sum_batch[numBatches], \
                     occupancies_per_batch_sum_batch_only_neighbor[numBatches], \
@@ -833,6 +880,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     ddofFactor = 0
     dic["occupancy_per_batch_sum_batches"] = np.mean(occupancies_per_batch_sum_batch, axis=0)
     dic["occupancy_per_batch_sum_batches_error"] = np.std(occupancies_per_batch_sum_batch, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch.shape[0])
+    #error is the std of the mean, i.e. std / sqrt(n)
     dic["occupancy_per_batch_sum_batches_non_meaned"] = occupancies_per_batch_sum_batch
 
     dic["occupancy_per_batch_sum_batches_only_neighbor"] = np.mean(occupancies_per_batch_sum_batch_only_neighbor, axis=0)
@@ -866,6 +914,10 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["occupancy_per_batch_sum_batches_only_bkg_error"] = np.std(occupancies_per_batch_sum_batch_only_bkg, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_bkg.shape[0])
     dic["occupancy_per_batch_sum_batches_only_signal"] = np.mean(occupancies_per_batch_sum_batch_only_signal, axis=0)
     dic["occupancy_per_batch_sum_batches_only_signal_error"] = np.std(occupancies_per_batch_sum_batch_only_signal, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_signal.shape[0])
+    dic["occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps"] = np.mean(occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps, axis=0)
+    dic["occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps_error"] = np.std(occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_bkg_only_neighbor_only_edeps.shape[0])
+    dic["occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps"] = np.mean(occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps, axis=0)
+    dic["occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps_error"] = np.std(occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps, axis=0, ddof=ddofFactor) / np.sqrt(occupancies_per_batch_sum_batch_only_signal_only_neighbor_only_edeps.shape[0])
     dic["combined_overlay_status_pos"] = combined_overlay_status #really only combined
     if typeFile == "combined":
         combinedDic = {}
@@ -927,29 +979,29 @@ if __name__ == "__main__":
     starttime = time.time()
 
     if args.calc and args.calc != "":
-        try:
-            print(f"Parsed --calc arguments: {args.calc}")
-            if args.calc[0] in typeFile and len(args.calc) == 1:
-                updateOcc(args.calc[0])
-            elif args.calc[0] in typeFile and len(args.calc) == 2:
-                updateOcc(args.calc[0], int(args.calc[1]))
-            elif args.calc[0] in typeFile and len(args.calc) == 3:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]))
-            elif args.calc[0] in typeFile and len(args.calc) == 4:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]))
-            elif args.calc[0] in typeFile and len(args.calc) == 5:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]))
-            elif args.calc[0] in typeFile and len(args.calc) == 6:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]))
-            elif args.calc[0] in typeFile and len(args.calc) == 7:
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
-            elif args.calc[0] in typeFile and len(args.calc) == 8:
-                boolArg = True if args.calc[7] == "True" else False
-                updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), boolArg)
-            else:
-                parser.error("Invalid fileType")
-        except ValueError as e:
-            parser.error(str(e))
+        # try:
+        print(f"Parsed --calc arguments: {args.calc}")
+        if args.calc[0] in typeFile and len(args.calc) == 1:
+            updateOcc(args.calc[0])
+        elif args.calc[0] in typeFile and len(args.calc) == 2:
+            updateOcc(args.calc[0], int(args.calc[1]))
+        elif args.calc[0] in typeFile and len(args.calc) == 3:
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]))
+        elif args.calc[0] in typeFile and len(args.calc) == 4:
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]))
+        elif args.calc[0] in typeFile and len(args.calc) == 5:
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]))
+        elif args.calc[0] in typeFile and len(args.calc) == 6:
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]))
+        elif args.calc[0] in typeFile and len(args.calc) == 7:
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]))
+        elif args.calc[0] in typeFile and len(args.calc) == 8:
+            boolArg = True if args.calc[7] == "True" else False
+            updateOcc(args.calc[0], int(args.calc[1]), int(args.calc[2]), int(args.calc[3]), int(args.calc[4]), float(args.calc[5]), int(args.calc[6]), boolArg)
+        else:
+            parser.error("Invalid fileType")
+        # except ValueError as e:
+        #     parser.error(str(e))
             
     endtime = time.time()
     print("Time taken: ", endtime - starttime)

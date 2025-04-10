@@ -21,6 +21,9 @@ https://edm4hep.web.cern.ch/classedm4hep_1_1_sim_tracker_hit.html
 https://github.com/key4hep/EDM4hep/blob/main/edm4hep.yaml#L233
 https://edm4hep.web.cern.ch/classedm4hep_1_1_m_c_particle.html#a92ac3f8c92d1566f16ccceb6291d6eca
 
+## Drift Chamber Stereo Angle
+https://github.com/AIDASoft/DD4hep/blob/master/DDRec/include/DDRec/DCH_info.h#L124
+
 ## Monte Carlo Numbers
 https://pdg.lbl.gov/2007/reviews/montecarlorpp.pdf#page=2
 ## Gunieau Pig Simulation Article

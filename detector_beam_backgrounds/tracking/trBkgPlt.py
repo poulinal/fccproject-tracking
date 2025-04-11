@@ -50,21 +50,22 @@ All functions:
 
 available_functions = ["hitsPerMC", "momPerMC", "PDGPerMC", "occupancy", "hitRadius", "plot3dPosition"]
 dic = {}
-dicbkg = {}
+dicSecFile = {}
 # imageOutputPath = "fccproject-tracking/detector_beam_backgrounds/tracking/images/test/" #mit-submit
 imageOutputPath = "public/work/fccproject-tracking/detector_beam_backgrounds/tracking/images/lxplus/" #lxplus
 npyOutputPath = "/eos/user/a/alpoulin/npySaves/" #cernbox
 numFiles = 0
-glBkgNumFiles = 0
+glSecFileNumFiles = 0 #only gets changed in setup
+glSecFileType = "" #only gets changed in setup
 imageOutputCommonEnd = "" #only gets changed in setup
 imageOutputEdepCommonEnd = "" #only gets changed in setup
 
 
 #change to personal directories in here:
-def setup(typefile: str ="Bkg", includeBkg: bool =False, 
+def setup(typefile: str ="Bkg", includeSecFile: bool =False, 
           numfiles=500, radiusR=1, radiusPhi=1, atLeast=1,
           edepRange=-1, edepAtLeast=-1,
-          bkgNumFiles=500, bkgRadiusR=1, bkgRadiusPhi=1, bkgAtLeast=1, edepLoosen = -1, bkgEdepLoosen = -1):
+          secFileType = "", secFileNumFiles=500, secFileRadiusR=1, secFileRadiusPhi=1, secFileAtLeast=1, edepLoosen = -1, secFileEdepLoosen = -1):
     """
         Setups the file paths and outputs.
         Data paths will lead to either the background or signal data or their combined files (not yet tested).
@@ -102,15 +103,15 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
         
         Inputs:
             type -- what type of data to load, either Bkg, Combined, or Signal 
-            includeBkg -- for when we want to overlay bkg and signal files in a plot 
+            includeSecFile -- for when we want to overlay two different files in a plot 
         Return: no return, just updates the global dictionary dic
     """
     if edepRange != -1 and edepAtLeast != -1:
         backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(numfiles)  + "_v6" + \
             "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy" #cernbox (to save storage)
-        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(bkgNumFiles) + \
-            "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
+        dicSecFileDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/" + str(secFileType).lower() + "_background_particles_" + str(secFileNumFiles) + \
+            "_v6_R" + str(secFileRadiusR) + "_P" + str(secFileRadiusPhi) + "_AL" + str(secFileAtLeast) + "_ER" + str(edepRange) + \
+            "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
         combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/combined_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
                 "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
@@ -119,7 +120,7 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
                 "_EAL" + str(edepAtLeast)  + "_EL" + str(int(edepLoosen))+ ".npy"
     else:
         backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #lxplus
-        dicbkgDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(bkgNumFiles) + "_v6_R" + str(bkgRadiusR) + "_P" + str(bkgRadiusPhi) + "_AL" + str(bkgAtLeast) + ".npy"
+        dicSecFileDataPath = "/eos/user/a/alpoulin/fccBBTrackData/" + str(secFileType).lower() + "_background_particles_" + str(secFileNumFiles) + "_v6_R" + str(secFileRadiusR) + "_P" + str(secFileRadiusPhi) + "_AL" + str(secFileAtLeast) + ".npy"
         combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/combined_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy"
         signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/signal_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #lxplus
     
@@ -135,26 +136,28 @@ def setup(typefile: str ="Bkg", includeBkg: bool =False,
     else:
         print("Type must be either Bkg, Combined, or Signal")
         sys.exit()
-    if includeBkg:
-        dicbkg = np.load(dicbkgDataPath, allow_pickle=True).item()
-        print(f"Reading extra bkg dictionary from: {dicbkgDataPath}")
+    if includeSecFile:
+        dicSecFile = np.load(dicSecFileDataPath, allow_pickle=True).item()
+        print(f"Reading extra " + str(secFileType) + f" dictionary from: {dicSecFileDataPath}")
     else:
-        dicbkg = {}
+        dicSecFile = {}
     global typeFile
     typeFile = typefile
     global numFiles
     numFiles = numfiles
-    global glBkgNumFiles
-    glBkgNumFiles = bkgNumFiles
+    global glSecFileNumFiles
+    glSecFileNumFiles = secFileNumFiles
+    global glSecFileType
+    glSecFileType = secFileType
     
     global imageOutputCommonEnd
     imageOutputCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png"
     global imageOutputEdepCommonEnd
     imageOutputEdepCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + "EL" + str(int(edepLoosen)) + ".png"
     # print(f"Setup complete for {typeFile} data")
-    return dic, dicbkg
+    return dic, dicSecFile
 
-# dic, dicbkg = setup(typeFile, includeBkg)
+# dic, dicSecFile = setup(typeFile, includeBkg)
 
 def hitsPerMC(dic, args = ""):
     """
@@ -297,6 +300,7 @@ def momPerMC(dic, args = "", pPtArg="p", byPDG: bool = False):
     hist["ptBelow10R"] = []
     hist["multiHits"] = []
     hist["multiHitsExcludeOne"] = []
+    hist["onlyPrimary"] = []
     
     if pPtArg == "p":
         p = dic["p"]
@@ -388,6 +392,22 @@ def momPerMC(dic, args = "", pPtArg="p", byPDG: bool = False):
             if count_hits[i] > 20:
                 hist[">20 Hits"].append(p[i])
         return hist       
+    
+    if args == "only_primary" or args == "":
+        """
+        If the mcParticle is primary, fill the histogram with the momentum of the mcParticle.
+        Keyword arguments:
+        argument -- description
+        """
+        sim_status = dic["sim_status"] #by MC
+        gen_Status = dic["gens"]
+        # print(sim_status)
+        # print(f"len simstatus: {len(sim_status)}")
+        # print(f"len simstatus: {len(p)}")
+        for i in range(0, len(p)):
+            if gen_Status[i] == 1:
+                hist["onlyPrimary"].append(p[i])
+        return hist
                 
 def PDGPerMC(dic, args = "", sepSecondary: bool = False):
     """
@@ -497,6 +517,7 @@ def occupancy(dic, args = ""):
         "only_combined_occupancy_per_batch_sum_batches" -- only for combined filetypes, occupancy per batch separated into bkg and signal along with signal efficiency\n
     """
     hist = {}
+    hist["total_number_of_layers"] = dic["total_number_of_layers"]
     
     
     if args == "n_cells" or args == "":
@@ -508,7 +529,6 @@ def occupancy(dic, args = ""):
     if args == "cells_per_layer" or args == "":
         hist["n_cells_per_layer"] = dic["n_cell_per_layer"]
         hist["total_number_of_cells"] = dic["total_number_of_cells"]
-    hist["total_number_of_layers"] = dic["total_number_of_layers"]
     
     if args == "occupancy_per_batch_sum_batches" or args == "":
         hist["occupancy_per_batch_sum_batches"] = dic["occupancy_per_batch_sum_batches"]
@@ -533,7 +553,7 @@ def occupancy(dic, args = ""):
         hist["no_neighbors_removed"] = dic["no_edep_neighbors_removed"]
         hist["neighbors_remained"] = dic["edep_neighbors_remained"]
         hist["cellFiredMCID_per_batch"] = dic["cellFiredMCID_per_batch"]
-        hist["onlyNeighborMCID_per_batch"] = dic["onlyNeighborOnlyEdepMCID_per_batch"]
+        hist["onlyNeighborOnlyEdepMCID_per_batch"] = dic["onlyNeighborOnlyEdepMCID_per_batch"]
         
     if args == "only_combined_occupancy_per_batch_sum_batches" or args == "":
         hist["occupancy_per_batch_sum_batches_only_bkg"] = dic["occupancy_per_batch_sum_batches_only_bkg"]
@@ -609,20 +629,44 @@ def occupancy(dic, args = ""):
     if args == "energy_deposit_1d_low_high_pt" or args == "":
         edep_per_batch = dic["energy_dep_per_cell_per_batch"]
         pt_per_batch = dic["neighborPt_by_batch"]
+        pos_gen_status_per_batch = dic["list_dic_cart_pos_status_by_batch"]
+        
         hist["energy-deposit-1d-low-pt"] = []
         hist["energy-deposit-1d-high-pt"] = []
+        
+        hist["energy-deposit-1d-low-pt-only-primary"] = []
+        hist["energy-deposit-1d-high-pt-only-primary"] = []
         pt = []
         for i in range(0, len(pt_per_batch)):
             for j in range(0, len(pt_per_batch[i])):
                 pt.append(pt_per_batch[i][j][2])
         print(f"median pt: {np.median(pt, axis=0)}")
-        median_pt = np.median(pt, axis=0)
+        median_pt = np.median(pt, axis=0) #currently for only primary, the median will be different considering many pT's are cut
         for batch in range(0, len(edep_per_batch)):
             for hit in range(0, len(edep_per_batch[batch])):
                 if pt_per_batch[batch][hit][2] < median_pt:
                     hist["energy-deposit-1d-low-pt"].append(edep_per_batch[batch][hit])
+                    if (pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1]) in pos_gen_status_per_batch[batch]:
+                        for i in range(0, len(pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])])): #there may be multiple hits in same r phi with 
+                            dic_mcID_seen = {}
+                            if pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i] not in dic_mcID_seen:
+                                dic_mcID_seen[pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][6]] = 1
+                                if pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][5] == 1:
+                                    hist["energy-deposit-1d-low-pt-only-primary"].append(edep_per_batch[batch][hit])
+                            else:
+                                dic_mcID_seen[pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][6]] += 1
                 else:
                     hist["energy-deposit-1d-high-pt"].append(edep_per_batch[batch][hit])
+                    if (pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1]) in pos_gen_status_per_batch[batch]:
+                        for i in range(0, len(pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])])):
+                            dic_mcID_seen = {}
+                            if pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i] not in dic_mcID_seen:
+                                # print(pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])])
+                                dic_mcID_seen[pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][6]] = 1
+                                if pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][5] == 1:
+                                    hist["energy-deposit-1d-high-pt-only-primary"].append(edep_per_batch[batch][hit])
+                            else:
+                                dic_mcID_seen[pos_gen_status_per_batch[batch][(pt_per_batch[batch][hit][0], pt_per_batch[batch][hit][1])][i][6]] += 1
 
     if args == "combined_onlyNeighbors_onlyEdeps_edep" or args == "":
         allEdep = dic["energy_dep_per_cell_per_batch"]
@@ -1023,7 +1067,7 @@ def hitPosition(dic, args=""):
 
     return hist
 
-def plot3dPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plot3dPosition(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     plt.ion()
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
@@ -1129,7 +1173,7 @@ def plot3dPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edep
     ax.set_xlim(-3000, 3000)
     # fig.savefig(imageOutputPath + "3D" + str(typeFile) + "MC00TrajSphereE" + str(numEventsCutoff) + "P" + str(numParticlesCutoff), bbox_inches="tight")
 
-def plotMomentum(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotMomentum(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the momentum of all particles.
     
@@ -1214,7 +1258,7 @@ def plotMomentum(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist = momPerMC(dic, "multiHits")
         multi_hist_plot(hist, imageOutputPath + "momentum" + str(typeFile) + "MC" + str(numFiles) + "MultiHitsLoggedx.png", "Momentum of " + str(typeFile) + " MC particles with hits (" + str(numFiles) + " Files)", xLabel="Momentum (GeV)", yLabel="Count MC particles", logX=True)
     
-def plotPDG(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotPDG(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the PDG of all particles.
     
@@ -1244,7 +1288,7 @@ def plotPDG(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0
         print("This function needs to be updated...")
         # multi_bar_plot("MC Particles", hist, imageOutputPath + "pdgElectronGeneratorStatus" + str(typeFile) + "MC" + str(numFiles) + ".png", "Primary or Secondary for Electron " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="PDG", yLabel="Count MC particles")
 
-def plotHits(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotHits(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the number of hits of all particles.
     
@@ -1277,7 +1321,7 @@ def plotHits(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         multi_hist_plot(hist, imageOutputPath + "hitsElectron" + str(typeFile) + "MC" + str(numFiles) + ".png", "Hits of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True, contrast=True)
         multi_hist_plot(hist, imageOutputPath + "hitsElectronZoomed" + str(typeFile) + "MC" + str(numFiles) + ".png", "Hits of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles", barType="step", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", logY=True)
 
-def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotHitsOverlay(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the overlay of the background and signal hits.
     
@@ -1291,14 +1335,14 @@ def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
     """
     if args == "hitsOverlay-all" or args == "":
         histSignal = hitsPerMC(dic, "all")
-        histBkg = hitsPerMC(dicbkg, "all")
+        histBkg = hitsPerMC(dicSecFile, "all")
         histBkg["All Particles BKG"] = histBkg.pop("All")
         histBkg["All Particles Signal"] = histSignal["All"]
         multi_hist_plot(histBkg, imageOutputPath + "hitsDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
     
     if args == "hitsOverlay-electron" or args == "":
         histSignal = hitsPerMC(dic, "electron")
-        histBkg = hitsPerMC(dicbkg, "electron")
+        histBkg = hitsPerMC(dicSecFile, "electron")
         bar_step_multi_hist_plot(histSignal["Only Electrons"], histBkg, imageOutputPath + "hitsSignalBkgBarStepMC" + str(numFiles) + ".png", "Hits of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Number of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=9000, binSteps=5, binType="lin", logY=True)
         histBkg["Electron Particles Signal"] = histSignal["Only Electrons"]
         histBkg["Electron Particles BKG"] = histBkg.pop("Only Electrons")
@@ -1307,12 +1351,12 @@ def plotHitsOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
     
     if args == "hitsOverlay-photon" or args == "":
         histSignal = hitsPerMC(dic, "photonSec")
-        histBkg = hitsPerMC(dicbkg, "photonSec")
+        histBkg = hitsPerMC(dicSecFile, "photonSec")
         histBkg["Photon Particles BKG"] = histBkg.pop("Only Photons")
         histBkg["Photon Particles Signal"] = histSignal["Only Photons"]
         multi_hist_plot(histBkg, imageOutputPath + "hitsPhotonDensitySignalBkgZoomedMC" + str(numFiles) + ".png", "Hits of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Number of hits", yLabel="Density of MC particles", label="All Particles Signal", autoBin=False, binLow=0.1, binHigh=900, binSteps=5, binType="lin", barType="step", logY=True, density=True)
 
-def plotMomOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotMomOverlay(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the overlay of the background and signal momentum.
     
@@ -1323,21 +1367,29 @@ def plotMomOverlay(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edep
             "ptmomentumOverlay-all" -- plot all transverse momentums \n
     Returns: no return, just saves the plots
     """
+    
     if args == "momentumOverlay-all" or args == "":
         histSignal = momPerMC(dic, "all")
-        histBkg = momPerMC(dicbkg, "all")
+        histBkg = momPerMC(dicSecFile, "all")
         histBkg["All Particles BKG"] = histBkg.pop("all")
         histBkg["All Particles Signal"] = histSignal["all"]
         multi_hist_plot(histBkg, imageOutputPath + "momSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "Momentum of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="Momentum (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
         
     if args == "ptmomentumOverlay-all" or args == "":
         histSignal = momPerMC(dic, "all", "pt")
-        histBkg = momPerMC(dicbkg, "all", "pt")
+        histBkg = momPerMC(dicSecFile, "all", "pt")
         histBkg["All Particles BKG"] = histBkg.pop("all")
         histBkg["All Particles Signal"] = histSignal["all"]
         multi_hist_plot(histBkg, imageOutputPath + "ptmomSignalBkgDensityZoomedMC" + str(numFiles) + ".png", "pT of BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="pT (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
+        
+    if args == "ptmomentumOverlay-only-primary" or args == "":
+        histSignal = momPerMC(dic, "only_primary", "pt")
+        histBkg = momPerMC(dicSecFile, "only_primary", "pt")
+        histBkg["Primary Particles BKG"] = histBkg.pop("onlyPrimary")
+        histBkg["Primary Particles Signal"] = histSignal["onlyPrimary"]
+        multi_hist_plot(histBkg, imageOutputPath + "ptmomPrimarySignalBkgDensityZoomedMC" + str(numFiles) + ".png", "pT of Primary BKG and Signal MC particles (" + str(numFiles) + " Files)", xLabel="pT (Gev)", yLabel="Percent", label="All Particles Signal", binLow=0.00001, binHigh=100, binSteps=0.3, binType="exp", barType="step",logY=True, logX=True, density=True)
 
-def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotOccupancy(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the occupancy of the detector.
     
@@ -1363,7 +1415,9 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
     if typeFile == "Bkg":
         batch = "20 BKG File Batch"
     elif typeFile == "Signal":
-        batch = "1 Signal File Batch"
+        batch = "1 Signal Event Batch"
+    elif typeFile == "Combined":
+        batch = "1 Combined Event Batch"
         
     if args == "occupancy-BatchedBatch" or args == "":
         hist = occupancy(dic, "occupancy_per_batch_sum_batches")
@@ -1418,7 +1472,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
         print(f"total via edep pos: {total_points}")
         
         
-        onlyNeighborMCID = [item for sublist in hist["onlyNeighborMCID_per_batch"] for item in sublist] #flatten
+        onlyNeighborMCID = [item for sublist in hist["onlyNeighborOnlyEdepMCID_per_batch"] for item in sublist] #flatten
         allMCID = [item for sublist in hist["cellFiredMCID_per_batch"] for item in sublist] #flatten
         numOnlyNeighborMCID = len(np.unique(np.array(onlyNeighborMCID)))
         numAllMCID = len(np.unique(np.array(allMCID)))
@@ -1744,6 +1798,140 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                 figure=fig, axe=axe,
                 includeLegend=True, scatter=True, errorBars=True, yerr = ratioDiffError)
         
+    if args == "combined-separated-to-original-occupancy-onlyNeighbors-onlyEdeps-diff" or args == "":
+        if glSecFileType == "":
+            print("Error: No second file to compare to")
+            return
+        combinedOnlyNeighborsOnlyEdepsEdep = occupancy(dic, "combined_onlyNeighbors_onlyEdeps_edep")
+        onlyNeighborsOnlyEdepsSignalEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_signal"]
+        onlyNeighborsOnlyEdepsBkgEdep = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighbors_onlyEdeps_edep_bkg"]
+        
+        allEdepsSignal = dic["energy_dep_per_cell_per_batch_signal"]
+        allEdepsBkg = dic["energy_dep_per_cell_per_batch_bkg"]
+        
+        #get length of each 2d array
+        allEdepsSignalLength = sum(len(batch) for batch in allEdepsSignal)
+        allEdepsBkgLength = sum(len(batch) for batch in allEdepsBkg)
+        
+        onlyNeighborsOnlyEdepsSignalEdepLength = len(onlyNeighborsOnlyEdepsSignalEdep) #its flatten now, not by batch, so just grab len
+        onlyNeighborsOnlyEdepsBkgEdepLength = len(onlyNeighborsOnlyEdepsBkgEdep)
+        
+        allMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allMCID"] #dictionary of mcID, where keys are mcID, values are list of pos hits
+        lenAllMCID = sum(len(batch.keys()) for batch in allMCID)
+
+        
+        onlyNeighborOnlyEdepCombinedSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        allCombinedSignalMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allSignalMCID_byBatch_unique"] #a list of dictionaries by batch, where keys are mcID, values are list of pos hits
+        numOnlyNeighborOnlyEdepCombinedSignalMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepCombinedSignalMCID)#since dictionary of mcID, unique list is just the keys
+        numAllCombinedSignalMCID = sum(len(batch.keys()) for batch in allCombinedSignalMCID)
+        # signalMCDiff = round(numOnlyNeighborOnlyEdepSignalMCID / numAllSignalMCID, 2)
+        combinedSignalMCEff = calcEfficiency(typeFile, numAllCombinedSignalMCID - numOnlyNeighborOnlyEdepCombinedSignalMCID, numOnlyNeighborOnlyEdepCombinedSignalMCID)
+        
+        onlyNeighborOnlyEdepBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_onlyNeighborOnlyEdepBkgMCID_byBatch_unique"]
+        allBkgMCID = combinedOnlyNeighborsOnlyEdepsEdep["combined_allBkgMCID_byBatch_unique"]
+        numOnlyNeighborOnlyEdepCombinedBkgMCID = sum(len(batch.keys()) for batch in onlyNeighborOnlyEdepBkgMCID)
+        numAllCombinedBkgMCID = sum(len(batch.keys()) for batch in allBkgMCID)
+        # bkgMCDiff = round(numOnlyNeighborOnlyEdepBkgMCID / numAllBkgMCID, 2)
+        combinedBkgMCEff = calcEfficiency(typeFile, numAllCombinedBkgMCID - numOnlyNeighborOnlyEdepCombinedBkgMCID, numOnlyNeighborOnlyEdepCombinedBkgMCID)
+        
+        # histCombinedNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+        # histCombined = occupancy(dic, "occupancy_per_batch_sum_batches")
+        
+        layers = [i for i in range(0, combinedOnlyNeighborsOnlyEdepsEdep["total_number_of_layers"])]
+        combinedSignalEff = calcEfficiency(typeFile, allEdepsSignalLength - onlyNeighborsOnlyEdepsSignalEdepLength, onlyNeighborsOnlyEdepsSignalEdepLength)
+        combinedBkgEff = calcEfficiency(typeFile, allEdepsBkgLength - onlyNeighborsOnlyEdepsBkgEdepLength, onlyNeighborsOnlyEdepsBkgEdepLength)
+        fig, axe = plt.subplots()
+        
+        if glSecFileType == "Signal":
+            histSignalNeighbor = occupancy(dicSecFile, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+            histSignal = occupancy(dicSecFile, "occupancy_per_batch_sum_batches")
+            
+            signalEff = calcEfficiency(typeFile, histSignalNeighbor["no_neighbors_removed"], histSignalNeighbor["neighbors_remained"])
+            
+            print(histSignalNeighbor["onlyNeighborOnlyEdepMCID_per_batch"][0])
+            input("press enter to continue")
+            onlyNeighborOnlyEdepSignalMCID = [item for sublist in histSignalNeighbor["onlyNeighborOnlyEdepMCID_per_batch"] for item in sublist] #flatten
+            allSignalMCID = [item for sublist in histSignalNeighbor["cellFiredMCID_per_batch"] for item in sublist] #flatten
+            numOnlyNeighborOnlyEdepSignalMCID = len(np.unique(np.array(onlyNeighborOnlyEdepSignalMCID)))
+            numAllSignalMCID = len(np.unique(np.array(allSignalMCID)))
+            # mcDiff = round(numOnlyNeighborMCID / numAllMCID, 2)
+            signalMCEff = calcEfficiency(typeFile, numAllSignalMCID - numOnlyNeighborOnlyEdepSignalMCID, numOnlyNeighborOnlyEdepSignalMCID)
+
+            ratioDiffCombinedSignal, ratioDiffErrorCombinedSignal = calcBinomError(combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal"], 
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal"], 
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_signal_error"], 
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_signal_error"])
+            
+            ratioDiffSignal, ratioDiffErrorSignal = calcBinomError(histSignalNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"],
+                                                                histSignal["occupancy_per_batch_sum_batches"], 
+                                                                histSignalNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], 
+                                                                histSignal["occupancy_per_batch_sum_batches_error"])
+            
+            xy_plot(layers, ratioDiffCombinedSignal,
+                    "PlaceHolderPath",
+                    "PlaceHolderTitle",
+                    label="Combined Only Signal",
+                    xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                    figure=fig, axe=axe,
+                    save=False, scatter=True, errorBars=True, yerr=ratioDiffErrorCombinedSignal,
+                    )
+
+            xy_plot(layers, ratioDiffSignal, 
+                    imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "SeparatedCombinedToOriginal" + str(glSecFileType) + "OnlyNeighborsOnlyEdepDiff" + imageOutputEdepCommonEnd,
+                    "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                    xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                    label = "Separated Signal",
+                    additionalText=str(typeFile) +
+                    " Signal Efficiency: " + str(signalEff) + "," +
+                    " Combined Signal Efficiency: " + str(combinedSignalEff) + "\n" +
+                    "Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepSignalMCID) + "/" + str(numAllSignalMCID) + "=" + str(signalMCEff) + "," +
+                    " Combined Signal MC Efficiency: " + str(numOnlyNeighborOnlyEdepCombinedSignalMCID) + "/" + str(numAllCombinedSignalMCID) + "=" + str(combinedSignalMCEff),
+                    figure=fig, axe=axe,
+                    includeLegend=True, scatter=True, errorBars=True, yerr = ratioDiffErrorSignal)
+            
+        elif glSecFileType == "Bkg":
+            histBkgNeighbor = occupancy(dicSecFile, "occupancy_per_batch_sum_batches_only_neighbor_only_edep")
+            histBkg = occupancy(dicSecFile, "occupancy_per_batch_sum_batches")
+            
+            bkgEff = calcEfficiency(typeFile, histBkgNeighbor["no_neighbors_removed"], histBkgNeighbor["neighbors_remained"])
+            
+            ratioDiffCombinedBkg, ratioDiffErrorCombinedBkg = calcBinomError(combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg"],
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg"], 
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_onlyNeighbors_onlyEdeps_bkg_error"], 
+                                                                combinedOnlyNeighborsOnlyEdepsEdep["combined_occupancy_bkg_error"])
+            
+            ratioDiffBkg, ratioDiffErrorBkg = calcBinomError(histBkgNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"],
+                                                            histBkg["occupancy_per_batch_sum_batches"], 
+                                                            histBkgNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], 
+                                                            histBkg["occupancy_per_batch_sum_batches_error"])
+        
+            xy_plot(layers, ratioDiffBkg,
+                "PlaceHolderPath",
+                "PlaceHolderTitle",
+                label="Combined Only Bkg",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                figure=fig, axe=axe,
+                save=False, scatter=True, errorBars=True, yerr=ratioDiffErrorCombinedBkg,
+                )
+
+            xy_plot(layers, ratioDiffCombinedBkg, 
+                    imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "SeparatedCombinedToOriginal" + str(glSecFileType) + "OnlyNeighborsOnlyEdepDiff" + imageOutputEdepCommonEnd,
+                    "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                    xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]",
+                    label = "Separated Bkg",
+                    additionalText=str(typeFile) +
+                    " Bkg Efficiency: " + str(combinedBkgEff) + "," +
+                    " Combined Bkg Efficiency: " + str(bkgEff) + "\n", #+
+                    # "Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepCombinedSignalMCID) + "/" + str(numAllCombinedSignalMCID) + "=" + str(combinedSignalMCEff) + "," +
+                    # " Combined Bkg MC Efficiency: " + str(numOnlyNeighborOnlyEdepCombinedBkgMCID) + "/" + str(numAllCombinedBkgMCID) + "=" + str(combinedBkgMCEff),
+                    figure=fig, axe=axe,
+                    includeLegend=True, scatter=True, errorBars=True, yerr = ratioDiffErrorBkg)
+        
+        # ratioDiffCombined, ratioDiffErrorCombined = calcBinomError(histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep"], 
+        #                                            hist["occupancy_per_batch_sum_batches"], 
+        #                                            histNeighbor["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"], 
+        #                                            hist["occupancy_per_batch_sum_batches_error"])
+      
     if args == "occupancy-onlyNeighbors-diff" or args == "": #ratio diff
         histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_only_neighbor")
         hist = occupancy(dic, "occupancy_per_batch_sum_batches")
@@ -1820,7 +2008,7 @@ def plotOccupancy(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_signal_error"])
         
       
-def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     batch = ""
     if typeFile == "Bkg":
         batch = "20 BKG File Batch"
@@ -1860,7 +2048,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         
     if args == "multi-energy-deposit-1d" or args == "":
         hist = occupancy(dic, "energy_deposit_1d") 
-        histbkg = occupancy(dicbkg, "energy_deposit_1d")
+        histbkg = occupancy(dicSecFile, "energy_deposit_1d")
         #get the all the third values in the tuple:
         energy1d = [v[2] for sublist in hist["energy_deposit_1d"] for v in sublist] #in gev
         energy1d = [i * 1000 for i in energy1d] #convert to mev
@@ -1969,7 +2157,6 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                   binSize=100, cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8)), pdf=True)     
  
-    
     if args == "energy-deposit-one-batch-only-neighbors-only-edep" or args == "":
         hist = occupancy(dic, "energy_dep_per_cell_per_batch_only_neighbors_only_edeps")
         #get all the first values in the tuple:
@@ -2012,6 +2199,24 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
         
         multi_hist_plot(histEnergy,
                     imageOutputPath + "energyDeposit1dLowHighPt"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
+                    "Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)",
+                    xLabel="Energy Deposited (MeV)", yLabel="Count of Cells", logY=True,
+                    binType="exp", binLow=0.0001, binHigh=1.5, binSteps=0.1)
+        
+        
+    if args == "multi-energy-deposit-1d-low-high-pt-only-primaries" or args == "":
+        hist = occupancy(dic, "energy_deposit_1d_low_high_pt")
+        #get the all the third values in the tuple:
+        energy1dLow = [v[2] for v in hist["energy-deposit-1d-low-pt-only-primary"]] #in gev
+        energy1dHigh = [v[2] for v in hist["energy-deposit-1d-high-pt-only-primary"]]
+        energy1dLow = [i * 1000 for i in energy1dLow] #convert to mev
+        energy1dHigh = [i * 1000 for i in energy1dHigh] #convert to mev
+        histEnergy = {}
+        histEnergy["Low Pt"] = energy1dLow
+        histEnergy["High Pt"] = energy1dHigh
+        
+        multi_hist_plot(histEnergy,
+                    imageOutputPath + "energyDeposit1dLowHighPtOnlyPrimaries"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
                     "Energy Deposit Across \nEach " + batch + " (" + str(numFiles) + " Files)",
                     xLabel="Energy Deposited (MeV)", yLabel="Count of Cells", logY=True,
                     binType="exp", binLow=0.0001, binHigh=1.5, binSteps=0.1)
@@ -2100,7 +2305,7 @@ def plotEdep(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes,
                   label="Is Produced Secondary", save=True, includeLegend=True)
         
-def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotWireChamber(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the wire chamber.
     
@@ -2113,13 +2318,13 @@ def plotWireChamber(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
         hist = occupancy(dic, "cells_per_layer")
         plot_wire_chamber(hist["total_number_of_layers"], hist["n_cells_per_layer"], imageOutputPath + "wireChamberFirstQuad" + ".png", title="", firstQuadrant=True)
     
-def plotHitRadius(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+def plotHitRadius(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
     """
     Plot the hit radius of all particles.
 
     Args:
         dic (dictionary): _description_
-        dicbkg (dictionary): _description_
+        dicSecFile (dictionary): _description_
         args (str, optional): _description_. Defaults to "".
     """
     if args == "hitRadius-all" or args == "":
@@ -2194,7 +2399,7 @@ def plotHitRadius(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepR
                         "Hit Radius of " + str(typeFile) + " MC particles (" + str(numFiles) + " Files)", 
                         xLabel="Radius (mm)", yLabel="Count MC particles", includeLegend=False, label="", scatter=False, figure=fig, axe=ax, save=save, color="yellow")
   
-def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0): 
+def plotHitPosition(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0): 
     """Plot the hit position of all particles in terms of R and Phi
     
     Keyword arguments:
@@ -2294,7 +2499,7 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
         
     if args == "hitPosition-multiNeighbors" or args == "":
         hist = hitPosition(dic, "byBatchNeighbors")
-        histBkg = hitPosition(dicbkg, "byBatchNeighbors")
+        histBkg = hitPosition(dicSecFile, "byBatchNeighbors")
         print(f"max hit radius: {max(hist['oneDbyBatchNeighbors'])}")
         resultHist = {}
         resultHist["Bkg Count Neighbors"] = histBkg['oneDbyBatchNeighbors']
@@ -2347,7 +2552,7 @@ def plotHitPosition(dic, dicbkg, args="", radiusR=1, radiusPhi=1, atLeast=1, ede
                     "PDG for pT \nEach " + batch + " (" + str(numFiles) + " Files)", rotation=90, includeLegend=True, filled=False,
                     xLabel="PDG", yLabel="Count of Cells", logY=True)
     
-def plotAll(dic, dicbkg, args=""):
+def plotAll(dic, dicSecFile, args=""): #outdated
     """
     Plot all histograms.
     """
@@ -2361,10 +2566,10 @@ def plotAll(dic, dicbkg, args=""):
     plotHits(dic)
     
     ###overlay bkg and signal mom
-    plotMomOverlay(dic, dicbkg)
+    plotMomOverlay(dic, dicSecFile)
     
     ###overlay bkg and signal hits
-    plotHitsOverlay(dic, dicbkg)
+    plotHitsOverlay(dic, dicSecFile)
     
     ###occupancy
     plotOccupancy(dic)
@@ -2412,28 +2617,30 @@ def genPlot(inputArgs):
                     edepRange=inputArgs[6] if len(inputArgs) > 6 else 0
                     edepAtLeast=inputArgs[7] if len(inputArgs) > 7 else 0
                     if len(inputArgs) > 8 and (inputArgs[8] == "True" or inputArgs[8] == "False"):
-                        includeBkg = bool(inputArgs[8])
-                        bkgNumFiles = inputArgs[9] if len(inputArgs) > 9 else 500
-                        bkgRadiusR = inputArgs[10] if len(inputArgs) > 10 else 1
-                        bkgRadiusPhi = inputArgs[11] if len(inputArgs) > 11 else 1
-                        bkgAtLeast = inputArgs[12] if len(inputArgs) > 12 else 1
-                        dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast)
+                        includeSecFile = bool(inputArgs[8])
+                        secFileType = inputArgs[9] if len(inputArgs) > 9 else "Bkg"
+                        secFileNumFiles = inputArgs[10] if len(inputArgs) > 10 else 500
+                        secFileRadiusR = inputArgs[11] if len(inputArgs) > 11 else 1
+                        secFileRadiusPhi = inputArgs[12] if len(inputArgs) > 12 else 1
+                        secFileAtLeast = inputArgs[13] if len(inputArgs) > 13 else 1
+                        dic, dicSecFile = setup(typefile, includeSecFile, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, secFileType, secFileNumFiles, secFileRadiusR, secFileRadiusPhi, secFileAtLeast)
                     elif len(inputArgs) > 8 and inputArgs[8].isdigit():
                         edepLoosen = bool(int(inputArgs[8]))
-                        includeBkg = bool(inputArgs[9]) if len(inputArgs) > 9 else False
-                        bkgNumFiles = inputArgs[10] if len(inputArgs) > 10 else 500
+                        includeSecFile = bool(inputArgs[9]) if len(inputArgs) > 9 else False
+                        secFileType = inputArgs[10] if len(inputArgs) > 10 else "Bkg"
+                        secFileNumFiles = inputArgs[11] if len(inputArgs) > 11 else 500
                         # bkgRadiusR = inputArgs[11] if len(inputArgs) > 11 else 1
                         # bkgRadiusPhi = inputArgs[12] if len(inputArgs) > 12 else 1
                         # bkgAtLeast = inputArgs[13] if len(inputArgs) > 13 else 1
-                        bkgRadiusR = radiusR
-                        bkgRadiusPhi = radiusPhi
-                        bkgAtLeast = atLeast
-                        bkgEdepLoosen = edepLoosen
-                        dic, dicbkg = setup(typefile, includeBkg, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, bkgNumFiles, bkgRadiusR, bkgRadiusPhi, bkgAtLeast, edepLoosen, bkgEdepLoosen)
+                        secFileRadiusR = radiusR
+                        secFileRadiusPhi = radiusPhi
+                        secFileAtLeast = atLeast
+                        secFileEdepLoosen = edepLoosen
+                        dic, dicSecFile = setup(typefile, includeSecFile, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, secFileType, secFileNumFiles, secFileRadiusR, secFileRadiusPhi, secFileAtLeast, edepLoosen, secFileEdepLoosen)
                     elif len(inputArgs) > 7:
-                        dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
+                        dic, dicSecFile = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
                     else: 
-                        dic, dicbkg = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast)
+                        dic, dicSecFile = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast)
     # Mapping strings to functions
     function_map = {
         "": plotAll,
@@ -2456,6 +2663,7 @@ def genPlot(inputArgs):
         "ptmomentum-only+H-pdg": plotMomentum,
         "ptmomentum-multiHits": plotMomentum,
         "ptmomentum-multiHitsExcludeOne": plotMomentum,
+        "ptmomentumOverlay-only-primary": plotMomOverlay,
         "pdg-all": plotPDG,
         "pdg-electron": plotPDG,
         "pdg-gen": plotPDG,
@@ -2481,6 +2689,7 @@ def genPlot(inputArgs):
         "combined-occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
         "combined-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
         "combined-separated-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
+        "combined-separated-to-original-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
         "combined-separated-occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
         "combined-separated-occupancy": plotOccupancy,
         "avg-energy-deposit": plotEdep,
@@ -2496,6 +2705,7 @@ def genPlot(inputArgs):
         "energy-deposit-one-batch-only-par-photon": plotEdep,
         "energy-deposit-one-batch-only-prod-sec": plotEdep,
         "multi-energy-deposit-1d-low-high-pt": plotEdep,
+        "multi-energy-deposit-1d-low-high-pt-only-primaries": plotEdep,
         "multi-energy-deposit-1d": plotEdep,
         "wireChamber-all": plotWireChamber,
         "plot3dPos": plot3dPosition,
@@ -2518,7 +2728,7 @@ def genPlot(inputArgs):
 
     # Execute the corresponding function if the key exists
     if typePlot in function_map:
-        function_map[typePlot](dic, dicbkg, typePlot, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, edepLoosen)  # Calls func_b()
+        function_map[typePlot](dic, dicSecFile, typePlot, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, edepLoosen)  # Calls func_b()
         print(f"Saving to: {imageOutputPath}")
     else:
         print("No match found")
@@ -2562,11 +2772,12 @@ parser.add_argument('--plot', help="Inputs... \n-- plotType(str): " +
                     "\n-- edepRange(int): Default(1)" +
                     "\n-- edepAtLeast(int): Default(1)" +
                     "\n-- edepLoosen(int): Default(0)" +
-                    "\n-- includeBkg(optional: Bool): [True] [False]" +
-                    "\n-- includeBkgNumFiles(optional: int): Default(500)" +
-                    "\n-- includeBkgRadiusR(optional: int): Default(1)" +
-                    "\n-- includeBkgRadiusPhi(optional: int): Default(-1)" +
-                    "\n-- includeBkgAtLeast(optional: int): Default(1)", type=str, default="", nargs='+')
+                    "\n-- include2ndFile(optional: Bool): [True] [False]" +
+                    "\n-- include2ndFileType(optional: str): [Bkg], [Signal], [Combined]" +
+                    "\n-- include2ndFileNumFiles(optional: int): Default(500)" +
+                    "\n-- include2ndFileRadiusR(optional: int): Default(1)" +
+                    "\n-- include2ndFileRadiusPhi(optional: int): Default(-1)" +
+                    "\n-- include2ndFileAtLeast(optional: int): Default(1)", type=str, default="", nargs='+')
 args = parser.parse_args()
 
 if args.plot and args.plot != "":

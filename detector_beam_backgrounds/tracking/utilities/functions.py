@@ -192,6 +192,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
     Return: None, save the plot
     """
     
+    # print("multi-hist-plot")
     if axe == "":
         figure.clf()
         axe = figure.subplots()
@@ -226,7 +227,7 @@ def multi_hist_plot(h, outname, title, xMin=-1, xMax=-1, yMin=-1, yMax=-1,
             #alternate linestyles:
             lineStyle = ""
             alpha = 1
-            print(key)
+            # print(key)
             if contrast: #create more difference between the lines
                 colors = ['red', 'blue', 'green', 'yellow', 'orange', 'purple', 'cyan', 'magenta', 'black']
                 lineStyle = ["-","--",":","-."]

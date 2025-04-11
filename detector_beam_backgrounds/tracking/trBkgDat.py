@@ -83,7 +83,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
     dic_file_path = "/eos/user/a/alpoulin/fccBBTrackData/noOcc/" + str(typeFile) + "_background_particles_" + str(numfiles) + ".npy" #cernbox (to save storage)
     keys = ["R", "p", "pt", "px", "py", "pz", "gens", "pos_ver", "hits", 
             "pos_hit", "unique_mcs", "superLayer", "layer", "nphi", "stereo", 
-            "pos_z", "count_hits", "has_par_photon", "pdg", 
+            "pos_z", "count_hits", "has_par_photon", "pdg", "sim_status",
             "hits_produced_secondary", "hits_mc_produced_secondary"]
     
         
@@ -136,7 +136,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
             list_px, list_py, list_pz, = [], [], []
             list_gen_status, list_par_photon, list_pdg = [], [], []
             list_hits_secondary, list_hits_mc_secondary, percentage_of_fired_cells = [], [], []
-            seen, count_hits = [], []
+            seen, count_hits, list_sim_status = [], [], []
             dic_pos_hit = {}
             dic_pos_ver = {}
         
@@ -192,6 +192,8 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
                 list_py.append(momentum.y)
                 list_pz.append(momentum.z)
                 gen_status = mcParticle.getGeneratorStatus()
+                list_sim_status.append(mcParticle.simulatorStatus())
+                # print(f"mc_index: {mc_index}, gen_status: {gen_status}, sim_status: {mcParticle.getSimulatorStatus()}")
                 list_gen_status.append(gen_status)
                 
                 list_pdg.append(mcParticle.getPDG())
@@ -213,6 +215,7 @@ def calcDic(typeFile = "bkg", numfiles=500, flexible = True):
             dic["py"] += (list_py)
             dic["pz"] += (list_pz)
             dic["gens"] += (list_gen_status)
+            dic["sim_status"] += (list_sim_status)
             
             dic["pos_ver"].append((dic_pos_ver))
             dic["pos_hit"].append((dic_pos_hit))

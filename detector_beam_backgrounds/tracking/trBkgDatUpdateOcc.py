@@ -404,8 +404,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
         "combined_onlySignal_occupancy_per_batch_sum_batches_only_neighbor", "combined_onlySignal_occupancy_per_batch_sum_batches_only_neighbor_error",
         "no_neighbors_removed", "neighbors_remained", "occupancy_only_neighbor_difference", "occupancy_only_neighbor_difference_error",
         "cell_fired_pos", "cell_fired_pos_neighbors", "cell_fired_pos_by_batch","cellFiredMCID_per_batch", "onlyNeighborMCID_per_batch", 
-        "neighborPt_by_batch", "neighborPDG_by_batch"]
-    #check if dic_file_path exists:
+        "neighborPt_by_batch", "neighborPDG_by_batch"] #currently outdated
+    #check if dic_file_path exists: 
     try:
         dic = np.load(dic_file_path, allow_pickle=True).item()
         print(f"Dictionary loaded from {dic_file_path}")
@@ -509,6 +509,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     list_dic_photon_par = [] #list of dictionaries of tuples (radiusR, radiusPhi, has_parent_photon, MCID)
     list_prod_sec = [] #list of dictionaries of tuples (radiusR, radiusPhi, prod_sec, MCID)
     
+    list_dic_cart_pos_status = [] #list of dictionaries of tuples (radiusR, radiusPhi, x, y, z, genstatus, MCID)
+    
     NoNeighborsRemoved = 0
     NeighborsRemained = 0
     EdepNeighborsRemained = 0
@@ -557,6 +559,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg)
                 batch_prod_sec = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, prod_sec, MCID)
                 batch_photon_par = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, has_parent_photon, MCID)
+                batch_cart_pos_status = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, x, y, z, genstatus, MCID)
                 particleType = 1 #1 for bkg
         
         numEvents = 0
@@ -583,6 +586,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 batch_pdg = [] #will be a list of tuple of (radiusR, radiusPhi, pdg, MCID)
                 batch_prod_sec = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, prod_sec, MCID)
                 batch_photon_par = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, has_parent_photon, MCID)
+                batch_cart_pos_status = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, x, y, z, genstatus, MCID)
                 # numBatches = 0 #total batches should be numFiles * 10
                 particleType = 0 #0 for signal
                 
@@ -609,6 +613,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 batch_edep_pos_signal = {} #used only in combined files #dict key is r,phi and value is (r,phi,edep)
                 batch_prod_sec = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, prod_sec, MCID)
                 batch_photon_par = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, has_parent_photon, MCID)
+                batch_cart_pos_status = {} #will be a dic of tuple of pos to (radiusR, radiusPhi, x, y, z, genstatus, MCID)
                 
                 batch_pos_bkgOverlay = {} #used only in combined files #dict key is r,phi and value is (r,phi,bkgOverlayStatus)
         
@@ -628,6 +633,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     mcParticle = mcParticleHit
                 else:
                     mcParticle = EventMCParticles[int(index_mc)] #segfaults for combined, idk why
+                # mcParticle = mcParticleHit
                 
                 
                 if index_mc not in all_mcID:
@@ -667,6 +673,11 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     if parent.getPDG() == 22:
                         has_photon_parent = 1
                         break
+                    
+                if (unique_layer_index, nphi) not in batch_cart_pos_status:
+                    batch_cart_pos_status[(unique_layer_index, nphi)] = [(unique_layer_index, nphi, dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z, mcParticle.getGeneratorStatus(), index_mc)]
+                else:
+                    batch_cart_pos_status[(unique_layer_index, nphi)].append((unique_layer_index, nphi, dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z, mcParticle.getGeneratorStatus(), index_mc))
                         
                 # get occupancy cell fired?
                 if not cellID_unique_identifier in dict_cellID_nHits.keys(): # the cell was not fired yet
@@ -712,11 +723,10 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     if (unique_layer_index, nphi) not in batch_prod_sec:
                         batch_prod_sec[(unique_layer_index, nphi)] = [(unique_layer_index, nphi, dc_hit.isProducedBySecondary(), index_mc)]
                     else:
-                        batch_prod_sec[(unique_layer_index, nphi)].append((unique_layer_index, nphi, dc_hit.isProducedBySecondary(), index_mc))                    # print(f"unique_layer_index: {unique_layer_index} and nphi: {nphi}")
+                        batch_prod_sec[(unique_layer_index, nphi)].append((unique_layer_index, nphi, dc_hit.isProducedBySecondary(), index_mc))                 
                     # find where in edep tuple the pos is of the previously fired cell
                     index = [i for i, tup in enumerate(occupancies_a_batch_edep) if tup[0] == unique_layer_index and tup[1] == nphi] 
                     #above can be otpimized if we use a dictionary but it goes fast as is
-                    # print(i)
                     if len(index) == 0:
                         print("Error: unique_layer_index not found in occupancy_a_batch_edep")
                     else:
@@ -772,6 +782,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 list_dic_PDG.append(batch_pdg)
                 list_dic_photon_par.append(batch_photon_par)
                 list_prod_sec.append(batch_prod_sec)
+                list_dic_cart_pos_status.append(batch_cart_pos_status)
                 
                 numBatches += 1
                 
@@ -822,6 +833,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 combined_overlay_status.append(occupancies_a_batch_isBkgOverlay)
                 energy_dep_per_cell_per_batch_bkg.append(list(batch_edep_pos_bkg.values()))
                 energy_dep_per_cell_per_batch_signal.append(list(batch_edep_pos_signal.values()))
+                list_dic_cart_pos_status.append(batch_cart_pos_status)
 
                 numBatches += 1
         ###end of event loop
@@ -862,6 +874,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             list_dic_PDG.append(batch_pdg)
             list_prod_sec.append(batch_prod_sec)
             list_dic_photon_par.append(batch_photon_par)
+            list_dic_cart_pos_status.append(batch_cart_pos_status)
             
             numBatches += 1
             
@@ -945,6 +958,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic["list_dic_PDG_by_batch"] = list_dic_PDG
     dic["list_dic_photon_par_by_batch"] = list_dic_photon_par
     dic["list_prod_sec_by_batch"] = list_prod_sec
+    
+    dic["list_dic_cart_pos_status_by_batch"] = list_dic_cart_pos_status
 
     # print(f"shape of occupancy_per_batch_sum_batches: {dic['occupancy_per_batch_sum_batches'].shape}")
 

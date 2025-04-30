@@ -171,21 +171,6 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
             dic["byBatchNeighbors"][i][r, phi] = numNeighbors
             dic["oneDbyBatchNeighbors"].append(numNeighbors) #for every hit we want to get the neighbors of that cell fired
             dic["oneDbyBatchNeighborsEdep"].append(numEdepNeighbors) #for every hit we want to get the neighbors of that cell fired
-            # if numNeighbors == 1:
-            #     dic["oneDneighborPtN1"].append(pT_by_batch[i][j])
-            #     dic["oneDneighborPDGN1"].append(pdg_by_batch[i][j])
-            # if numNeighbors == 2:
-            #     dic["oneDneighborPtN2"].append(pT_by_batch[i][j])
-            #     dic["oneDneighborPDGN2"].append(pdg_by_batch[i][j])
-            # if numNeighbors == 3:
-            #     dic["oneDneighborPtN3"].append(pT_by_batch[i][j])
-            #     dic["oneDneighborPDGN3"].append(pdg_by_batch[i][j])
-            # if numNeighbors == 4:
-            #     dic["oneDneighborPtN4"].append(pT_by_batch[i][j])
-            #     dic["oneDneighborPDGN4"].append(pdg_by_batch[i][j])
-            # if numNeighbors == 5:
-            #     dic["oneDneighborPtN5"].append(pT_by_batch[i][j])
-            #     dic["oneDneighborPDGN5"].append(pdg_by_batch[i][j])
                 
         #end of all hits in a batch
         

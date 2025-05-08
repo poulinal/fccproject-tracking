@@ -142,27 +142,56 @@ PYBIND11_MODULE(dch_module, m) {
         // })
 
         // Expose the database
-        // Get number of layers in database
-        .def("get_database_size", [](const dd4hep::rec::DCH_info_struct& self) {
-            return self.database.size();
-        })
 
-        // Add a method to get a specific layer from the database
-        .def("get_layer", [](dd4hep::rec::DCH_info_struct& self, int layer_num) -> dd4hep::rec::DCH_info_struct::DCH_info_layer& {
-            try {
-                return self.database.at(layer_num);
-            } catch (const std::out_of_range&) {
-                throw py::key_error("Layer not found: " + std::to_string(layer_num));
-            }
-        }, py::return_value_policy::reference)
+        // // Add a method to get a specific layer from the database
+        // .def("get_layer", [](dd4hep::rec::DCH_info_struct& self, int layer_num) -> dd4hep::rec::DCH_info_struct::DCH_info_layer& {
+        //     try {
+        //         return self.database.at(layer_num);
+        //     } catch (const std::out_of_range&) {
+        //         throw py::key_error("Layer not found: " + std::to_string(layer_num));
+        //     }
+        // }, py::return_value_policy::reference)
         
-        // Add method to get all layer numbers
-        .def("get_layer_numbers", [](const dd4hep::rec::DCH_info_struct& self) {
-            py::list result;
-            for (const auto& pair : self.database) {
-                result.append(pair.first);
-            }
-            return result;
+        // // Add method to get all layer numbers
+        // .def("get_layer_numbers", [](const dd4hep::rec::DCH_info_struct& self) {
+        //     py::list result;
+        //     for (const auto& pair : self.database) {
+        //         result.append(pair.first);
+        //     }
+        //     return result;
+        // })
+
+        //get rin
+        .def("get_rin", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.rin / dd4hep::mm;
+        })
+        //get rout
+        .def("get_rout", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.rout / dd4hep::mm;
+        })
+        //get Lhalf
+        .def("get_Lhalf", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.Lhalf / dd4hep::mm;
+        })
+        //get twist angle
+        .def("get_twist_angle", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.twist_angle / dd4hep::deg;
+        })
+        //get nsuperlayers
+        .def("get_nsuperlayers", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.nsuperlayers;
+        })
+        //get nlayersPerSuperlayer
+        .def("get_nlayersPerSuperlayer", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.nlayersPerSuperlayer;
+        })
+        //get ncell0
+        .def("get_ncell0", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.ncell0;
+        })
+        //get ncell_increment
+        .def("get_ncell_increment", [](const dd4hep::rec::DCH_info_struct& self) {
+            return self.ncell_increment;
         })
 
         // Add a method to get database as a list of dictionaries

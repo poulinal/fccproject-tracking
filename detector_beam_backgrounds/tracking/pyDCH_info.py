@@ -32,6 +32,16 @@ class DCH_info(dch_module.DCH_info):
             print("Error: DCH database is not valid / is empty")
             return
         
+        #global parameters
+        self.rin = dch.get_rin()
+        self.rout = dch.get_rout()
+        self.lhalf = dch.get_Lhalf()
+        self.twist_angle = dch.get_twist_angle()
+        self.nlayersPerSuperlayer = dch.get_nlayersPerSuperlayer()
+        self.nsuperlayers = dch.get_nsuperlayers()
+        self.ncell0 = dch.get_ncell0()
+        self.ncell_increment = dch.get_ncell_increment()
+        
         # # Example: Calculate wire position for a specific layer and cell
         # ilayer = 10
         # nphi = 5
@@ -52,7 +62,7 @@ class DCH_info(dch_module.DCH_info):
         
         #access the database
         self._database = dch.get_database_as_list_dic()
-        print(self._database) #radius_sw_z0 is the radius of the layer at z=0
+        # print(self._database) #radius_sw_z0 is the radius of the layer at z=0
 
     def get_database_as_list_dic(self):
         return self._database

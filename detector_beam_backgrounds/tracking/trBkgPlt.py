@@ -1,5 +1,5 @@
 #Alexander Poulin Jan 2025
-import ROOT
+# import ROOT
 import numpy as np 
 from utilities.functions import hist_plot, multi_hist_plot, \
     bar_plot, multi_bar_plot, xy_plot, bar_step_multi_hist_plot, heatmap, hist2d, percent_difference_error, calcEfficiency, calcBinomError
@@ -64,8 +64,8 @@ imageOutputEdepCommonEnd = "" #only gets changed in setup
 #change to personal directories in here:
 def setup(typefile: str ="Bkg", includeSecFile: bool =False, 
           numfiles=500, radiusR=1, radiusPhi=1, atLeast=1,
-          edepRange=-1, edepAtLeast=-1,
-          secFileType = "", secFileNumFiles=500, secFileRadiusR=1, secFileRadiusPhi=1, secFileAtLeast=1, edepLoosen = -1, secFileEdepLoosen = -1):
+          edepRange=-1, edepAtLeast=-1, zrange = 0, edepLoosen = -1,
+          secFileType = "", secFileNumFiles=500, secFileRadiusR=1, secFileRadiusPhi=1, secFileAtLeast=1, secFileEdepLoosen = -1, secFileZRange = 0):
     """
         Setups the file paths and outputs.
         Data paths will lead to either the background or signal data or their combined files (not yet tested).
@@ -106,18 +106,23 @@ def setup(typefile: str ="Bkg", includeSecFile: bool =False,
             includeSecFile -- for when we want to overlay two different files in a plot 
         Return: no return, just updates the global dictionary dic
     """
+    #make first letter of typefile uppercase
+    typefile = typefile.capitalize() 
     if edepRange != -1 and edepAtLeast != -1:
-        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/bkg_background_particles_" + str(numfiles)  + "_v6" + \
-            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy" #cernbox (to save storage)
-        dicSecFileDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/" + str(secFileType).lower() + "_background_particles_" + str(secFileNumFiles) + \
+        backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/rphiedepz/bkg_background_particles_" + str(numfiles)  + "_v6" + \
+            "_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + "_ZR" + str(zrange) + ".npy" #cernbox (to save storage)
+            
+        dicSecFileDataPath = "/eos/user/a/alpoulin/fccBBTrackData/rphiedepz/" + str(secFileType).lower() + "_background_particles_" + str(secFileNumFiles) + \
             "_v6_R" + str(secFileRadiusR) + "_P" + str(secFileRadiusPhi) + "_AL" + str(secFileAtLeast) + "_ER" + str(edepRange) + \
-            "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
-        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/combined_background_particles_" + str(numfiles) + \
+            "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + "_ZR" + str(zrange) + ".npy"
+            
+        combinedDataPath = "/eos/user/a/alpoulin/fccBBTrackData/rphiedepz/combined_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + ".npy"
-        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/wEdepL/signal_background_particles_" + str(numfiles) + \
+                "_EAL" + str(edepAtLeast) + "_EL" + str(int(edepLoosen)) + "_ZR" + str(zrange) + ".npy"
+                
+        signalDataPath = "/eos/user/a/alpoulin/fccBBTrackData/rphiedepz/signal_background_particles_" + str(numfiles) + \
             "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + "_ER" + str(edepRange) + \
-                "_EAL" + str(edepAtLeast)  + "_EL" + str(int(edepLoosen))+ ".npy"
+                "_EAL" + str(edepAtLeast)  + "_EL" + str(int(edepLoosen)) + "_ZR" + str(zrange) + ".npy"
     else:
         backgroundDataPath = "/eos/user/a/alpoulin/fccBBTrackData/bkg_background_particles_" + str(numfiles) + "_v6_R" + str(radiusR) + "_P" + str(radiusPhi) + "_AL" + str(atLeast) + ".npy" #lxplus
         dicSecFileDataPath = "/eos/user/a/alpoulin/fccBBTrackData/" + str(secFileType).lower() + "_background_particles_" + str(secFileNumFiles) + "_v6_R" + str(secFileRadiusR) + "_P" + str(secFileRadiusPhi) + "_AL" + str(secFileAtLeast) + ".npy"
@@ -153,7 +158,7 @@ def setup(typefile: str ="Bkg", includeSecFile: bool =False,
     global imageOutputCommonEnd
     imageOutputCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png"
     global imageOutputEdepCommonEnd
-    imageOutputEdepCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + "EL" + str(int(edepLoosen)) + ".png"
+    imageOutputEdepCommonEnd = "MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + "EL" + str(int(edepLoosen)) + "ZR" + str(zrange) + ".png"
     # print(f"Setup complete for {typeFile} data")
     return dic, dicSecFile
 
@@ -914,7 +919,25 @@ def occupancy(dic, args = ""):
                     hist["energy-deposit-one-batch-has-par-photon"].append(edepdic[(hit[0], hit[1])])
                 else:
                     hist["energy-deposit-one-batch-no-par-photon"].append(edepdic[(hit[0], hit[1])])
-                    
+    
+    if args == "energy_deposit_one_batch_rphiz" or args == "":
+        posToEdepOneBatch = dic["energy_dep_per_cell_RPhiZ"][0]
+        
+        # print(zip(*edepdicOneBatch))
+        rs, phis, zs = zip(*list(posToEdepOneBatch.keys()))
+        rs = np.array(rs)
+        phis = np.array(phis)
+        zs = np.array(zs)
+        edep = [posToEdepOneBatch[key][0] for key in posToEdepOneBatch.keys()]
+        
+        print(f"edep: {edep}")
+        
+        hist = {}
+        hist["energy-deposit-one-batch-r"] = rs
+        hist["energy-deposit-one-batch-phi"] = phis
+        hist["energy-deposit-one-batch-z"] = zs
+        hist["energy-deposit-one-batch-edep"] = edep
+        
             
         
     if args == "energy_deposit_one_batch_low_high_pt" or args == "":
@@ -2173,6 +2196,45 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)     
         
+    if args == "energy-deposit-one-batch-rphiz" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_rphiz")
+        #get all the first values in the tuple:
+        r = hist['energy-deposit-one-batch-r']
+        phi = hist['energy-deposit-one-batch-phi']
+        z = hist['energy-deposit-one-batch-z']
+        edep = hist["energy-deposit-one-batch-edep"]
+        edep = [i * 1000 for i in edep] #convert to mev
+        
+        
+        
+        print(f"lengths: {len(r)}, {len(phi)}, {len(z)}, {len(edep)}")
+        
+        print(f"phi shape: {np.shape(phi)}, r shape: {np.shape(r)}, z shape: {np.shape(z)}, edep shape: {np.shape(edep)}")
+        
+        hist2d(phi, r,
+                  imageOutputPath + "energyDepositOneBatchRPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=896, binSizeY=112, 
+                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+        
+        hist2d(z, r,
+                  imageOutputPath + "energyDepositOneBatchRZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=40, binSizeY=112, 
+                  binLowX=-2000, binHighX=2000, binLowY=0, binHighY=112,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Z Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(16, 25)), pdf=False)
+        
+        hist2d(z, phi,
+                  imageOutputPath + "energyDepositOneBatchZPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeY=896, binSizeX=40, 
+                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 30)), pdf=False)
+        
     if args == "energy-deposit-only-selected" or args == "":
         hist = occupancy(dic, "energy_deposit_only_selected")
         #get all the first values in the tuple:
@@ -2616,19 +2678,22 @@ def genPlot(inputArgs):
                     atLeast=inputArgs[5]
                     edepRange=inputArgs[6] if len(inputArgs) > 6 else 0
                     edepAtLeast=inputArgs[7] if len(inputArgs) > 7 else 0
-                    if len(inputArgs) > 8 and (inputArgs[8] == "True" or inputArgs[8] == "False"):
-                        includeSecFile = bool(inputArgs[8])
-                        secFileType = inputArgs[9] if len(inputArgs) > 9 else "Bkg"
-                        secFileNumFiles = inputArgs[10] if len(inputArgs) > 10 else 500
-                        secFileRadiusR = inputArgs[11] if len(inputArgs) > 11 else 1
-                        secFileRadiusPhi = inputArgs[12] if len(inputArgs) > 12 else 1
-                        secFileAtLeast = inputArgs[13] if len(inputArgs) > 13 else 1
+                    zrange = inputArgs[8] if len(inputArgs) > 8 else 0
+                    
+                    edepLoosen = bool(int(inputArgs[9])) if len(inputArgs) > 9 and inputArgs[9].isdigit() else bool(inputArgs[9]) if len(inputArgs) > 9 and inputArgs[9] == "True" else False
+                    
+                    if len(inputArgs) > 10 and len(inputArgs) > 11 and (inputArgs[10] == "True" or inputArgs[10] == "False" or inputArgs[10].isdigit()):
+                        includeSecFile = bool(inputArgs[11])
+                        secFileType = inputArgs[12] if len(inputArgs) > 12 else "Bkg"
+                        secFileNumFiles = inputArgs[13] if len(inputArgs) > 13 else 500
+                        secFileRadiusR = inputArgs[14] if len(inputArgs) > 14 else 1
+                        secFileRadiusPhi = inputArgs[15] if len(inputArgs) > 15 else 1
+                        secFileAtLeast = inputArgs[16] if len(inputArgs) > 16 else 1
                         dic, dicSecFile = setup(typefile, includeSecFile, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, secFileType, secFileNumFiles, secFileRadiusR, secFileRadiusPhi, secFileAtLeast)
-                    elif len(inputArgs) > 8 and inputArgs[8].isdigit():
-                        edepLoosen = bool(int(inputArgs[8]))
-                        includeSecFile = bool(inputArgs[9]) if len(inputArgs) > 9 else False
-                        secFileType = inputArgs[10] if len(inputArgs) > 10 else "Bkg"
-                        secFileNumFiles = inputArgs[11] if len(inputArgs) > 11 else 500
+                    elif len(inputArgs) > 10 and (inputArgs[10].isdigit() or inputArgs[10] == "True" or inputArgs[10] == "False"):
+                        includeSecFile = bool(inputArgs[10]) if len(inputArgs) > 10 else False
+                        secFileType = inputArgs[11] if len(inputArgs) > 11 else "Bkg"
+                        secFileNumFiles = inputArgs[12] if len(inputArgs) > 12 else 500
                         # bkgRadiusR = inputArgs[11] if len(inputArgs) > 11 else 1
                         # bkgRadiusPhi = inputArgs[12] if len(inputArgs) > 12 else 1
                         # bkgAtLeast = inputArgs[13] if len(inputArgs) > 13 else 1
@@ -2636,9 +2701,10 @@ def genPlot(inputArgs):
                         secFileRadiusPhi = radiusPhi
                         secFileAtLeast = atLeast
                         secFileEdepLoosen = edepLoosen
-                        dic, dicSecFile = setup(typefile, includeSecFile, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, secFileType, secFileNumFiles, secFileRadiusR, secFileRadiusPhi, secFileAtLeast, edepLoosen, secFileEdepLoosen)
-                    elif len(inputArgs) > 7:
-                        dic, dicSecFile = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast)
+                        secFileZRange = zrange
+                        dic, dicSecFile = setup(typefile, includeSecFile, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, zrange, edepLoosen, secFileType, secFileNumFiles, secFileRadiusR, secFileRadiusPhi, secFileAtLeast, secFileEdepLoosen, secFileZRange)
+                    elif len(inputArgs) > 5:
+                        dic, dicSecFile = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast, edepRange, edepAtLeast, zrange, edepLoosen)
                     else: 
                         dic, dicSecFile = setup(typefile, False, numFiles, radiusR, radiusPhi, atLeast)
     # Mapping strings to functions
@@ -2700,6 +2766,7 @@ def genPlot(inputArgs):
         "combined-energy-deposit-one-batch": plotEdep,
         "energy-deposit-one-batch-only-neighbors": plotEdep,
         "energy-deposit-one-batch-only-neighbors-only-edep": plotEdep,
+        "energy-deposit-one-batch-rphiz": plotEdep,
         "energy-deposit-one-batch-high-pt": plotEdep,
         "energy-deposit-one-batch-low-pt": plotEdep,
         "energy-deposit-one-batch-only-par-photon": plotEdep,
@@ -2762,8 +2829,8 @@ typePlots = ["", "all",
                 "hitPosition-all", "hitPosition-oneBatch", "hitPosition-avgNeighbors", "hitPosition-Neighbors", "hitPosition-multiNeighbors",
                 "hitPosition-PDGneighbors", "hitPosition-pTneighbors", "hitPosition-removedPdgNeighborsEdep", "hitPosition-removedPtNeighborsEdep"
              ]
-parser.add_argument('--plot', help="Inputs... \n-- plotType(str): " +
-                    str(typePlots) + 
+parser.add_argument('--plot', help="Inputs... "+
+                    "\n-- plotType(str): " + str(typePlots) + 
                     "\n-- fileType(str): [Bkg], [Signal], [Combined]" + 
                     "\n-- numFiles(int): Default(500)" +
                     "\n-- radiusR(int): Default(1)" +
@@ -2772,6 +2839,7 @@ parser.add_argument('--plot', help="Inputs... \n-- plotType(str): " +
                     "\n-- edepRange(int): Default(1)" +
                     "\n-- edepAtLeast(int): Default(1)" +
                     "\n-- edepLoosen(int): Default(0)" +
+                    "\n-- zrange(int): Default(0)" +
                     "\n-- include2ndFile(optional: Bool): [True] [False]" +
                     "\n-- include2ndFileType(optional: str): [Bkg], [Signal], [Combined]" +
                     "\n-- include2ndFileNumFiles(optional: int): Default(500)" +

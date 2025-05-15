@@ -10,6 +10,7 @@ import argparse
 import time
 import os
 from pyDCH_info import DCH_info
+from utilities.utils import check_odd_fractions, globalPhiIndex, find_closest_indices, kappa
 
 """
 This script is used to update the occupancy of the background particles in the dictionary.
@@ -71,12 +72,14 @@ def driftChamberProperties():
     n_cell_superlayer0 = 192
     n_cell_increment = 48
     n_cell_per_layer = {}
+    n_cell_per_superlayer = {}
     total_number_of_cells = 0
     for sl in range(0, n_superlayers):
         for l in range(0, n_layers_per_superlayer):
             total_number_of_layers += 1
             total_number_of_cells += n_cell_superlayer0 + sl * n_cell_increment
             n_cell_per_layer[str(n_layers_per_superlayer * sl + l)] = n_cell_superlayer0 + sl * n_cell_increment
+        n_cell_per_superlayer[str(sl)] = n_cell_superlayer0 + sl * n_cell_increment
     print("total_number_of_cells: ", total_number_of_cells)
     print("total_number_of_layers: ", total_number_of_layers)
     print("n_cell_per_layer: ", n_cell_per_layer)
@@ -86,21 +89,7 @@ def driftChamberProperties():
     for key in n_cell_per_layer:
         list_max_n_cell_per_layer.append(n_cell_per_layer[key])
     
-    return total_number_of_layers, n_cell_per_layer, max_n_cell_per_layer, total_number_of_cells, n_layers_per_superlayer, n_superlayers, list_max_n_cell_per_layer
-
-
-def kappa(L, phi_d):
-    """Defines the kappa of the wire, which is a constant based on the length and twist angle
-
-    Args:
-        L (float): Total length of the wire (in mm) (defined to be the total length of detector)
-        phi_d (float): Twist angle of the wire (in radians)
-
-    Returns:
-        float: kappa constant
-    """
-    k = 2*L / np.tan(phi_d/2)
-    return k
+    return total_number_of_layers, n_cell_per_layer, n_cell_per_superlayer, max_n_cell_per_layer, total_number_of_cells, n_layers_per_superlayer, n_superlayers, list_max_n_cell_per_layer
     
 def stereoWire(p_c, z, phi, k, phi_d, L):
     """Given the radius of the wire, z position of the cell, angle of the wire about the axis, and kappa of the wire, this function returns the new coordinates of the wire and the angle theta based on a twisted surface.
@@ -181,36 +170,14 @@ def layerDrift(DCHi, n_cell_per_layer):
         # input("Press Enter to continue... DCHi layers")
         z_layer_to_shift[z] = layer_to_shift
         # t_r, theta = stereoWire(350, z, 0, k)
-    all_arc_length_shifts = [layer[3] for z in z_layer_to_shift.values() for layer in z]
-    print(f"all arc length shifts: {all_arc_length_shifts}")
-    all_arc_length_steps = [layer[4] for z in z_layer_to_shift.values() for layer in z]
-    print(f"all arc length steps: {all_arc_length_steps}")
-    input("Press Enter to continue... z_layer_to_shift")
+    # all_arc_length_shifts = [layer[3] for z in z_layer_to_shift.values() for layer in z]
+    # print(f"all arc length shifts: {all_arc_length_shifts}")
+    # all_arc_length_steps = [layer[4] for z in z_layer_to_shift.values() for layer in z]
+    # print(f"all arc length steps: {all_arc_length_steps}")
+    # input("Press Enter to continue... z_layer_to_shift")
     
         
     return z_layer_to_shift
-
-
-def globalPhiIndex(zpos, z_layer_to_shift, n_cell_per_layer):
-    """Given the z position and the z_layer_to_shift, this function returns the global phi index for each layer.
-
-    Args:
-        zpos (list): list of z positions
-        z_layer_to_shift (dict): dictionary which maps z position to a list of tuples (layer, t_r, theta) for each layer
-        n_cell_per_layer (int): number of cells per layer
-
-    Returns:
-        dict: dictionary which maps z position to a list of tuples (layer, t_r, theta) for each layer
-    """
-    
-    global_phi_index = {}
-    for i, z in enumerate(zpos):
-        global_phi_index[z] = []
-        for j in range(0, len(z_layer_to_shift[z])):
-            total_n_cells_in_layer = n_cell_per_layer[j]
-            phi_step = 2 * np.pi / total_n_cells_in_layer
-            global_phi_index[z].append((j, z_layer_to_shift[z][j][1], z_layer_to_shift[z][j][2]))
-    return global_phi_index
 
 def calculateOccupancy(occupancy :list[tuple], unique_layer_index, n_cell_per_layer):
     #basicaly, we are calculating the occupancy of each layer
@@ -272,17 +239,9 @@ def calculateOnlyNeighbors(dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_b
         hit_z = key[2] #already defined in closest z to zpos
         
         n_cells_in_layer = maxnphiPerSuperLayer[superLayerIndex] #number of cells in the layer
-        # z_index = round((hit_z - (-2000)) / 100) ######should make this auto to detector vars####
-        # np.argmin(np.abs(my_array - target))
-        # closest_z = z_layer_to_shift[z_index][0][2] #closest z position to the hit z
-        #but basically, we are getting the index of the z position in the z_layer_to_shift array
-        # print(f"z_index: {z_index}, hit_z: {hit_z}, z_layer_to_shift keys: {z_layer_to_shift.keys()}")
-        # print(f"closest_z: {closest_z}, z_index: {z_index}, hit_z: {hit_z}, z_layer_to_shift cz: {z_layer_to_shift[closest_z]}")
-        # arc_length_step = 2 * np.pi * hit_z / n_cells_in_layer #arc length step for the layer
+ 
         parent_shift_info = z_layer_to_shift[hit_z][unique_layer_index] #get the shift info for the layer
-        # print(shift_info)
-        # input("Press Enter to continue... shift_info")
-        parent_layer_arc_length_step = parent_shift_info[4] #arc length step for the layer        
+        parent_stereo_sign = 1 if parent_shift_info[3] >= 0 else 0
         
         # current_pos = (unique_layer_index, nphi)
         current_pos_full = (unique_layer_index, nphi, hit_z)
@@ -307,6 +266,16 @@ def calculateOnlyNeighbors(dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_b
             rangeR = int(radiusR * pow(1.025, layerSinceHalf))
             rangePhi = int(radiusPhi * pow(1.025, layerSinceHalf)) #take into account the superlayer into the adjustment
             
+            
+        parent_layer_arc_length_step = parent_shift_info[4] #arc length step for the layer
+        
+        #need to check if each neighbor_zlayer shift and parent_zlayer shift are >= 1/4 layer phi step respectively; since radially swepted, both will cross their respective 1/4 phi step at the same time despite the different z positions and radial out
+        #this assumption should hold for the same superlayer
+        check_parent_shift_indicie = check_odd_fractions(parent_shift_info[3], parent_layer_arc_length_step) #check if the shift is greater than 1/4 layer phi step
+        
+        parent_phi_indicie_shift = check_parent_shift_indicie[1] if check_parent_shift_indicie[0] else -1 #this is the indicie of the shift
+        
+        
         neighbors = False
         neighborsEdep = False
         numNeighbors = 0
@@ -315,68 +284,92 @@ def calculateOnlyNeighbors(dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_b
             dicNeighbors[current_pos_full] = [] #setup dictionary for current cell's neighbors
         if current_pos_full not in dicEdepNeighbors:
             dicEdepNeighbors[current_pos_full] = [] #setup dictionary for current cell's neighbors edep
-        
-        #loop over bounding box
-        for dx in range(-rangeR, rangeR + 1):
+            
+            
+        #based on the z and r, we can determine what phi indicies to look at
+        #for now we will look at global ranges, but we can also look at relative ranges/indicies later
+        for dradius in range(-rangeR, rangeR + 1):
             if len(dicNeighbors[current_pos_full]) >= neighborAtLeast and len(dicEdepNeighbors[current_pos_full]) >= edepNeighborAtLeast: #have we already seen enough
                 neighbors = True
                 neighborsEdep = True
                 break #skip if we have already seen enough neighbors and break out of dx loop
             
-            for dy in range(-rangePhi, rangePhi + 1):
+            if dradius == 0:
+                continue
+            for dz in range(-rangeZ, rangeZ + 1, dic_int_vars['zStep']):
+                neighbor_zlayer_candidate_info = z_layer_to_shift[hit_z + dz][unique_layer_index] #get the shift info for the layer
                 
-                for dz in range(-rangeZ, rangeZ + 1, dic_int_vars['zStep']):
-                    # print(f"dx: {dx}, dy: {dy}")
-                    if dx == 0 and dy == 0 and dz == 0: # Skip the center point
-                        continue
-                    if dx == 0:  #skip same layer
-                        continue
+                neighbor_zlayer_candidate_stereo_sign = 1 if neighbor_zlayer_candidate_info[3] >= 0 else 0
                 
-                    cyclic_nphi = (nphi + dy) % maxnphi  # Wrap around for cyclic nphi #we will assume 180 for now
-                    cyclic_unique_layer_index = unique_layer_index + dx
-                    noncyclic_z = hit_z + dz
+                if neighbor_zlayer_candidate_stereo_sign != parent_stereo_sign: #check if the stereo sign is the same
+                    neighbor_zlayer_shift = neighbor_zlayer_candidate_info[3]#arc length shift for the layer
+                    check_neighbor_zlayer_shift_indicie = check_odd_fractions(neighbor_zlayer_shift, parent_layer_arc_length_step) #check if the shift is greater than 1/4 layer phi step
                     
-                    if cyclic_unique_layer_index < 0 or cyclic_unique_layer_index >= maxLayer: #check boundaries ###fixx
-                        continue
+                    neighbor_zlayer_shift_indicie = check_neighbor_zlayer_shift_indicie[1] if check_neighbor_zlayer_shift_indicie[0] else -1 #this is the indicie of the shift
+                else:
+                    neighbor_zlayer_shift, parent_phi_indicie_shift = 0, 0 #i.e. if the stereo sign is the same, we can assume the shift is 0 since they are the same layer and will be shifting in parallel
                     
-                    neighbor_pos = (cyclic_unique_layer_index, cyclic_nphi)
-                    neighbor_pos_full = (cyclic_unique_layer_index, cyclic_nphi, noncyclic_z)
-                    
-                    neighbor_shift_info = z_layer_to_shift[noncyclic_z][cyclic_unique_layer_index] #get the shift info for the layer
-                    
-                    ### if neighbor_pos in dic_RPhiKey_by_batch[pos_full]:
-                    
-                    if len(dicNeighbors[current_pos_full]) < neighborAtLeast and neighbor_pos_full in dic_posToKey_by_batch and neighbor_pos_full not in dicNeighbors[current_pos_full]: 
-                        #not already over nieghbor atleast
-                        #nieghbor exists (i.e. has been fired) (then assume also exists in edep)
-                        #and it hasnt already been counted in dicNeighbors
-                        numNeighbors += 1
-                        
-                        dicNeighbors[current_pos_full].append(neighbor_pos_full) #add neighbor to cell
-                        if neighbor_pos not in dicNeighbors:
-                            dicNeighbors[neighbor_pos_full] = []
-                        dicNeighbors[neighbor_pos_full].append(current_pos_full) #add cell to neighbor (reduce double counting)
-                        
-                    if len(dicEdepNeighbors[current_pos_full]) < edepNeighborAtLeast and neighbor_pos_full in dic_posToKey_by_batch and neighbor_pos_full not in dicEdepNeighbors[current_pos_full]:
-                        neighborEdep = dic_posToKey_by_batch[neighbor_pos_full]['energy_dep_per_cell_RPhiZ'][0] if len(dic_posToKey_by_batch[neighbor_pos_full]['energy_dep_per_cell_RPhiZ']) == 1 else RuntimeError("check since more than one edep") #energy deposition in the cell
-                        # print(f"edeps: {currentEdep}, {neighborEdep}")
-                        if abs(currentEdep - neighborEdep) <= edepRange: #if neighbor within range of edep
-                            numEdepNeighbors += 1
-                            dicEdepNeighbors[current_pos_full].append(neighbor_pos_full) #add neighbor to cell
-                            if neighbor_pos_full not in dicEdepNeighbors:
-                                dicEdepNeighbors[neighbor_pos_full] = []
-                            dicEdepNeighbors[neighbor_pos_full].append(current_pos_full) #add cell to neighbor (reduce double counting)
+                if neighbor_zlayer_shift_indicie != parent_phi_indicie_shift:
+                    print(f"neighbor_zlayer_shift_indicie: {neighbor_zlayer_shift_indicie}, parent_phi_indicie_shift: {parent_phi_indicie_shift[1]}")
+                    input("Press Enter to continue... neighbor_zlayer_shift_indicie")
+                else: #should be able to use the shift indicies
+                    for dphi in range(-rangePhi, rangePhi + 1):
+                        # print(f"dx: {dx}, dy: {dy}")
+                        if dphi == 0 and dradius == 0 and dz == 0: # Skip the center point
+                            continue
+                        if dradius == 0:  #skip same layer
+                            continue
+                        # print(f"phi: {phi}, radius: {radius}, z: {z}")
+                        # print(f"neighbor_zlayer_shift_indicie: {neighbor_zlayer_shift_indicie}, parent_phi_indicie_shift: {parent_phi_indicie_shift[1]}")
+                        # input("Press Enter to continue... neighbor_zlayer_shift_indicie")
+                        #check if the indicies are the same
+                        if neighbor_zlayer_shift_indicie != parent_phi_indicie_shift:
+                            print(f"Error: neighbor_zlayer_shift_indicie: {neighbor_zlayer_shift_indicie}, parent_phi_indicie_shift: {parent_phi_indicie_shift[1]}")
+                            input("Press Enter to continue... neighbor_zlayer_shift_indicie")
                             
-                    if numNeighbors >= neighborAtLeast:
-                        neighbors = True
-                    if numEdepNeighbors >= edepNeighborAtLeast:
-                        neighborsEdep = True
-                    if neighborsEdep and neighbors: #this may be redundant due to first check
-                        # print("break early")
-                        break
-                #end of dz loop
-            #end of dy loop
-        #end of dx loop
+                        cyclic_nphi = ((nphi + dphi) + neighbor_zlayer_shift_indicie) % maxnphi  # Wrap around for cyclic nphi #we will assume 180 for now
+                        cyclic_unique_layer_index = unique_layer_index + dradius
+                        noncyclic_z = hit_z + dz
+                        
+                        if cyclic_unique_layer_index < 0 or cyclic_unique_layer_index >= maxLayer: #check boundaries ###fixx
+                            continue
+                        
+                        # neighbor_pos = (cyclic_unique_layer_index, cyclic_nphi)
+                        neighbor_pos_full = (cyclic_unique_layer_index, cyclic_nphi, noncyclic_z)
+                        
+                        neighbor_shift_info = z_layer_to_shift[noncyclic_z][cyclic_unique_layer_index] #get the shift info for the layer
+                        
+                        ### if neighbor_pos in dic_RPhiKey_by_batch[pos_full]:
+                        
+                        if len(dicNeighbors[current_pos_full]) < neighborAtLeast and neighbor_pos_full in dic_posToKey_by_batch and neighbor_pos_full not in dicNeighbors[current_pos_full]: 
+                            #not already over nieghbor atleast
+                            #nieghbor exists (i.e. has been fired) (then assume also exists in edep)
+                            #and it hasnt already been counted in dicNeighbors
+                            numNeighbors += 1
+                            
+                            dicNeighbors[current_pos_full].append(neighbor_pos_full) #add neighbor to cell
+                            if neighbor_pos_full not in dicNeighbors:
+                                dicNeighbors[neighbor_pos_full] = []
+                            dicNeighbors[neighbor_pos_full].append(current_pos_full) #add cell to neighbor (reduce double counting)
+                            
+                        if len(dicEdepNeighbors[current_pos_full]) < edepNeighborAtLeast and neighbor_pos_full in dic_posToKey_by_batch and neighbor_pos_full not in dicEdepNeighbors[current_pos_full]:
+                            neighborEdep = dic_posToKey_by_batch[neighbor_pos_full]['energy_dep_per_cell_RPhiZ'][0] if len(dic_posToKey_by_batch[neighbor_pos_full]['energy_dep_per_cell_RPhiZ']) == 1 else RuntimeError("check since more than one edep") #energy deposition in the cell
+                            # print(f"edeps: {currentEdep}, {neighborEdep}")
+                            if abs(currentEdep - neighborEdep) <= edepRange: #if neighbor within range of edep
+                                numEdepNeighbors += 1
+                                dicEdepNeighbors[current_pos_full].append(neighbor_pos_full) #add neighbor to cell
+                                if neighbor_pos_full not in dicEdepNeighbors:
+                                    dicEdepNeighbors[neighbor_pos_full] = []
+                                dicEdepNeighbors[neighbor_pos_full].append(current_pos_full) #add cell to neighbor (reduce double counting)
+                                
+                        if numNeighbors >= neighborAtLeast:
+                            neighbors = True
+                        if numEdepNeighbors >= edepNeighborAtLeast:
+                            neighborsEdep = True
+                        if neighborsEdep and neighbors: #this may be redundant due to first check
+                            # print("break early")
+                            break
+                
 
         #determine outcome of cell:
         if neighbors: #if neighbors, add to only_neighbors
@@ -548,9 +541,16 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
     list_overlay = setUpFiles(typeFile, flexible, numfiles, bkgDataPath, combinedDataPath, bkgFilePath, combinedFilePath, signalFilePath, signalDataPath)
     
-    total_number_of_layers, n_cell_per_layer, max_n_cell_per_layer, total_number_of_cells, n_layers_per_superlayer, n_superlayers, list_max_n_cell_per_layer = driftChamberProperties()
+    total_number_of_layers, n_cell_per_layer, n_cell_per_superlayer, max_n_cell_per_layer, total_number_of_cells, n_layers_per_superlayer, n_superlayers, list_max_n_cell_per_layer = driftChamberProperties()
     
+    
+    
+    
+    original_stdout = sys.stdout
+    sys.stdout = open(os.devnull, 'w') # Temporarily Suppress print statements since opening detector file takes a while
     DCHi = DCH_info(detectorPath = os.path.join(os.environ["K4GEO"], "FCCee/IDEA/compact/IDEA_o1_v03/IDEA_o1_v03.xml"))
+    sys.stdout.close()
+    sys.stdout = original_stdout # Re-enable print statements
     # print(DCHi.get_database_as_list_dic())
     z_layer_to_shift = layerDrift(DCHi, n_cell_per_layer)
     # print(f"z_layer_to_shift: {z_layer_to_shift}")
@@ -588,16 +588,21 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                                      #"energy_dep_per_cell_only_neighbors_only_edeps", #energy deposition
                                      "energy_dep_per_cell_RPhiZ",
                                      "energy_dep_per_cell_RPhiZ_noacc",
+                                     "energy_dep_per_cell_xyz_noacc",
                                      "pT", "PDG", "prod_sec", "photon_par", "gen_status", #misc
                                      
                                      #below are the ones more designed for combined only
                                      "combined_overlay_status", 
                                     ]
     
+    dic_xyz_by_batch_keys = ["energy_dep_per_cell_xyz_noacc", ] #this will be a dictionary of np arrays
+    
     dic_RPhiKey_by_batch_keys = ["pos_full", "energy_dep_per_cell", "energy_dep_per_cell_non_acc", "energy_dep_per_cell_only_neighbors", "energy_dep_per_cell_only_neighbors_only_edeps"] 
     list_RPhiKey_by_batch = [] #this will be a list of dictionaries where each dictionary is a batch, each dictionary has the key tuple (unique_layer_index, nphi) to a dictionary of keys from dic_posToKey_by_batch_keys, the values of which is a list of values (since we can have multiple hits in the same cell)
         
-    list_posToKey_by_batch = [] #this will be a list of dictionaries where each dictionary is a batch, each dictionary has the key tuple (unique_layer_index, nphi, stereoAngle) to a dictionary of keys from dic_posToKey_by_batch_keys, the values of which is a list of values (since we can have multiple hits in the same cell)
+    list_posToKey_by_batch = [] #this will be a list of dictionaries where each dictionary is a batch, each dictionary has the key tuple (unique_layer_index, nphi, z) to a dictionary of keys from dic_posToKey_by_batch_keys, the values of which is a list of values (since we can have multiple hits in the same cell)
+    
+    list_xyz_by_batch = [] #this will be a list of dictionaries where each dictionary is a batch, each dictionary has the key tuple (x, y, z) to a dictionary of keys from dic_xyz_by_batch_keys, the values of which is a list of values (since we can have multiple hits in the same cell)
     
 
     dic_list_mcIDs_by_batch_keys = ["mcID_index_all", 
@@ -607,7 +612,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     dic_list_mcIDs_by_batch = [] #this will be a list of dic_list_mcIDs_by_batch_keys for each batch
         
     dic_int_vars = {}
-    dic_int_vars_keys = ["numBatches", "NoNeighborsRemoved", "NeighborsRemained", "EdepNeighborsRemained", "NoEdepNeighborsRemoved", "list_max_n_cell_per_layer", "list_max_n_cell_per_superlayer", "n_cell_per_layer", "z_layer_to_shift", "total_number_of_cells", "total_number_of_layers", "radiusR", "radiusPhi", "atLeast", "edepRange", "edepAtLeast", "edepLoosen", "zrange"]
+    dic_int_vars_keys = ["numBatches", "NoNeighborsRemoved", "NeighborsRemained", "EdepNeighborsRemained", "NoEdepNeighborsRemoved", "list_max_n_cell_per_layer", "list_max_n_cell_per_superlayer", "n_cell_per_layer", "n_cell_per_superlayer", "z_layer_to_shift", "total_number_of_cells", "total_number_of_layers", "radiusR", "radiusPhi", "atLeast", "edepRange", "edepAtLeast", "edepLoosen", "zrange"]
     dic_int_vars["numBatches"] = 0
     dic_int_vars["NoNeighborsRemoved"] = 0
     dic_int_vars["NeighborsRemained"] = 0
@@ -620,6 +625,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
     print(f"max_n_cell_per_superlayer: {dic_int_vars['list_max_n_cell_per_superlayer']}")
     print(f"list_max_n_cell_per_layer: {dic_int_vars['list_max_n_cell_per_layer']}")
     dic_int_vars["n_cell_per_layer"] = n_cell_per_layer
+    dic_int_vars["n_cell_per_superlayer"] = n_cell_per_superlayer
     dic_int_vars["z_layer_to_shift"] = z_layer_to_shift
     dic_int_vars["total_number_of_cells"] = total_number_of_cells
     dic_int_vars["total_number_of_layers"] = total_number_of_layers
@@ -669,6 +675,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 #note that values for any given key is a list of tuple, now most of the time it will be a single tuple, but in the case of multiple hits in the same exact cell, it will be len of the list > 1
                 dic_RPhiKey_by_batch = {}
                 dic_list_mcIDs_one_batch = {} #dic of mcID's for each batch; to make it easier to index their values
+                dic_xyz_by_batch = {}
                 for key in dic_list_mcIDs_by_batch_keys:
                                 dic_list_mcIDs_one_batch[key] = []
         
@@ -687,6 +694,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 #note that values for any given key is a list of tuple, now most of the time it will be a single tuple, but in the case of multiple hits in the same exact cell, it will be len of the list > 1
                 dic_RPhiKey_by_batch = {}
                 dic_list_mcIDs_one_batch = {} #dic of mcID's for each batch; to make it easier to index their values
+                dic_xyz_by_batch = {}
                 for key in dic_list_mcIDs_by_batch_keys:
                     dic_list_mcIDs_one_batch[key] = []
                     
@@ -699,6 +707,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 #note that values for any given key is a list of tuple, now most of the time it will be a single tuple, but in the case of multiple hits in the same exact cell, it will be len of the list > 1
                 dic_RPhiKey_by_batch = {}
                 dic_list_mcIDs_one_batch = {} #dic of mcID's for each batch; to make it easier to index their values
+                dic_xyz_by_batch = {}
                 for key in dic_list_mcIDs_by_batch_keys:
                     dic_list_mcIDs_one_batch[key] = []
                 dc_hits = event.get("NewCDCHHits")
@@ -742,6 +751,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 
                 
                 current_cell_fired_position_tuple = (unique_layer_index, nphi, approx_hit_z)
+                current_cell_fired_position_tuple_xyz = (dc_hit.getPosition().x, dc_hit.getPosition().y, dc_hit.getPosition().z)
                 current_cell_fired_position_tuple_onlyRPhi = (unique_layer_index, nphi) #this is the key we will use to index the dictionary, we dont need the z value since we are only interested in the occupancy of the cell
                 
                 if current_cell_fired_position_tuple not in dic_posToKey_by_batch: #have not seen this cell yet
@@ -752,6 +762,12 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                     dic_RPhiKey_by_batch[current_cell_fired_position_tuple_onlyRPhi] = {}
                     for key in dic_RPhiKey_by_batch_keys: #initialize all keys to empty lists
                         dic_RPhiKey_by_batch[current_cell_fired_position_tuple_onlyRPhi][key] = []
+                        
+                if current_cell_fired_position_tuple_xyz not in dic_xyz_by_batch: #have not seen this cell yet
+                    dic_xyz_by_batch[current_cell_fired_position_tuple_xyz] = {}
+                    for key in dic_xyz_by_batch_keys: #initialize all keys to empty lists
+                        dic_xyz_by_batch[current_cell_fired_position_tuple_xyz][key] = []
+
                 #else this key already exists, we simply append to the current list for the key
                                     
                 #get mcIndex
@@ -799,6 +815,8 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 
                 #put into pos_full
                 dic_RPhiKey_by_batch[current_cell_fired_position_tuple_onlyRPhi]['pos_full'].append((unique_layer_index, nphi, approx_hit_z))
+                
+                dic_xyz_by_batch[current_cell_fired_position_tuple_xyz]['energy_dep_per_cell_xyz_noacc'].append((dc_hit.getEDep()))
                         
                         
                 # only phi,R
@@ -847,6 +865,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 list_posToKey_by_batch.append(dic_posToKey_by_batch)
                 list_RPhiKey_by_batch.append(dic_RPhiKey_by_batch)
                 dic_list_mcIDs_by_batch.append(dic_list_mcIDs_one_batch)
+                list_xyz_by_batch.append(dic_xyz_by_batch)
                 
                 dic_int_vars["numBatches"] += 1
                 
@@ -885,6 +904,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
                 list_posToKey_by_batch.append(dic_posToKey_by_batch)
                 list_RPhiKey_by_batch.append(dic_RPhiKey_by_batch)
                 dic_list_mcIDs_by_batch.append(dic_list_mcIDs_one_batch)
+                list_xyz_by_batch.append(dic_xyz_by_batch)
 
                 dic_int_vars["numBatches"] += 1
         ###end of event loop
@@ -893,19 +913,28 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
         #the next one resets the 20 file batch
         if (i + 1) % batches == 0 and typeFile == "bkg":
             print(f"setting occupancy for batch: {dic_int_vars['numBatches']}")
-            dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_batch, dic_list_mcIDs_one_batch, dic_all_occupancies, batchVars = calcOcc(dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_batch, dic_list_mcIDs_one_batch, dic_all_occupancies, batchVars)
-            
-            cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
-            energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
-            energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
-            cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
-            cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
-            
+            dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_batch, dic_list_mcIDs_one_batch, dic_all_occupancies, batchVars = calcOcc(dic_int_vars, dic_posToKey_by_batch, dic_RPhiKey_by_batch, dic_list_mcIDs_one_batch, dic_all_occupancies, batchVars) #
+                
+                
             list_posToKey_by_batch.append(dic_posToKey_by_batch)
             list_RPhiKey_by_batch.append(dic_RPhiKey_by_batch)
             dic_list_mcIDs_by_batch.append(dic_list_mcIDs_one_batch)
+            list_xyz_by_batch.append(dic_xyz_by_batch)
             
             dic_int_vars["numBatches"] += 1
+            
+            # cell_fired_pos_neighbors_per_batch.append(batch_cell_fired_pos_neighbors)
+            # energy_dep_per_cell_per_batch_only_neighbors.append(edep_only_neighbors)
+            # energy_dep_per_cell_per_batch_only_neighbors_only_edeps.append(edep_only_neighbors_only_edep)
+            # cell_to_mcID_neighbors_per_batch.append(cell_to_mcID_neighbors)
+            # cell_to_mcID_neighbors_edeps_per_batch.append(cell_to_mcID_neighbors_edeps)
+            
+            # list_posToKey_by_batch.append(dic_posToKey_by_batch)
+            # list_RPhiKey_by_batch.append(dic_RPhiKey_by_batch)
+            # dic_list_mcIDs_by_batch.append(dic_list_mcIDs_one_batch)
+            # list_xyz_by_batch.append(dic_xyz_by_batch)
+            
+            # dic_int_vars["numBatches"] += 1
                     
                     
         # percentage_of_fired_cells.append(100 * len(dict_cellID_nHits.keys())/float(total_number_of_cells)  )
@@ -958,6 +987,24 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
         energy_dep_rphiz.append(batch_rphiz)
     # dic["energy_dep_per_cell_RPhiZ"] = [batch[pos_tuple]['energy_dep_per_cell_RPhiZ'] for batch in list_posToKey_by_batch for pos_tuple in batch.keys()]
     dic["energy_dep_per_cell_RPhiZ"] = energy_dep_rphiz #list of dictionaries; keys = pos, value = edep
+    
+    energy_dep_xyz = []
+    for batch in list_xyz_by_batch:
+        batch_xyz = {}
+        for pos_tuple in batch.keys():
+            if len(batch[pos_tuple]['energy_dep_per_cell_xyz_noacc']) > 1:
+                RuntimeError("energy_dep_per_cell_xyz_noacc is not a single value")
+            else:
+                batch_xyz[pos_tuple] = batch[pos_tuple]['energy_dep_per_cell_xyz_noacc']
+        energy_dep_xyz.append(batch_xyz)
+    dic["energy_dep_per_cell_xyz_noacc"] = energy_dep_xyz #list of dictionaries; keys = pos, value = edep
+    
+    
+    dic["n_cell_per_layer"] = n_cell_per_layer
+    dic["n_cell_per_superlayer"] = n_cell_per_superlayer
+    dic["total_number_of_cells"] = total_number_of_cells
+    dic["total_number_of_layers"] = total_number_of_layers
+    dic["max_n_cell_per_layer"] = max_n_cell_per_layer #this is max phi index!!!
     
     
     input("Press Enter to continue... temporary save")
@@ -1012,10 +1059,7 @@ def updateOcc(typeFile="bkg", numfiles=500, radiusR=1, radiusPhi=-1, atLeast=1, 
 
 
 
-    dic["n_cell_per_layer"] = n_cell_per_layer
-    dic["total_number_of_cells"] = total_number_of_cells
-    dic["total_number_of_layers"] = total_number_of_layers
-    dic["max_n_cell_per_layer"] = max_n_cell_per_layer #this is max phi index!!!
+    
 
 
     print(f"No neighbors removed: {NoNeighborsRemoved}")

@@ -10,6 +10,7 @@ import sys
 import matplotlib.pyplot as plt
 import math
 import random
+from utilities.utils import scale_array, find_max_index_less_than
 
 """
 This file contains functions to plot the background data.
@@ -937,7 +938,6 @@ def occupancy(dic, args = ""):
         hist["energy-deposit-one-batch-phi"] = phis
         hist["energy-deposit-one-batch-z"] = zs
         hist["energy-deposit-one-batch-edep"] = edep
-        
             
         
     if args == "energy_deposit_one_batch_low_high_pt" or args == "":
@@ -961,6 +961,108 @@ def occupancy(dic, args = ""):
                 hist["energy-deposit-one-batch-low-pt"].append(edepdicOneBatch[i])
             else:
                 hist["energy-deposit-one-batch-high-pt"].append(edepdicOneBatch[i])
+                
+    if args == "energy_deposit_one_batch_xyz" or args == "":
+        posToEdepOneBatch = dic["energy_dep_per_cell_xyz_noacc"][0]
+        # print(f"posToEdepOneBatch: {posToEdepOneBatch}")
+        
+        # print(zip(*edepdicOneBatch))
+        xs, ys, zs = zip(*list(posToEdepOneBatch.keys()))
+        xs = np.array(xs)
+        ys = np.array(ys)
+        zs = np.array(zs)
+        edep = [posToEdepOneBatch[key][0] for key in posToEdepOneBatch.keys()]
+        
+        hist = {}
+        hist["energy-deposit-one-batch-x"] = xs
+        hist["energy-deposit-one-batch-y"] = ys
+        hist["energy-deposit-one-batch-z"] = zs
+        hist["energy-deposit-one-batch-edep"] = edep
+        
+    if args == "energy_deposit_one_batch_xyz_to_rphiz" or args == "":
+        posToEdepOneBatch = dic["energy_dep_per_cell_xyz_noacc"][0]
+        # print(f"posToEdepOneBatch: {posToEdepOneBatch}")
+        
+
+        # print(zip(*edepdicOneBatch))
+        xs, ys, zs = zip(*list(posToEdepOneBatch.keys()))
+        xs = np.array(xs)
+        ys = np.array(ys)
+        zs = np.array(zs)
+        edep = [posToEdepOneBatch[key][0] for key in posToEdepOneBatch.keys()]
+        
+        rs = np.sqrt(xs**2 + ys**2)
+        phis = np.mod(np.arctan2(ys, xs), 2 * np.pi) #counter clockwise
+        phisN = np.arctan2(ys, xs)
+        edep = np.array(edep)
+        # print(f"rs: {rs}")
+        # print(f"phis: {phis}")
+        # print(f"zs: {zs}")
+        # print(f"shape rs: {rs.shape}")
+        # print(f"shape phis: {phis.shape}")
+        # print(f"shape zs: {zs.shape}")
+        # print(f"shape edep: {edep.shape}")
+        # print(f"edep: {edep}")
+        
+        hist = {}
+        hist["energy-deposit-one-batch-r"] = rs
+        hist["energy-deposit-one-batch-phi"] = phis
+        hist["energy-deposit-one-batch-z"] = zs
+        hist["energy-deposit-one-batch-edep"] = edep
+        
+        n_cell_per_layer = dic["n_cell_per_layer"]
+        n_cell_per_superlayer = dic["n_cell_per_superlayer"]
+        
+        superlayer_r_list = np.linspace(350, 2000, 14)
+        phi_by_superlayer = {}
+        r_match_phi_by_superlayer = {}
+        z_match_phi_by_superlayer = {}
+        edep_match_phi_by_superlayer = {}
+        for i, radius in enumerate(rs):
+            #find the index of the max value in n_cell_per_layer
+            layer_index = find_max_index_less_than(superlayer_r_list, radius)
+            
+            if layer_index not in phi_by_superlayer:
+                phi_by_superlayer[layer_index] = []
+            phi_by_superlayer[layer_index].append(phis[i])
+            
+            if layer_index not in r_match_phi_by_superlayer:
+                r_match_phi_by_superlayer[layer_index] = []
+            r_match_phi_by_superlayer[layer_index].append(radius)
+            
+            if layer_index not in z_match_phi_by_superlayer:
+                z_match_phi_by_superlayer[layer_index] = []
+            z_match_phi_by_superlayer[layer_index].append(zs[i])
+            
+            if layer_index not in edep_match_phi_by_superlayer:
+                edep_match_phi_by_superlayer[layer_index] = []
+            edep_match_phi_by_superlayer[layer_index].append(edep[i])
+            
+            
+        # for key, values in phi_by_superlayer.items():
+            # print(f"Superlayer {key}: {len(values)} values")
+        # scaledR = scale_array(r, 0, 112)
+        scaledPhi = []
+        scaledR = []
+        
+        nonscaledZ = []
+        nonscaledEdep = []
+        for key in phi_by_superlayer:
+            # print(f"key: {key}")
+            # print(f"phi_by_superlayer[key]: {phi_by_superlayer[key]}")
+            # print(f"n_cell_per_layer[str(key)]: {n_cell_per_layer[str(key)]}")
+            if phi_by_superlayer[key]:  # Check if the list is not empty
+                scaledPhi += list(scale_array(phi_by_superlayer[key], 0, n_cell_per_superlayer[str(key)], min(phis), max(phis)))
+            if r_match_phi_by_superlayer[key]:  # Check if the list is not empty
+                scaledR += list(scale_array(r_match_phi_by_superlayer[key], 0, 112, min(rs), max(rs)))
+                
+            nonscaledZ += z_match_phi_by_superlayer[key]
+            nonscaledEdep += edep_match_phi_by_superlayer[key]
+        # phi = scale_array(phi, 0, 896)
+        hist["energy-deposit-one-batch-scaled-phi"] = scaledPhi
+        hist["energy-deposit-one-batch-scaled-r"] = scaledR
+        hist["energy-deposit-one-batch-nonscaled-z"] = nonscaledZ
+        hist["energy-deposit-one-batch-nonscaled-edep"] = nonscaledEdep
     
     return hist
 
@@ -2235,6 +2337,114 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 30)), pdf=False)
         
+    if args == "energy-deposit-one-batch-xyz" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_xyz")
+        #get all the first values in the tuple:
+        x = hist['energy-deposit-one-batch-x']
+        y = hist['energy-deposit-one-batch-y']
+        z = hist['energy-deposit-one-batch-z']
+        edep = hist["energy-deposit-one-batch-edep"]
+        edep = [i * 1000 for i in edep]
+        #convert to mev
+        hist2d(x, y,
+                  imageOutputPath + "energyDepositOneBatchXYZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=40, binSizeY=40, 
+                  binLowX=-2000, binHighX=2000, binLowY=-2000, binHighY=2000,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="X Index", yLabel="Y Index", figure=plt.figure(figsize=(4, 4)), pdf=False)
+        
+        hist2d(x, z,
+                  imageOutputPath + "energyDepositOneBatchXZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=40, binSizeY=40, 
+                  binLowX=-2000, binHighX=2000, binLowY=-2000, binHighY=2000,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="X Index", yLabel="Z Index", figure=plt.figure(figsize=(4, 4)), pdf=False)
+        
+        hist2d(y, z,
+                  imageOutputPath + "energyDepositOneBatchYZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=40, binSizeY=40, 
+                  binLowX=-2000, binHighX=2000, binLowY=-2000, binHighY=2000,
+                  cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Y Index", yLabel="Z Index", figure=plt.figure(figsize=(4, 4)), pdf=False)
+        
+    if args == "energy-deposit-one-batch-xyz-to-rphiz" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_xyz_to_rphiz")
+        #get all the first values in the tuple:
+        r = hist['energy-deposit-one-batch-r']
+        phi = hist['energy-deposit-one-batch-phi']
+        z = hist['energy-deposit-one-batch-z']
+        edep = hist["energy-deposit-one-batch-edep"]
+        edep = [i * 1000 for i in edep]
+
+        scaledR = scale_array(r, 0, 112)
+        scaledPhi = scale_array(phi, 0, 896)
+        
+        
+        #convert to mev
+        hist2d(scaledPhi, scaledR,
+                  imageOutputPath + "energyDepositOneBatchXYZtoRPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=896, binSizeY=112, 
+                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+        hist2d(z, scaledR,
+                  imageOutputPath + "energyDepositOneBatchXYZtoRZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeX=40, binSizeY=112, 
+                  binLowX=-2000, binHighX=2000, binLowY=0, binHighY=112,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Z Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(16, 25)), pdf=False)
+        hist2d(z, scaledPhi,
+                  imageOutputPath + "energyDepositOneBatchXYZtoZPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
+                  binSizeY=896, binSizeX=40, 
+                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 50)), pdf=False)
+        
+    if args == "energy-deposit-one-batch-xyz-to-rphiz-scaled" or args == "":
+        hist = occupancy(dic, "energy_deposit_one_batch_xyz_to_rphiz")
+        #get all the first values in the tuple:
+        scaledR = hist['energy-deposit-one-batch-scaled-r']
+        scaledPhi = hist['energy-deposit-one-batch-scaled-phi']
+        nonscaledZ = hist['energy-deposit-one-batch-nonscaled-z']
+        nonscaledEdep = hist["energy-deposit-one-batch-nonscaled-edep"]
+        nonscaledEdep = [i * 1000 for i in nonscaledEdep]
+        
+        
+        #convert to mev
+        hist2d(scaledPhi, scaledR,
+                  imageOutputPath + "energyDepositOneBatchXYZtoRPhiScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
+                  binSizeX=896, binSizeY=112, 
+                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+        hist2d(nonscaledZ, scaledR,
+                  imageOutputPath + "energyDepositOneBatchXYZtoRZScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
+                  binSizeX=40, binSizeY=112, 
+                  binLowX=-2000, binHighX=2000, binLowY=0, binHighY=112,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  xLabel="Z Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(16, 25)), pdf=False)
+        hist2d(nonscaledZ, scaledPhi,
+                  imageOutputPath + "energyDepositOneBatchXYZtoZPhiScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
+                  "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
+                  binSizeY=896, binSizeX=40, 
+                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  cmap="viridis", 
+                  colorbarLabel="Energy Deposit (MeV)", logScale=True,
+                  yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 50)), pdf=False)
+        
     if args == "energy-deposit-only-selected" or args == "":
         hist = occupancy(dic, "energy_deposit_only_selected")
         #get all the first values in the tuple:
@@ -2767,6 +2977,9 @@ def genPlot(inputArgs):
         "energy-deposit-one-batch-only-neighbors": plotEdep,
         "energy-deposit-one-batch-only-neighbors-only-edep": plotEdep,
         "energy-deposit-one-batch-rphiz": plotEdep,
+        "energy-deposit-one-batch-xyz": plotEdep,
+        "energy-deposit-one-batch-xyz-to-rphiz": plotEdep,
+        "energy-deposit-one-batch-xyz-to-rphiz-scaled": plotEdep,
         "energy-deposit-one-batch-high-pt": plotEdep,
         "energy-deposit-one-batch-low-pt": plotEdep,
         "energy-deposit-one-batch-only-par-photon": plotEdep,

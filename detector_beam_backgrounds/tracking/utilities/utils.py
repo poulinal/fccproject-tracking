@@ -57,9 +57,43 @@ def find_max_index_less_than(sorted_arr, target):
             
     return result
 
+def find_closest_point_after_redistribution(X, location_A_index, added_points=48):
+    """
+    Find the closest point to locationA after redistribution with more points.
+    
+    Args:
+        X: Original number of points dividing the circle
+        location_A_index: Index of locationA in original division (0 to X-1)
+        added_points: Number of points added (default=48)
+    
+    Returns:
+        tuple: (closest_point_index, angular_shift)
+            - closest_point_index: Index of closest point in new division
+            - angular_shift: Angular shift between original and new point (radians)
+    """
+    # Calculate angle of locationA in the original division
+    angle_A = 2 * np.pi * location_A_index / X
+    
+    # New points per circle
+    new_X = X + added_points
+    
+    # Calculate theoretical index in new division
+    theoretical_index = angle_A * new_X / (2 * np.pi)
+    
+    # Find closest actual index
+    closest_index = round(theoretical_index)
+    closest_index = closest_index % new_X  # Ensure it's within range
+    
+    # Calculate angle of the closest point
+    closest_angle = 2 * np.pi * closest_index / new_X
+    
+    # Calculate angular shift
+    relative_angular_shift = closest_angle - angle_A
+    # may need to double check if we need to switch the sign
+    
+    return closest_index, relative_angular_shift
 
-
-def check_odd_fractions(A, B, max_k=10):
+def check_odd_fractions(A, B, max_k=160, offset = None, verbose = False):
     """
     Check if A is greater than fractions of form (k/4)B where k is odd. I.e. used where we check if some phi shift is greater than 1/4 phi step, 3/4 phi step, etc.
     
@@ -69,7 +103,7 @@ def check_odd_fractions(A, B, max_k=10):
         max_k: Maximum odd k to check (optional, default=10)
         
     Returns:
-        Dictionary mapping each fraction to True/False (True if A > fraction)
+        tuple (comparison_result, k_value) where comparison_result is True if A is greater than any of the odd fractions, and k_value is the largest odd k for which A >= (k/4)B.
     """
     # # Calculate 4A/B
     # ratio = 4 * A / B
@@ -80,17 +114,98 @@ def check_odd_fractions(A, B, max_k=10):
     #     n -= 1
         
     # Check each odd fraction up to max_k
-    results = {}
-    for k in range(1, max_k + 1, 2):
-        if k == max_k:
-            print(f"Warning: max_k {max_k} reached, A may not be greater than all odd fractions.")
+    resultN = 0
+    resultComparison = False
+    signA = np.sign(A)
+    if offset is not None:
+        A = A + offset
+    absA = np.abs(A)
+    # for k in range(1, max_k + 1, 2):
+    for k in range(1, max_k + 1, 1):
+        if k == max_k: #max shift is 183 with step of 37 which is 20 odd fractions, so we can warn the user if we reach this point
+            print(f"Warning: max_k {max_k} reached, A may not be greater than all odd fractions. Where A = {A}, signA = {signA}, B = {B}, resultN = {resultN}, resultComparison = {resultComparison}")
+            # input("Press Enter to continue, or Ctrl+C to exit.")
         fraction = (k/4) * B
-        comparison = A > fraction
-        if comparison:
-            return True, k
-        if k == 1 and not comparison:
-            return False, -1
+        if verbose:
+            print(f"Checking {k}/4B = {fraction} against A = {A}")
+        comparison= absA >= fraction
+        if comparison: #if A is greater than or equal to the fraction, we set keep going
+            resultComparison = True
+            resultN = k * signA
+        else: #if A is not greater than the fraction, we break
+            break
+        
+    
+    # if resultComparison:      
+    #     return True, resultN
+    # else:
+    #     return False, 0
+    return resultComparison, resultN
         # results[f"{k}/4B = {fraction}"] = comparison
+        
+        
+def fast_check_odd_fractions(A, B, max_k=160, offset = None, verbose = False):
+    """
+    Check if A is greater than fractions of form (k/4)B where k is odd. I.e. used where we check if some phi shift is greater than 1/4 phi step, 3/4 phi step, etc.
+    
+    Args:
+        A: The number to compare
+        B: The constant factor
+        max_k: Maximum odd k to check (optional, default=10)
+        
+    Returns:
+        tuple (comparison_result, k_value) where comparison_result is True if A is greater than any of the odd fractions, and k_value is the largest odd k for which A >= (k/4)B.
+    """
+    # Calculate 4A/B
+    ratio = 4 * A / B
+    
+    # # Find largest odd integer n where n ≤ 4A/B
+    # n = int(ratio)
+    # if n % 2 == 0:  # If n is even, take previous odd
+    #     n -= 1
+        
+    # Check each odd fraction up to max_k
+    resultN = 0
+    resultComparison = False
+    signA = np.sign(A)
+    if offset is not None:
+        A = A + offset
+    absA = np.abs(A)
+
+    # Prepare the list of fractions (k/4)*B for k in 1..max_k
+    fractions = np.array([(k / 4) * B for k in range(1, max_k + 1)])
+    # Binary search for the largest k where absA >= (k/4)*B
+    left, right = 0, max_k - 1
+    idx = -1
+    while left <= right:
+        mid = (left + right) // 2
+        if absA >= fractions[mid]:
+            idx = mid
+            left = mid + 1
+        else:
+            right = mid - 1
+
+    if idx >= 0:
+        resultComparison = True
+        resultN = (idx + 1) * signA  # k = idx+1 since k starts from 1
+    else:
+        resultComparison = False
+        resultN = 0
+    # print(f"fast_check_odd_fractions: A = {A}, signA = {signA}, B = {B}, resultN = {resultN}, resultComparison = {resultComparison}")
+
+    if idx == max_k - 1:
+        print(f"Warning: max_k {max_k} reached, A may not be greater than all odd fractions. Where A = {A}, signA = {signA}, B = {B}, resultN = {resultN}, resultComparison = {resultComparison}, and offset = {offset}")
+    return resultComparison, resultN
+    
+    
+def faster_check_odd_fractions(A, B, max_k=160, offset = None, verbose = False):
+    resultN = int(4 * A // B)
+    if resultN == 0:
+        resultComparison = False
+    else:
+        resultComparison = True
+
+    return resultComparison, resultN
 
 
 def find_closest_indices(arr, x, n=10): # may delete

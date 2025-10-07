@@ -557,6 +557,28 @@ def occupancy(dic, args = ""):
         hist["cellFiredMCID_per_batch"] = dic["cellFiredMCID_per_batch"]
         hist["onlyNeighborMCID_per_batch"] = dic["onlyNeighborMCID_per_batch"]
         
+    if args == "occupancy_per_batch_sum_batches_global_only_neighbor" or args == "":
+        hist["occupancies_xyz_per_batch_only_neighbors"] = dic["occupancies_xyz_per_batch_only_neighbors"]
+        hist["occupancies_xyz_per_batch_only_neighbors_error"] = dic["occupancies_xyz_per_batch_only_neighbors_error"]
+        posHits = dic["list_posToKey_by_batch"]
+        posGlobalOnlyNeighbors = dic["batchVars"]["pos_global_only_neighbors"]
+        totalHits = len(dic["batchVars"]["pos"])
+        neighborHitsRemained = len(posGlobalOnlyNeighbors)
+        # for batch in posHits:
+        #     #check if key in hist, if not create it
+        #     for pos in batch:
+        #         print(f"batch: {batch}, pos: {pos}")
+        #         if "pos" in batch[pos]:
+        #             totalHits += 1
+        hist["no_neighbors_removed"] = totalHits - neighborHitsRemained
+        hist["neighbors_remained"] = neighborHitsRemained
+        print(f"totalHits: {totalHits}, neighborHitsRemained: {neighborHitsRemained}")
+        
+                
+                
+        hist["cellFiredMCID_per_batch"] = dic["cellFiredMCID_per_batch"]
+        hist["onlyNeighborMCID_per_batch"] = dic["onlyNeighborMCID_per_batch"]
+        
     if args == "occupancy_per_batch_sum_batches_only_neighbor_only_edep" or args == "":
         hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep"] = dic["occupancy_per_batch_sum_batches_only_neighbor_only_edep"]
         hist["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"] = dic["occupancy_per_batch_sum_batches_only_neighbor_only_edep_error"]
@@ -2158,8 +2180,27 @@ def plotOccupancy(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, e
                 xLabel="Radial Layer Index", yLabel="Average Channel Occupancy [%]",
                 includeLegend=False, label="", scatter=True, errorBars=True, yerr = hist["occupancy_per_batch_sum_batches_only_signal_error"])
         
+    if args == "occupancy-onlyNeighbors-global-diff" or args == "":
+        histNeighbor = occupancy(dic, "occupancy_per_batch_sum_batches_global_only_neighbor")
+        hist = occupancy(dic, "occupancy_per_batch_sum_batches")
+        layers = [i for i in range(0, hist["total_number_of_layers"])]
+        ratioDiff = []
+        ratioDiffError = []
+        for i in range(0, len(hist["occupancy_per_batch_sum_batches"])):
+            ratioDiff.append(histNeighbor["occupancies_xyz_per_batch_only_neighbors"][i] / hist["occupancy_per_batch_sum_batches"][i] * 100)
+            ratioDiffError.append(ratioDiff[i] * np.sqrt((histNeighbor["occupancies_xyz_per_batch_only_neighbors_error"][i] / histNeighbor["occupancies_xyz_per_batch_only_neighbors"][i] )**2 if histNeighbor["occupancies_xyz_per_batch_only_neighbors"][i] != 0 else 0
+                                                         + (hist["occupancy_per_batch_sum_batches_error"][i] / hist["occupancy_per_batch_sum_batches"][i])**2))
+        eff = calcEfficiency(typeFile, histNeighbor["no_neighbors_removed"], histNeighbor["neighbors_remained"])
+        xy_plot(layers, ratioDiff, imageOutputPath + "occupancy"+str(typeFile)+"FileBatchMC" + str(numFiles) + "OnlyNeighborsGlobalDiffR" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png",
+                "Average Occupancy Across Each " + batch + " (" + str(numFiles) + " Files)",
+                xLabel="Radial Layer Index", yLabel="Difference in Occupancy [%]", additionalText="Efficiency: " + str(eff),
+                includeLegend=False, label="", scatter=True, errorBars=True, yerr = ratioDiffError)
       
 def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRange=0, edepAtLeast=0, edepLoosen=0):
+    
+    rphiFigSizeRatio = (58, 8)
+    maxLayerNum = 816
+    
     batch = ""
     if typeFile == "Bkg":
         batch = "20 BKG File Batch"
@@ -2231,8 +2272,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                 #   binSize=100,
-                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)
+                  binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)
         
     if args == "combined-energy-deposit-one-batch" or args == "":
         hist = occupancy(dic, "combined_energy_deposit_one_batch")
@@ -2252,7 +2293,7 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         edepBoth = [v[2] for v in hist["combined_energy_one_batch"]]
         edepBoth = [i * 1000 for i in edepBoth]
         
-        fig = plt.figure(figsize=(64, 8))
+        fig = plt.figure(figsize=rphiFigSizeRatio)
         axes = fig.add_subplot(111)
         
         # print(len(edepBkg))
@@ -2261,21 +2302,21 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                     "PathPlaceholder", 
                     "TitlePlaceholder", weights = edepBkg, 
                     cmap="winter", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                    binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                     save=False, label="Bkg Overlay",
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         hist2d(phiSignal, rSignal,
                     "PathPlaceholder", 
                     "TitlePlaceholder", weights = edepSignal, 
                     cmap="autumn", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                    binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                     save=False, label="Signal Overlay", includeColorbar=False,
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         hist2d(phiBoth, rBoth,
                     imageOutputPath + "energyDepositOneBatchBoth"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                     "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edepBoth, 
                     cmap="summer", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                    binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                    binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                     save=True, label="Both Signal and Bkg Hit", includeColorbar=False,
                     xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=fig, axe=axes, pdf=False)
         
@@ -2306,7 +2347,7 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                   imageOutputPath + "energyDepositOneBatchOnlyNeighbors"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
                   binSize=100, cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(15, 8)), pdf=True)     
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=True)     
  
     if args == "energy-deposit-one-batch-only-neighbors-only-edep" or args == "":
         hist = occupancy(dic, "energy_dep_per_cell_per_batch_only_neighbors_only_edeps")
@@ -2320,9 +2361,9 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
                   "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + "ER" + str(edepRange) + "EAL" + str(edepAtLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
                 #   binSize=100,
-                  binSizeX=896, binSizeY=112, 
+                  binSizeX=maxLayerNum, binSizeY=112, 
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(64, 8)), pdf=False)     
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)     
         
     if args == "energy-deposit-one-batch-rphiz" or args == "":
         hist = occupancy(dic, "energy_deposit_one_batch_rphiz")
@@ -2342,8 +2383,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatchRPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeX=896, binSizeY=112, 
-                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, 
+                  binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
         
@@ -2358,8 +2399,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(z, phi,
                   imageOutputPath + "energyDepositOneBatchZPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeY=896, binSizeX=40, 
-                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  binSizeY=maxLayerNum, binSizeX=40, 
+                  binLowY=0, binHighY=maxLayerNum, binLowX=-2000, binHighX=2000,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 30)), pdf=False)
         
@@ -2406,18 +2447,18 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         edep = [i * 1000 for i in edep]
 
         scaledR = scale_array(r, 0, 112)
-        scaledPhi = scale_array(phi, 0, 896)
+        scaledPhi = scale_array(phi, 0, maxLayerNum)
         
         
         #convert to mev
         hist2d(scaledPhi, scaledR,
                   imageOutputPath + "energyDepositOneBatchXYZtoRPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeX=896, binSizeY=112, 
-                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, 
+                  binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", 
                   colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)
         hist2d(z, scaledR,
                   imageOutputPath + "energyDepositOneBatchXYZtoRZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
@@ -2429,8 +2470,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(z, scaledPhi,
                   imageOutputPath + "energyDepositOneBatchXYZtoZPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeY=896, binSizeX=40, 
-                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  binSizeY=maxLayerNum, binSizeX=40, 
+                  binLowY=0, binHighY=maxLayerNum, binLowX=-2000, binHighX=2000,
                   cmap="viridis", 
                   colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 50)), pdf=False)
@@ -2449,11 +2490,11 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(scaledPhi, scaledR,
                   imageOutputPath + "energyDepositOneBatchXYZtoRPhiScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
-                  binSizeX=896, binSizeY=112, 
-                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, 
+                  binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", 
                   colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)
         hist2d(nonscaledZ, scaledR,
                   imageOutputPath + "energyDepositOneBatchXYZtoRZScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
@@ -2465,8 +2506,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(nonscaledZ, scaledPhi,
                   imageOutputPath + "energyDepositOneBatchXYZtoZPhiScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=nonscaledEdep,
-                  binSizeY=896, binSizeX=40, 
-                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  binSizeY=maxLayerNum, binSizeX=40, 
+                  binLowY=0, binHighY=maxLayerNum, binLowX=-2000, binHighX=2000,
                   cmap="viridis", 
                   colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 50)), pdf=False)
@@ -2557,19 +2598,19 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         non_phi = [v[1] for v in hist["energy-deposit-one-batch-no-par-photon"]]
         non_edep = [v[2] for v in hist["energy-deposit-one-batch-no-par-photon"]]
         non_edep = [i * 1000 for i in non_edep] #convert to mev
-        figure = plt.figure(figsize=(64, 8))
+        figure = plt.figure(figsize=rphiFigSizeRatio)
         axes = figure.add_subplot(111)
         hist2d(non_phi, non_r,
                   "PlaceholderPath", 
                   "PlaceholderTitle", weights = non_edep, 
-                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="Reds", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes, 
                   save=False, label="No Parent Photon", includeLegend=True)
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatchOnlyParPhoton"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
-                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes,
                   label="Has Parent Photon", save=True, includeLegend=True)
@@ -2586,19 +2627,19 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         non_phi = [v[1] for v in hist["energy-deposit-one-batch-non-prod-sec"]]
         non_edep = [v[2] for v in hist["energy-deposit-one-batch-non-prod-sec"]]
         non_edep = [i * 1000 for i in non_edep] #convert to mev
-        figure = plt.figure(figsize=(64, 8))
+        figure = plt.figure(figsize=rphiFigSizeRatio)
         axes = figure.add_subplot(111)
         hist2d(non_phi, non_r,
                   "PlaceholderPath", 
                   "PlaceholderTitle", weights = non_edep, 
-                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="Reds", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes, 
                   save=False, label="Non Produced Secondary", includeLegend=True)
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatchOnlyProdSec"+str(typeFile)+"MC" + str(numFiles) + "R" + str(radiusR) + "P" + str(radiusPhi) + "AL" + str(atLeast) + ".png", 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights = edep, 
-                  binSizeX=896, binSizeY=112, binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=figure, axe=axes,
                   label="Is Produced Secondary", save=True, includeLegend=True)
@@ -2623,10 +2664,10 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatchRShiftedPhi"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeX=896, binSizeY=112, 
-                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, 
+                  binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)
         
         hist2d(z, r,
                   imageOutputPath + "energyDepositOneBatchRZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
@@ -2639,8 +2680,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(z, phi,
                   imageOutputPath + "energyDepositOneBatchShiftedPhiZ"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeY=896, binSizeX=40, 
-                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  binSizeY=maxLayerNum, binSizeX=40, 
+                  binLowY=0, binHighY=maxLayerNum, binLowX=-2000, binHighX=2000,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 30)), pdf=False)
         
@@ -2666,10 +2707,10 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(phi, r,
                   imageOutputPath + "energyDepositOneBatchRShiftedPhiUniScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeX=896, binSizeY=112, 
-                  binLowX=0, binHighX=896, binLowY=0, binHighY=112,
+                  binSizeX=maxLayerNum, binSizeY=112, 
+                  binLowX=0, binHighX=maxLayerNum, binLowY=0, binHighY=112,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
-                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=(32, 4)), pdf=False)
+                  xLabel="Cell Phi Index", yLabel="Cell Layer Index", figure=plt.figure(figsize=rphiFigSizeRatio), pdf=False)
         
         hist2d(z, r,
                   imageOutputPath + "energyDepositOneBatchRZUniScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
@@ -2682,8 +2723,8 @@ def plotEdep(dic, dicSecFile, args="", radiusR=1, radiusPhi=1, atLeast=1, edepRa
         hist2d(z, phi,
                   imageOutputPath + "energyDepositOneBatchShiftedPhiZUniScaled"+str(typeFile)+ imageOutputEdepCommonEnd, 
                   "Energy Deposit Across 1 " + batch + " (" + str(numFiles) + " Files)", weights=edep,
-                  binSizeY=896, binSizeX=40, 
-                  binLowY=0, binHighY=896, binLowX=-2000, binHighX=2000,
+                  binSizeY=maxLayerNum, binSizeX=40, 
+                  binLowY=0, binHighY=maxLayerNum, binLowX=-2000, binHighX=2000,
                   cmap="viridis", colorbarLabel="Energy Deposit (MeV)", logScale=True,
                   yLabel="Cell Phi Index", xLabel="Z Index", figure=plt.figure(figsize=(4, 30)), pdf=False)
         
@@ -3071,6 +3112,7 @@ def genPlot(inputArgs):
         "occupancy-onlyNeighbors-diff": plotOccupancy,
         "occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
         "occupancy-onlyNeighbors-percdiff": plotOccupancy,
+        "occupancy-onlyNeighbors-global-diff": plotOccupancy,
         "only-combined-occupancy-BatchedBatch": plotOccupancy,
         "combined-occupancy-onlyNeighbors-onlyEdeps": plotOccupancy,
         "combined-occupancy-onlyNeighbors-onlyEdeps-diff": plotOccupancy,
